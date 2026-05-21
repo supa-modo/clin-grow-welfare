@@ -1,0 +1,372 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Lexend:wght@100;200;300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+/* CSS reset and base layout (aligned with inns_system/client) */
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+}
+
+body {
+  font-family: var(--font-figtree);
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--color-ink-900);
+  background: var(--color-ink-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+/* Clingrow scrollbar utilities (kept for existing components) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #edf0f3;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.9) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-button {
+  display: none;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.95);
+  border-radius: 999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.95);
+}
+
+.scrollbar-kanban {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.75) transparent;
+}
+.scrollbar-kanban::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-kanban::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-kanban::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.65);
+  border-radius: 999px;
+}
+.scrollbar-kanban::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.85);
+}
+
+@theme {
+  /* Primary — green (Clin-Grow brand actions) */
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+  --color-primary-700: #15803d;
+  --color-primary-800: #166534;
+  --color-primary-900: #14532d;
+
+  /* Brand — alias of primary for marketing/auth UI */
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-200: #bbf7d0;
+  --color-brand-300: #86efac;
+  --color-brand-400: #4ade80;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #166534;
+  --color-brand-900: #14532d;
+
+  /* Secondary — blue accents */
+  --color-secondary-50: #eff6ff;
+  --color-secondary-100: #dbeafe;
+  --color-secondary-200: #bfdbfe;
+  --color-secondary-300: #93c5fd;
+  --color-secondary-400: #60a5fa;
+  --color-secondary-500: #3b82f6;
+  --color-secondary-600: #2563eb;
+  --color-secondary-700: #1d4ed8;
+  --color-secondary-800: #1e40af;
+  --color-secondary-900: #1e3a8a;
+
+  /* Ink — neutrals for text, borders, surfaces */
+  --color-ink-50: #f6f8fb;
+  --color-ink-100: #e9eef5;
+  --color-ink-200: #d5deea;
+  --color-ink-300: #b4c2d5;
+  --color-ink-400: #889bb4;
+  --color-ink-500: #66758c;
+  --color-ink-600: #4d5a6e;
+  --color-ink-700: #364153;
+  --color-ink-800: #202a38;
+  --color-ink-900: #121826;
+
+  /* Font families */
+  --font-figtree: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-google: "Google Sans Flex", "Figtree", sans-serif;
+  --font-mukta: "Mukta", sans-serif;
+  --font-source: "Source Sans 3", sans-serif;
+  --font-open: "Open Sans", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+  --font-lexend: "Lexend", sans-serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium;
+  }
+
+  .btn-secondary {
+    @apply bg-ink-100 text-ink-900 px-4 py-2 rounded-lg hover:bg-ink-200 transition-colors font-medium;
+  }
+
+  .btn-success {
+    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2 rounded-[0.6rem] border border-ink-300 bg-white text-ink-900 text-sm placeholder:text-ink-500 placeholder:font-normal focus:outline-none focus:ring-1 focus:ring-primary-600 focus:border-primary-600 transition-all disabled:bg-ink-50 disabled:cursor-not-allowed;
+  }
+
+  .input-error {
+    @apply border-red-400 bg-red-50 text-red-900 focus:ring-red-500 focus:border-red-500;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-md p-6;
+  }
+
+  .card-header {
+    @apply border-b border-ink-200 pb-4 mb-4;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(
+      135deg,
+      var(--color-primary-500) 0%,
+      var(--color-primary-700) 100%
+    );
+  }
+
+  .gradient-brand {
+    background: linear-gradient(
+      135deg,
+      var(--color-brand-500) 0%,
+      var(--color-brand-700) 100%
+    );
+  }
+
+  .gradient-secondary {
+    background: linear-gradient(
+      135deg,
+      var(--color-secondary-500) 0%,
+      var(--color-secondary-700) 100%
+    );
+  }
+
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .spinner {
+    border: 3px solid rgba(22, 163, 74, 0.35);
+    border-top-color: var(--color-primary-400);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  }
+
+  .premium-card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .premium-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .gradient-text {
+    background: linear-gradient(
+      135deg,
+      var(--color-brand-600) 0%,
+      var(--color-brand-400) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .premium-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .premium-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  .premium-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+
+  .premium-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* Form focus fallback (components handle most focus styling) */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+}
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Typography utilities */
+.font-figtree {
+  font-family: var(--font-figtree);
+}
+
+.font-google {
+  font-family: var(--font-google);
+}
+
+.font-mukta {
+  font-family: var(--font-mukta);
+}
+
+.font-source {
+  font-family: var(--font-source);
+}
+
+.font-open {
+  font-family: var(--font-open);
+}
+
+.font-outfit {
+  font-family: var(--font-outfit);
+}
+
+.font-lexend {
+  font-family: var(--font-lexend);
+}
+
+/* Toast animations */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-progress-fill {
+  transform-origin: left center;
+  animation: toastProgress var(--toast-duration, 4000ms) linear forwards;
+}
+
+@keyframes toastProgress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

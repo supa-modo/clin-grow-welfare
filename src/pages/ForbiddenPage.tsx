@@ -1,0 +1,1 @@
+export function ForbiddenPage() { return <div className='min-h-screen grid place-items-center'><div className='bg-white p-6 rounded shadow'><h1 className='text-2xl font-semibold'>403 Forbidden</h1></div></div>; }
