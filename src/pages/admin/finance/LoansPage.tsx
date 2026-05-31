@@ -1,0 +1,348 @@
+import { useEffect, useState } from 'react';
+import { FiCheck, FiX, FiDollarSign, FiEye, FiDownload, FiAlertTriangle, FiFileText } from 'react-icons/fi';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { DataTable, type Column } from '@/components/ui/DataTable';
+import { Modal } from '@/components/ui/Modal';
+import { Spinner, EmptyState } from '@/components/ui/Feedback';
+import { Badge } from '@/components/ui/Badge';
+import { loanApi } from '@/services/loanApi';
+import type { Loan, LoanStatus } from '@/types/loan';
+
+function money(n: number | string | undefined) { return `KES ${Number(n ?? 0).toLocaleString()}`; }
+
+const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
+  ACTIVE: 'success', PARTIALLY_PAID: 'success', CLOSED: 'neutral', DEFAULTED: 'danger',
+  OVERDUE: 'danger', SUBMITTED: 'warning', PENDING_MEETING_APPROVAL: 'warning',
+  READY_FOR_DISBURSEMENT: 'warning', REJECTED: 'danger', IN_ROLLOVER: 'warning',
+};
+
+export function LoansPage() {
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selected, setSelected] = useState<Loan | null>(null);
+  const [statement, setStatement] = useState<any>(null);
+  const [showApprove, setShowApprove] = useState<Loan | null>(null);
+  const [showReject, setShowReject] = useState<Loan | null>(null);
+  const [showRepay, setShowRepay] = useState<Loan | null>(null);
+  const [approvedAmount, setApprovedAmount] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [repayForm, setRepayForm] = useState({ amount: '', paymentMethod: 'CASH', paymentReference: '' });
+  const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<'portfolio' | 'defaulters' | 'aging'>('portfolio');
+  const [defaulters, setDefaulters] = useState<any[]>([]);
+  const [aging, setAging] = useState<any>(null);
+
+  const load = () => {
+    setLoading(true);
+    loanApi.list({ page, search: search || undefined, status: statusFilter || undefined })
+      .then(({ data, meta }) => { setLoans(data); setMeta(meta); })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [page, search, statusFilter]);
+
+  useEffect(() => {
+    if (tab === 'defaulters') loanApi.getDefaulters().then((r) => setDefaulters(r.data));
+    if (tab === 'aging') loanApi.getAging().then(setAging);
+  }, [tab]);
+
+  const openDetail = async (loan: Loan) => {
+    setSelected(loan);
+    const detail = await loanApi.get(loan.id);
+    setStatement(detail.statement);
+  };
+
+  const doVerify = async (loan: Loan) => {
+    try {
+      await loanApi.verify(loan.id);
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? 'Failed to verify');
+    }
+  };
+
+  const doApprove = async () => {
+    if (!showApprove) return;
+    setSaving(true);
+    try {
+      await loanApi.approve(showApprove.id, approvedAmount ? Number(approvedAmount) : undefined);
+      setShowApprove(null);
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? 'Failed to approve');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doReject = async () => {
+    if (!showReject || !rejectReason.trim()) return;
+    setSaving(true);
+    try {
+      await loanApi.reject(showReject.id, rejectReason);
+      setShowReject(null);
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? 'Failed to reject');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doDisburse = async (loan: Loan) => {
+    if (!confirm(`Disburse ${money(loan.approvedAmount ?? loan.requestedAmount)} to ${loan.member?.name}?`)) return;
+    try {
+      await loanApi.disburse(loan.id);
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? 'Failed to disburse');
+    }
+  };
+
+  const doAgreementAction = async (loan: Loan, action: 'generate' | 'verify' | 'authorize') => {
+    try {
+      if (action === 'generate') await loanApi.generateAgreement(loan.id);
+      if (action === 'verify') await loanApi.verifyAgreement(loan.id);
+      if (action === 'authorize') await loanApi.authorizeAgreement(loan.id);
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? 'Failed to update agreement');
+    }
+  };
+
+  const doRepay = async () => {
+    if (!showRepay) return;
+    setSaving(true);
+    try {
+      await loanApi.repay(showRepay.id, { ...repayForm, amount: Number(repayForm.amount) });
+      setShowRepay(null);
+      setRepayForm({ amount: '', paymentMethod: 'CASH', paymentReference: '' });
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? 'Failed to post repayment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const columns: Column<Loan>[] = [
+    { key: 'loanNumber', header: 'Loan No', render: (l) => <span className="font-mono text-xs font-semibold text-brand-700">{l.loanNumber}</span> },
+    { key: 'member', header: 'Member', render: (l) => <span className="font-medium">{l.member?.name ?? l.memberId}</span> },
+    { key: 'requestedAmount', header: 'Amount', render: (l) => money(l.approvedAmount ?? l.requestedAmount) },
+    { key: 'rate', header: 'Rate', render: (l) => `${l.interestRate}% pm` },
+    { key: 'status', header: 'Status', render: (l) => <Badge tone={STATUS_TONE[l.status] ?? 'neutral'}>{l.status.replace(/_/g, ' ')}</Badge> },
+    { key: 'date', header: 'Applied', render: (l) => new Date(l.applicationDate).toLocaleDateString() },
+    {
+      key: 'actions', header: '', render: (l) => (
+        <div className="flex items-center gap-1 flex-wrap">
+          <Button size="sm" variant="ghost" icon={<FiEye size={13} />} onClick={(e) => { e.stopPropagation(); openDetail(l); }}>View</Button>
+          {l.status === 'SUBMITTED' && <Button size="sm" variant="ghost" icon={<FiCheck size={13} />} onClick={(e) => { e.stopPropagation(); doVerify(l); }} className="text-blue-600 hover:bg-blue-50">Verify</Button>}
+          {['PENDING_MEETING_APPROVAL', 'UNDER_REVIEW'].includes(l.status) && (
+            <>
+              <Button size="sm" variant="ghost" icon={<FiCheck size={13} />} onClick={(e) => { e.stopPropagation(); setApprovedAmount(String(l.requestedAmount)); setShowApprove(l); }} className="text-green-600 hover:bg-green-50">Approve</Button>
+              <Button size="sm" variant="ghost" icon={<FiX size={13} />} onClick={(e) => { e.stopPropagation(); setShowReject(l); }} className="text-red-600 hover:bg-red-50">Reject</Button>
+            </>
+          )}
+          {l.status === 'AGREEMENT_PENDING' && (
+            <>
+              <Button size="sm" variant="ghost" icon={<FiFileText size={13} />} onClick={(e) => { e.stopPropagation(); loanApi.downloadAgreement(l.id, `agreement-${l.loanNumber}.pdf`); }}>Agreement</Button>
+              {!l.agreementGeneratedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'generate'); }}>Generate</Button>}
+              {l.memberAcknowledgedAt && !l.treasurerVerifiedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'verify'); }}>Treasurer Verify</Button>}
+              {l.treasurerVerifiedAt && !l.chairpersonAuthorizedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'authorize'); }}>Chair Authorize</Button>}
+            </>
+          )}
+          {l.status === 'READY_FOR_DISBURSEMENT' && <Button size="sm" variant="ghost" icon={<FiDollarSign size={13} />} onClick={(e) => { e.stopPropagation(); doDisburse(l); }} className="text-purple-600 hover:bg-purple-50">Disburse</Button>}
+          {['ACTIVE', 'PARTIALLY_PAID', 'IN_ROLLOVER', 'OVERDUE'].includes(l.status) && (
+            <Button size="sm" variant="ghost" icon={<FiDollarSign size={13} />} onClick={(e) => { e.stopPropagation(); setShowRepay(l); }} className="text-green-600 hover:bg-green-50">Repay</Button>
+          )}
+        </div>
+      )
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Loan Portfolio"
+        subtitle="Manage loan applications, disbursements, and repayments"
+        action={
+          <div className="flex gap-2">
+            {['portfolio', 'defaulters', 'aging'].map((t) => (
+              <Button key={t} size="sm" variant={tab === t ? 'primary' : 'secondary'} onClick={() => setTab(t as any)} icon={t === 'defaulters' ? <FiAlertTriangle size={13} /> : undefined}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </Button>
+            ))}
+          </div>
+        }
+      />
+
+      {tab === 'portfolio' && (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <input className="w-72 rounded-lg border border-ink-300 px-3 py-2 text-sm" placeholder="Search member or loan number..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+            <select className="rounded-lg border border-ink-300 px-3 py-2 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+              <option value="">All Statuses</option>
+              {['SUBMITTED', 'PENDING_MEETING_APPROVAL', 'READY_FOR_DISBURSEMENT', 'ACTIVE', 'PARTIALLY_PAID', 'OVERDUE', 'DEFAULTED', 'CLOSED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+            </select>
+          </div>
+          {loading ? <div className="flex justify-center py-12"><Spinner /></div> : (
+            <DataTable columns={columns} rows={loans} getRowKey={(l) => l.id} onRowClick={openDetail} selectedRowId={selected?.id} />
+          )}
+          {meta && meta.totalPages > 1 && (
+            <div className="flex items-center justify-between text-sm text-ink-500">
+              <span>{meta.total} loans</span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" disabled={!meta.hasPrev} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+                <Button size="sm" variant="secondary" disabled={!meta.hasNext} onClick={() => setPage((p) => p + 1)}>Next</Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'defaulters' && (
+        <div className="space-y-4">
+          <p className="text-sm text-ink-500">Loans that have exceeded the maximum rollover period and are considered defaulted.</p>
+          {defaulters.length === 0 ? (
+            <EmptyState title="No defaulters" message="All loans are within acceptable rollover periods." />
+          ) : (
+            <DataTable
+              columns={[
+                { key: 'loanNo', header: 'Loan No', render: (d) => <span className="font-mono text-xs">{d.loan.loanNumber}</span> },
+                { key: 'member', header: 'Member', render: (d) => d.loan.member?.name },
+                { key: 'overdue', header: 'Months Overdue', render: (d) => <Badge tone="danger">{d.monthsOverdue} months</Badge> },
+                { key: 'outstanding', header: 'Outstanding', render: (d) => <span className="font-semibold text-red-700">{money(d.outstandingBalance)}</span> },
+                { key: 'contact', header: 'Contact', render: (d) => d.loan.member?.phone ?? d.loan.member?.email ?? '—' },
+              ]}
+              rows={defaulters}
+              getRowKey={(d) => d.loan.id}
+            />
+          )}
+        </div>
+      )}
+
+      {tab === 'aging' && aging && (
+        <div className="space-y-6">
+          {Object.entries(aging).map(([bucket, entries]: any) => (
+            <div key={bucket}>
+              <div className="mb-2 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-ink-600">{bucket} days</h3>
+                <Badge tone={bucket === '90+' ? 'danger' : bucket === '61-90' ? 'danger' : bucket === '31-60' ? 'warning' : 'neutral'}>{entries.length} loans</Badge>
+                <span className="text-xs text-ink-500">(Outstanding: {money(entries.reduce((s: number, e: any) => s + e.outstanding, 0))})</span>
+              </div>
+              {entries.length > 0 && (
+                <DataTable
+                  columns={[
+                    { key: 'loan', header: 'Loan No', render: (e: any) => e.loan.loanNumber },
+                    { key: 'member', header: 'Member', render: (e: any) => e.loan.member?.name },
+                    { key: 'days', header: 'Days Active', render: (e: any) => e.daysOverdue },
+                    { key: 'outstanding', header: 'Outstanding', render: (e: any) => money(e.outstanding) },
+                  ]}
+                  rows={entries}
+                  getRowKey={(e: any) => e.loan.id}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Loan Detail Modal */}
+      {selected && (
+        <Modal open={!!selected} title={`Loan — ${selected.loanNumber}`} onClose={() => { setSelected(null); setStatement(null); }} size="xl">
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div><span className="font-semibold text-ink-600">Member:</span> {selected.member?.name}</div>
+              <div><span className="font-semibold text-ink-600">Status:</span> <Badge tone={STATUS_TONE[selected.status] ?? 'neutral'}>{selected.status.replace(/_/g, ' ')}</Badge></div>
+              <div><span className="font-semibold text-ink-600">Rate:</span> {selected.interestRate}% pm</div>
+              <div><span className="font-semibold text-ink-600">Applied:</span> {money(selected.requestedAmount)}</div>
+              <div><span className="font-semibold text-ink-600">Approved:</span> {selected.approvedAmount ? money(selected.approvedAmount) : '—'}</div>
+              {selected.disbursedAt && <div><span className="font-semibold text-ink-600">Disbursed:</span> {new Date(selected.disbursedAt).toLocaleDateString()}</div>}
+            </div>
+            {statement && (
+              <div className="rounded-lg bg-ink-50 p-4 grid grid-cols-2 gap-3 text-sm">
+                <div><span className="font-semibold text-ink-600">Disbursed:</span> {money(statement.disbursed)}</div>
+                <div><span className="font-semibold text-ink-600">Total Interest:</span> {money(statement.totalInterest)}</div>
+                <div><span className="font-semibold text-ink-600">Total Penalties:</span> {money(statement.totalPenalties)}</div>
+                <div><span className="font-semibold text-ink-600">Total Repaid:</span> {money(statement.totalRepaid)}</div>
+                <div className="col-span-2 border-t border-ink-200 pt-2 text-base font-bold text-ink-900"><span className="text-ink-600">Outstanding Balance:</span> {money(statement.outstanding)}</div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button size="sm" variant="secondary" icon={<FiDownload size={13} />} onClick={() => loanApi.downloadStatement(selected.id, `statement-${selected.loanNumber}.pdf`)}>Download Statement</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Approve Modal */}
+      {showApprove && (
+        <Modal open={!!showApprove} title="Approve Loan" onClose={() => setShowApprove(null)} footer={
+          <div className="flex justify-end gap-2 px-5 py-3">
+            <Button variant="secondary" onClick={() => setShowApprove(null)}>Cancel</Button>
+            <Button onClick={doApprove} isLoading={saving} loadingText="Approving...">Approve & Ready for Disbursement</Button>
+          </div>
+        }>
+          <div className="p-5 space-y-3">
+            <p className="text-sm text-ink-600">Approving loan for <strong>{showApprove.member?.name}</strong>.</p>
+            <div>
+              <label className="block text-sm font-semibold text-ink-700 mb-1">Approved Amount (KES)</label>
+              <input type="number" className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm" value={approvedAmount} onChange={(e) => setApprovedAmount(e.target.value)} />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Reject Modal */}
+      {showReject && (
+        <Modal open={!!showReject} title="Reject Loan Application" onClose={() => setShowReject(null)} footer={
+          <div className="flex justify-end gap-2 px-5 py-3">
+            <Button variant="secondary" onClick={() => setShowReject(null)}>Cancel</Button>
+            <Button variant="danger" onClick={doReject} disabled={!rejectReason.trim()} isLoading={saving} loadingText="Rejecting...">Reject Application</Button>
+          </div>
+        }>
+          <div className="p-5 space-y-3">
+            <div>
+              <label className="block text-sm font-semibold text-ink-700 mb-1">Reason <span className="text-red-500">*</span></label>
+              <textarea className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm" rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Repay Modal */}
+      {showRepay && (
+        <Modal open={!!showRepay} title={`Record Repayment — ${showRepay.loanNumber}`} onClose={() => setShowRepay(null)} footer={
+          <div className="flex justify-end gap-2 px-5 py-3">
+            <Button variant="secondary" onClick={() => setShowRepay(null)}>Cancel</Button>
+            <Button onClick={doRepay} disabled={!repayForm.amount} isLoading={saving} loadingText="Posting...">Post Repayment</Button>
+          </div>
+        }>
+          <div className="p-5 space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-ink-700 mb-1">Amount (KES)</label>
+              <input type="number" className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm" value={repayForm.amount} onChange={(e) => setRepayForm({ ...repayForm, amount: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-ink-700 mb-1">Payment Method</label>
+                <select className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm" value={repayForm.paymentMethod} onChange={(e) => setRepayForm({ ...repayForm, paymentMethod: e.target.value })}>
+                  {['CASH', 'BANK', 'MPESA', 'TRANSFER', 'OTHER'].map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-ink-700 mb-1">Reference</label>
+                <input className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm" value={repayForm.paymentReference} onChange={(e) => setRepayForm({ ...repayForm, paymentReference: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

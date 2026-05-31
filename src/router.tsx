@@ -7,12 +7,22 @@ import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
 import { MemberRegistrationPage } from '@/pages/auth/MemberRegistrationPage';
 import { Placeholder } from '@/pages/auth/Placeholder';
-import { LedgerPage, ContributionsPage } from '@/pages/admin/pages';
 import { MembersPage } from '@/pages/admin/members';
-import { MemberBeneficiaryPage, MemberDashboardPage, MemberPlaceholderPage, MemberProfilePage } from '@/pages/member/dashboard';
+import { MemberBeneficiaryPage, MemberDashboardPage, MemberProfilePage } from '@/pages/member/dashboard';
+import { MemberContributionsPage } from '@/pages/member/ContributionsPage';
+import { MemberLoansPage } from '@/pages/member/LoansPage';
+import { MemberMeetingsPage } from '@/pages/member/MeetingsPage';
+import { MemberWelfareClaimsPage } from '@/pages/member/WelfareClaimsPage';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
-import { LoansPage, WelfarePage, MeetingsPage, ApprovalsPage, ReportsPage } from '@/pages/admin/phase5to9';
+import { WelfarePage, MeetingsPage, ApprovalsPage, ReportsPage } from '@/pages/admin/phase5to9';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
+import { PortalDashboardPage } from '@/pages/PortalDashboardPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
+import { FinancialYearsPage } from '@/pages/admin/finance/FinancialYearsPage';
+import { ChartOfAccountsPage } from '@/pages/admin/finance/ChartOfAccountsPage';
+import { JournalsPage } from '@/pages/admin/finance/JournalsPage';
+import { ContributionsPage } from '@/pages/admin/finance/ContributionsPage';
+import { LoansPage } from '@/pages/admin/finance/LoansPage';
 
 export const router = createBrowserRouter([
   { path: '/', element: <HomeRedirect />, errorElement: <RouteErrorPage /> },
@@ -23,33 +33,45 @@ export const router = createBrowserRouter([
   { path: '/reset-password', element: <ResetPasswordPage />, errorElement: <RouteErrorPage /> },
   { element: <ProtectedRoute />, errorElement: <RouteErrorPage />, children: [
     { path: '/dashboard', element: <RequireAdmin />, children: [{ element: <AdminLayout />, children: [
-      { index: true, element: <Placeholder title='Admin Dashboard' /> },
+      { index: true, element: <PortalDashboardPage portal='admin' /> },
       { path: 'members', element: <PermissionGate permission='officialsPortal.members.view'><MembersPage /></PermissionGate> },
-      { path: 'ledger', element: <PermissionGate permission='ledger.journal.view'><LedgerPage /></PermissionGate> },
-      { path: 'contributions', element: <PermissionGate permission='contributions.view'><ContributionsPage /></PermissionGate> },
+      { path: 'ledger', element: <PermissionGate permission='ledger.journal.view'><JournalsPage /></PermissionGate> },
+      { path: 'ledger/journals', element: <PermissionGate permission='ledger.journal.view'><JournalsPage /></PermissionGate> },
+      { path: 'ledger/accounts', element: <PermissionGate permission='ledger.accounts.view'><ChartOfAccountsPage /></PermissionGate> },
+      { path: 'ledger/financial-years', element: <PermissionGate permission='financialYears.view'><FinancialYearsPage /></PermissionGate> },
+      { path: 'contributions', element: <PermissionGate permission='officialsPortal.contributions.view'><ContributionsPage /></PermissionGate> },
       { path: 'loans', element: <PermissionGate permission='officialsPortal.loans.view'><LoansPage /></PermissionGate> },
       { path: 'welfare', element: <PermissionGate permission='officialsPortal.welfareClaims.view'><WelfarePage /></PermissionGate> },
       { path: 'meetings', element: <PermissionGate permission='officialsPortal.meetings.view'><MeetingsPage /></PermissionGate> },
       { path: 'approvals', element: <PermissionGate permission='officialsPortal.approvals.view'><ApprovalsPage /></PermissionGate> },
-      { path: 'reports', element: <PermissionGate permission='officialsPortal.reports.view'><ReportsPage /></PermissionGate> }
+      { path: 'reports', element: <PermissionGate permission='officialsPortal.reports.view'><ReportsPage /></PermissionGate> },
+      { path: 'notifications', element: <NotificationsPage /> }
     ]}]},
     { path: '/officials', element: <RequireOfficial />, children: [{ element: <OfficialsLayout />, children: [
-      { index: true, element: <Placeholder title='Officials Dashboard' /> },
+      { index: true, element: <PortalDashboardPage portal='officials' /> },
       { path: 'members', element: <PermissionGate permission='officialsPortal.members.view'><MembersPage /></PermissionGate> },
-      { path: 'contributions', element: <PermissionGate permission='contributions.view'><ContributionsPage /></PermissionGate> },
+      { path: 'ledger', element: <PermissionGate permission='ledger.journal.view'><JournalsPage /></PermissionGate> },
+      { path: 'ledger/journals', element: <PermissionGate permission='ledger.journal.view'><JournalsPage /></PermissionGate> },
+      { path: 'ledger/accounts', element: <PermissionGate permission='ledger.accounts.view'><ChartOfAccountsPage /></PermissionGate> },
+      { path: 'ledger/financial-years', element: <PermissionGate permission='financialYears.view'><FinancialYearsPage /></PermissionGate> },
+      { path: 'contributions', element: <PermissionGate permission='officialsPortal.contributions.view'><ContributionsPage /></PermissionGate> },
       { path: 'loans', element: <PermissionGate permission='officialsPortal.loans.view'><LoansPage /></PermissionGate> },
       { path: 'welfare', element: <PermissionGate permission='officialsPortal.welfareClaims.view'><WelfarePage /></PermissionGate> },
       { path: 'meetings', element: <PermissionGate permission='officialsPortal.meetings.view'><MeetingsPage /></PermissionGate> },
       { path: 'approvals', element: <PermissionGate permission='officialsPortal.approvals.view'><ApprovalsPage /></PermissionGate> },
-      { path: 'reports', element: <PermissionGate permission='officialsPortal.reports.view'><ReportsPage /></PermissionGate> }
+      { path: 'reports', element: <PermissionGate permission='officialsPortal.reports.view'><ReportsPage /></PermissionGate> },
+      { path: 'notifications', element: <NotificationsPage /> }
     ]}]},
     { path: '/member', element: <RequireMember />, children: [{ element: <MemberLayout />, children: [
       { index: true, element: <MemberDashboardPage /> },
       { path: 'profile', element: <MemberProfilePage /> },
       { path: 'beneficiary', element: <MemberBeneficiaryPage /> },
-      { path: 'contributions', element: <MemberPlaceholderPage title='My Contributions' description='Contribution history, receipts, and payment summaries will connect here during the contributions phase.' /> },
-      { path: 'loans', element: <MemberPlaceholderPage title='My Loans' description='Loan eligibility, active balances, and repayment activity will connect here during the loans phase.' /> },
-      { path: 'statements', element: <MemberPlaceholderPage title='Statements' description='Member statements will provide downloadable welfare account summaries once ledger reporting is available.' /> }
+      { path: 'contributions', element: <MemberContributionsPage /> },
+      { path: 'loans', element: <MemberLoansPage /> },
+      { path: 'meetings', element: <MemberMeetingsPage /> },
+      { path: 'welfare', element: <MemberWelfareClaimsPage /> },
+      { path: 'statements', element: <Placeholder title='Statements' /> },
+      { path: 'notifications', element: <NotificationsPage /> }
     ]}]}
   ]}
 ]);

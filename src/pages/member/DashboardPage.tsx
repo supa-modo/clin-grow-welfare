@@ -92,20 +92,30 @@ export function MemberDashboardPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Shares balance" value={money(financial.shareCapital)} note="Ledger connection in Phase 3" icon={<TbWallet />} />
-        <MetricCard label="Kitty contributions" value={money(financial.welfareKitty)} note="Contribution history in Phase 4" icon={<TbPigMoney />} />
-        <MetricCard label="Monthly contributions" value={money(financial.weeklySavings)} note="Recurring contributions in Phase 4" icon={<FiCreditCard />} />
-        <MetricCard label="Loan balance" value={money(financial.activeLoanBalance)} note="Loan module in Phase 5" icon={<FiShield />} />
+        <MetricCard label="Share Capital" value={money(financial.shareCapital)} note="Cumulative share capital balance" icon={<TbWallet />} />
+        <MetricCard label="Welfare Kitty" value={money(financial.welfareKitty)} note="Your welfare kitty contributions" icon={<TbPigMoney />} />
+        <MetricCard label="Weekly Savings" value={money(financial.weeklySavings)} note="Cumulative savings balance" icon={<FiCreditCard />} />
+        <MetricCard label="Active Loan Balance" value={money(financial.activeLoanBalance)} note={financial.activeLoanBalance > 0 ? 'Outstanding loan(s)' : 'No active loans'} icon={<FiShield />} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
         <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-black text-ink-900">Recent contributions</h2>
+            <h2 className="text-base font-black text-ink-900">Loan Eligibility</h2>
             <FiFileText className="text-ink-400" />
           </div>
-          <div className="mt-4 rounded-2xl border border-dashed border-ink-200 bg-ink-50 p-5 text-sm text-ink-500">
-            Contribution receipts will appear here once Phase 4 posting is connected.
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl bg-brand-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 mb-1">Maximum Eligible Amount</p>
+              <p className="text-2xl font-black text-brand-900">{money(financial.loanEligibilityBase * 3)}</p>
+              <p className="text-xs text-brand-600 mt-1">Based on share capital + savings × 3 multiplier (welfare excluded)</p>
+            </div>
+            {financial.finesBalance > 0 && (
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                <FiBell className="inline mr-1" size={13} />
+                You have outstanding fines of {money(financial.finesBalance)}. Please clear to maintain good standing.
+              </div>
+            )}
           </div>
         </div>
         <div className="space-y-4">
@@ -113,18 +123,33 @@ export function MemberDashboardPage() {
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700"><FiCalendar /></span>
               <div>
-                <h2 className="text-base font-black text-ink-900">Upcoming reminder</h2>
-                <p className="text-sm text-ink-500">Expected payment reminders will be shown here.</p>
+                <h2 className="text-base font-black text-ink-900">Portfolio Breakdown</h2>
+                <p className="text-sm font-semibold text-ink-500 mt-1">{money((financial.shareCapital ?? 0) + (financial.weeklySavings ?? 0) + (financial.welfareKitty ?? 0))} total balance</p>
               </div>
+            </div>
+            <div className="mt-3 space-y-2 text-xs">
+              {[['Share Capital', financial.shareCapital, 'bg-brand-500'], ['Weekly Savings', financial.weeklySavings, 'bg-emerald-500'], ['Welfare Kitty', financial.welfareKitty, 'bg-amber-500']].map(([lbl, val, color]) => {
+                const total = (financial.shareCapital ?? 0) + (financial.weeklySavings ?? 0) + (financial.welfareKitty ?? 0);
+                const pct = total > 0 ? Math.round((Number(val) / total) * 100) : 0;
+                return (
+                  <div key={String(lbl)}>
+                    <div className="flex items-center justify-between text-ink-500"><span>{String(lbl)}</span><span className="font-semibold text-ink-700">{money(Number(val))}</span></div>
+                    <div className="mt-1 h-1.5 rounded-full bg-ink-100"><div className={`h-full rounded-full ${String(color)}`} style={{ width: `${pct}%` }} /></div>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700"><FiBell /></span>
               <div>
-                <h2 className="text-base font-black text-ink-900">Notices</h2>
-                <p className="text-sm text-ink-500">Official announcements and welfare notices will appear here.</p>
+                <h2 className="text-base font-black text-ink-900">Quick Links</h2>
               </div>
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              <a href="/member/contributions" className="text-sm font-semibold text-brand-700 hover:underline">View contributions →</a>
+              <a href="/member/loans" className="text-sm font-semibold text-brand-700 hover:underline">View / apply for loans →</a>
             </div>
           </div>
         </div>

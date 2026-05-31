@@ -123,6 +123,7 @@ export function LoginPage() {
             inputMode="email"
             leftIcon={<TbMailFilled className="w-5 h-5" />}
             placeholder="your-email@example.com or 07…"
+            data-testid="login-identifier"
             error={errors.identifier?.message}
             autoComplete="username"
             autoFocus
@@ -147,6 +148,7 @@ export function LoginPage() {
               showPassword ? "Hide password" : "Show password"
             }
             placeholder="Enter your password"
+            data-testid="login-password"
             error={errors.password?.message}
             autoComplete="current-password"
             className="font-bold text-gray-800 placeholder:font-normal"
@@ -177,6 +179,7 @@ export function LoginPage() {
           isLoading={isSubmitting}
           className="w-full py-[0.6rem] md:py-2.5 lg:py-3 bg-brand-700 hover:bg-brand-600"
           loadingText="Signing in…"
+          data-testid="login-submit"
         >
           <div className="flex items-center font-google text-[0.7rem] md:text-[0.78rem] lg:text-[0.82rem] justify-center gap-2">
             <PiSignInDuotone className="w-[1.1rem] h-[1.1rem] lg:w-5 lg:h-5" />
