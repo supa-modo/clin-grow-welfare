@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { Toasts } from "@/components/ui/Feedback";
 import { MemberTopBar } from "@/components/layouts/MemberTopBar";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
@@ -27,16 +27,11 @@ export function OfficialsLayout() {
 }
 
 export function MemberLayout() {
-  const location = useLocation();
-  const isConstitution = location.pathname === "/member/constitution";
-
   return (
     <div className="min-h-screen w-full overflow-x-clip bg-white text-ink-900">
       <MemberTopBar />
       <main
-        className={`mx-auto min-h-[calc(100vh-5rem)] w-full max-w-7xl overflow-x-clip px-2 pb-24 sm:px-3 md:pb-10 lg:pb-10 ${
-          isConstitution ? "pt-16" : "pt-16 lg:pt-24"
-        }`}
+        className="mx-auto min-h-[calc(100vh-5rem)] w-full max-w-7xl overflow-x-clip px-2 pb-24 pt-20 sm:px-3 md:pb-10 lg:pb-10"
       >
         <Outlet />
       </main>

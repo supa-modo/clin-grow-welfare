@@ -1,368 +1,334 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  FiBell,
-  FiCreditCard,
-  FiFileText,
-  FiShield,
-  FiUser,
-} from "react-icons/fi";
-import { TbPigMoney, TbWallet } from "react-icons/tb";
-import { memberPortalApi } from "@/services/memberApi";
-import { loanApi } from "@/services/loanApi";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/services/api";
 import { contributionApi } from "@/services/contributionApi";
-import { StatCard } from "@/components/ui/StatCard";
-import { Badge } from "@/components/ui/Badge";
+import { loanApi } from "@/services/loanApi";
+import { memberPortalApi } from "@/services/memberApi";
+import type { Contribution, MemberArrears } from "@/types/contribution";
+import type { Loan, LoanEligibility, LoanStatement } from "@/types/loan";
 import {
-  ActiveLoanProgress,
-  MemberHero,
-  MemberQuickActionCard,
-  MemberSection,
-  SetupState,
+  ActiveLoanCard,
+  AlertStrip,
+  ContributionProgressCard,
+  DashboardShell,
+  FinancialSummaryCards,
+  MemberAlertsCard,
+  MemberWelcomeCard,
+  MobileFinancialCard,
+  QuickActionsPanel,
+  RecentActivityFeed,
+  ShareCapitalCard,
+  UpcomingMeetingsCard,
+  buildActivities,
+  buildAlerts,
   findActiveLoan,
+  formatDate,
   money,
-} from "@/components/member/MemberCards";
-import type { Loan, LoanStatement } from "@/types/loan";
-import type { Contribution } from "@/types/contribution";
+  percent,
+  summaryIcons,
+  type DashboardMeeting,
+  type DashboardNotification,
+  type MemberDashboardSummary,
+  type MemberArrearsSummary,
+} from "@/components/member/dashboard/MemberDashboardSections";
 
-type MemberBalances = {
-  shareCapital: number;
-  weeklySavings: number;
-  welfareKitty: number;
-  loanEligibilityBase: number;
-  activeLoanBalance: number;
-  finesBalance: number;
+const emptyArrears: MemberArrearsSummary = {
+  shareCapital: { expected: 0, actual: 0, arrears: 0 },
+  weeklySavings: { expected: 0, actual: 0, arrears: 0 },
+  welfareKitty: { expected: 0, actual: 0, arrears: 0 },
 };
 
-type DashboardSummary = {
-  firstName: string;
-  membershipNumber: string;
-  status: string;
-  registrationFeePaid: boolean;
-  dateJoined: string;
-  membershipDuration?: { months?: number };
-  financialSummary: MemberBalances;
+type DashboardState = {
+  summary: MemberDashboardSummary | null;
+  arrears: MemberArrearsSummary;
+  contributions: Contribution[];
+  loans: Loan[];
+  activeLoan: Loan | null;
+  loanStatement: LoanStatement | null;
+  eligibility: LoanEligibility | null;
+  meetings: DashboardMeeting[];
+  notifications: DashboardNotification[];
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  REGISTRATION: "Registration",
-  SHARE_CAPITAL: "Share Capital",
-  WEEKLY_SAVINGS: "Weekly Savings",
-  WELFARE_KITTY: "Welfare Kitty",
-  EMERGENCY_CONTRIBUTION: "Emergency",
-  FINE_PAYMENT: "Fine",
-  OTHER: "Other",
-};
+function normalizeArrears(
+  arrears: MemberArrears | undefined,
+  summary: MemberDashboardSummary,
+): MemberArrearsSummary {
+  return {
+    shareCapital: {
+      expected: Number(arrears?.shareCapital.expected ?? 0),
+      actual: Number(arrears?.shareCapital.actual ?? summary.financialSummary.shareCapital ?? 0),
+      arrears: Number(arrears?.shareCapital.arrears ?? 0),
+    },
+    weeklySavings: {
+      expected: Number(arrears?.weeklySavings.expected ?? 0),
+      actual: Number(arrears?.weeklySavings.actual ?? summary.financialSummary.weeklySavings ?? 0),
+      arrears: Number(arrears?.weeklySavings.arrears ?? 0),
+    },
+    welfareKitty: {
+      expected: Number(arrears?.welfareKitty.expected ?? 0),
+      actual: Number(arrears?.welfareKitty.actual ?? summary.financialSummary.welfareKitty ?? 0),
+      arrears: Number(arrears?.welfareKitty.arrears ?? 0),
+    },
+  };
+}
+
+function contributionPeriodLabel(summary: MemberDashboardSummary | null) {
+  const now = new Date();
+  const start = new Date(summary?.approvedAt ?? summary?.dateJoined ?? now);
+  const activeFrom = start > now ? now : start;
+  return `${formatDate(activeFrom.toISOString())} - ${formatDate(now.toISOString())}`;
+}
+
+function nextRepaymentValue(activeLoan: Loan | null, statement: LoanStatement | null) {
+  if (!activeLoan) return { amount: 0, date: "" };
+  const outstanding = Number(statement?.outstanding ?? activeLoan.outstandingPrincipal ?? 0);
+  const estimatedWeekly = activeLoan.termWeeks
+    ? Math.ceil(outstanding / Math.max(1, activeLoan.termWeeks))
+    : outstanding;
+  return {
+    amount: Math.max(0, estimatedWeekly),
+    date: activeLoan.nextInterestDate ?? "",
+  };
+}
 
 export function MemberDashboardPage() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
-  const [loanStatement, setLoanStatement] = useState<LoanStatement | null>(null);
-  const [recentContributions, setRecentContributions] = useState<Contribution[]>(
-    [],
-  );
+  const [state, setState] = useState<DashboardState>({
+    summary: null,
+    arrears: emptyArrears,
+    contributions: [],
+    loans: [],
+    activeLoan: null,
+    loanStatement: null,
+    eligibility: null,
+    meetings: [],
+    notifications: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError("");
 
-    Promise.all([
-      memberPortalApi.dashboard(),
-      loanApi.myLoans(),
-      contributionApi.myContributions({ page: 1, pageSize: 5 }),
-    ])
-      .then(async ([dash, loans, contribRes]) => {
-        if (cancelled) return;
-        setSummary(dash as DashboardSummary);
-        setRecentContributions(contribRes.data ?? []);
+    async function loadDashboard() {
+      setLoading(true);
+      setError("");
 
-        const active = findActiveLoan(loans);
-        setActiveLoan(active);
-        if (active) {
-          const detail = await loanApi.myLoan(active.id);
-          if (!cancelled) setLoanStatement(detail.statement);
-        } else {
-          setLoanStatement(null);
+      try {
+        const summary = (await memberPortalApi.dashboard()) as MemberDashboardSummary;
+
+        const [arrearsResult, contributionsResult, loansResult, eligibilityResult, meetingsResult, notificationsResult] =
+          await Promise.allSettled([
+            contributionApi.myArrears(),
+            contributionApi.myContributions({ page: 1, pageSize: 12 }),
+            loanApi.myLoans(),
+            loanApi.myEligibility(),
+            api.get<{ meetings: DashboardMeeting[] }>("/member-portal/meetings"),
+            api.get<{ notifications: DashboardNotification[] }>("/notifications", {
+              params: { status: "UNREAD" },
+            }),
+          ]);
+
+        const arrears =
+          arrearsResult.status === "fulfilled"
+            ? normalizeArrears(arrearsResult.value.arrears, summary)
+            : normalizeArrears(undefined, summary);
+        const contributions =
+          contributionsResult.status === "fulfilled" ? contributionsResult.value.data ?? [] : [];
+        const loans = loansResult.status === "fulfilled" ? loansResult.value ?? [] : [];
+        const activeLoan = findActiveLoan(loans);
+        const eligibility = eligibilityResult.status === "fulfilled" ? eligibilityResult.value : null;
+        const meetings = meetingsResult.status === "fulfilled" ? meetingsResult.value.data.meetings ?? [] : [];
+        const notifications =
+          notificationsResult.status === "fulfilled" ? notificationsResult.value.data.notifications ?? [] : [];
+
+        let loanStatement: LoanStatement | null = null;
+        if (activeLoan) {
+          try {
+            const loanDetail = await loanApi.myLoan(activeLoan.id);
+            loanStatement = loanDetail.statement;
+          } catch {
+            loanStatement = null;
+          }
         }
-      })
-      .catch(() => {
-        if (!cancelled)
+
+        if (!cancelled) {
+          setState({
+            summary,
+            arrears,
+            contributions,
+            loans,
+            activeLoan,
+            loanStatement,
+            eligibility,
+            meetings,
+            notifications,
+          });
+        }
+      } catch {
+        if (!cancelled) {
           setError(
-            "We could not load your member dashboard. Please try again later.",
+            "We could not load your member dashboard. Please confirm your account is linked to a member profile or try again later.",
           );
-      })
-      .finally(() => {
+        }
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    void loadDashboard();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (loading) {
-    return (
-      <SetupState
-        loading
-        title="Loading your dashboard"
-        message="Fetching savings, loan status, and recent activity…"
-      />
-    );
-  }
+  const derived = useMemo(() => {
+    if (!state.summary) return null;
 
-  if (error || !summary) {
-    return (
-      <SetupState
-        title="No member profile linked yet"
-        message={
-          error ||
-          "Your user account is not linked to a member record. Contact the welfare office if this persists."
-        }
-      />
+    const financial = state.summary.financialSummary;
+    const weeklySavings = state.arrears.weeklySavings.actual;
+    const expectedWeekly = state.arrears.weeklySavings.expected;
+    const contributionCompletion = percent(weeklySavings, expectedWeekly);
+    const nextRepayment = nextRepaymentValue(state.activeLoan, state.loanStatement);
+    const outstandingLoan = Number(
+      state.loanStatement?.outstanding ?? state.activeLoan?.outstandingPrincipal ?? financial.activeLoanBalance ?? 0,
     );
-  }
+    const outstandingTotal =
+      outstandingLoan + Number(financial.finesBalance ?? 0) + Number(state.arrears.weeklySavings.arrears ?? 0);
 
-  const financial = summary.financialSummary ?? {
-    shareCapital: 0,
-    weeklySavings: 0,
-    welfareKitty: 0,
-    loanEligibilityBase: 0,
-    activeLoanBalance: 0,
-    finesBalance: 0,
-  };
-  const portfolioTotal =
-    financial.shareCapital + financial.weeklySavings + financial.welfareKitty;
-  const maxEligible = financial.loanEligibilityBase * 3;
+    const cards = [
+      {
+        label: "Weekly savings this year",
+        value: money(weeklySavings),
+        helper: "Posted member savings for the open contribution period",
+        icon: summaryIcons.weekly,
+        tone: "success" as const,
+        status: weeklySavings > 0 ? "Posted" : "None",
+      },
+      {
+        label: "Expected savings so far",
+        value: money(expectedWeekly),
+        helper: "Based on active membership date and current welfare settings",
+        icon: summaryIcons.expected,
+        tone: "info" as const,
+      },
+      {
+        label: "Contribution completion",
+        value: `${contributionCompletion}%`,
+        helper:
+          state.arrears.weeklySavings.arrears > 0
+            ? `${money(state.arrears.weeklySavings.arrears)} currently behind`
+            : "Savings are up to date for the expected period",
+        icon: summaryIcons.completion,
+        tone: state.arrears.weeklySavings.arrears > 0 ? "warning" as const : "success" as const,
+      },
+      {
+        label: "Share capital balance",
+        value: money(state.arrears.shareCapital.actual),
+        helper: "Ownership capital used in loan eligibility",
+        icon: summaryIcons.share,
+        tone: "info" as const,
+      },
+      {
+        label: "Welfare kitty balance",
+        value: money(state.arrears.welfareKitty.actual),
+        helper: "Welfare contribution balance",
+        icon: summaryIcons.welfare,
+        tone: "neutral" as const,
+      },
+      {
+        label: "Active loan balance",
+        value: money(outstandingLoan),
+        helper: state.activeLoan ? `${state.activeLoan.loanNumber} outstanding` : "No active loan",
+        icon: summaryIcons.loan,
+        tone: outstandingLoan > 0 ? "warning" as const : "success" as const,
+      },
+      {
+        label: "Next loan repayment",
+        value: state.activeLoan ? money(nextRepayment.amount) : "No active loan",
+        helper: state.activeLoan ? `Due ${formatDate(nextRepayment.date)}` : "Apply when eligible and a window is open",
+        icon: summaryIcons.repayment,
+        tone: state.activeLoan ? "info" as const : "neutral" as const,
+      },
+      {
+        label: "Total outstanding",
+        value: money(outstandingTotal),
+        helper: "Loan balance, fines, and savings arrears combined",
+        icon: summaryIcons.outstanding,
+        tone: outstandingTotal > 0 ? "danger" as const : "success" as const,
+      },
+    ];
+
+    return {
+      financial,
+      weeklySavings,
+      contributionCompletion,
+      outstandingTotal,
+      outstandingLoan,
+      cards,
+      alerts: buildAlerts({
+        summary: state.summary,
+        arrears: state.arrears,
+        activeLoan: state.activeLoan,
+        statement: state.loanStatement,
+        meetings: state.meetings,
+        notifications: state.notifications,
+      }),
+      activities: buildActivities({
+        contributions: state.contributions,
+        loans: state.loans,
+        meetings: state.meetings,
+        notifications: state.notifications,
+      }),
+    };
+  }, [state]);
 
   return (
-    <div className="space-y-6">
-      <MemberHero
-        firstName={summary.firstName}
-        membershipNumber={summary.membershipNumber}
-        status={summary.status}
-        registrationFeePaid={summary.registrationFeePaid}
-      />
+    <DashboardShell loading={loading} error={error}>
+      {state.summary && derived ? (
+        <div className="mx-auto w-full max-w-7xl space-y-4 pb-6 sm:space-y-5">
+          <MemberWelcomeCard
+            summary={state.summary}
+            contributionPeriod={contributionPeriodLabel(state.summary)}
+          />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Share Capital"
-          value={money(financial.shareCapital)}
-          subtitle="Cumulative share capital"
-          icon={TbWallet}
-        />
-        <StatCard
-          label="Weekly Savings"
-          value={money(financial.weeklySavings)}
-          subtitle="Savings balance"
-          icon={FiCreditCard}
-        />
-        <StatCard
-          label="Welfare Kitty"
-          value={money(financial.welfareKitty)}
-          subtitle="Welfare contributions"
-          icon={TbPigMoney}
-        />
-        <StatCard
-          label="Active Loan"
-          value={money(financial.activeLoanBalance)}
-          subtitle={
-            financial.activeLoanBalance > 0
-              ? "Outstanding balance"
-              : "No active loan"
-          }
-          icon={FiShield}
-        />
-      </div>
+          <AlertStrip alerts={derived.alerts} />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
-        <div className="space-y-6">
-          <ActiveLoanProgress loan={activeLoan} statement={loanStatement} />
+          <MobileFinancialCard
+            weeklySavings={derived.weeklySavings}
+            shareCapital={state.arrears.shareCapital.actual}
+            welfareKitty={state.arrears.welfareKitty.actual}
+            activeLoanBalance={derived.outstandingLoan}
+            outstandingTotal={derived.outstandingTotal}
+            completion={derived.contributionCompletion}
+          />
 
-          <MemberSection
-            title="Quick actions"
-            description="Common tasks for your welfare account"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <MemberQuickActionCard
-                title="View contributions"
-                description="History and receipts"
-                icon={<FiCreditCard className="h-6 w-6" />}
-                to="/member/contributions"
+          <FinancialSummaryCards cards={derived.cards} />
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="space-y-4">
+              <ContributionProgressCard
+                arrears={state.arrears}
+                recentContributions={state.contributions}
               />
-              <MemberQuickActionCard
-                title="Apply for loan"
-                description="Check eligibility and apply"
-                icon={<FiFileText className="h-6 w-6" />}
-                to="/member/loans"
+              <ActiveLoanCard
+                loan={state.activeLoan}
+                statement={state.loanStatement}
+                eligibility={state.eligibility}
               />
-              <MemberQuickActionCard
-                title="Account statements"
-                description="Download summaries"
-                icon={<FiFileText className="h-6 w-6" />}
-                to="/member/statements"
-              />
-              <MemberQuickActionCard
-                title="Update profile"
-                description="Contact and dependants"
-                icon={<FiUser className="h-6 w-6" />}
-                to="/member/profile"
-              />
+              <RecentActivityFeed activities={derived.activities} />
             </div>
-          </MemberSection>
 
-          <MemberSection
-            title="Recent contributions"
-            description="Latest posted contributions"
-            action={
-              <Link
-                to="/member/contributions"
-                className="text-xs font-bold text-brand-700 hover:underline"
-              >
-                View all
-              </Link>
-            }
-          >
-            {recentContributions.length ? (
-              <ul className="divide-y divide-slate-100">
-                {recentContributions.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {TYPE_LABELS[c.contributionType] ?? c.contributionType}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(c.periodDate).toLocaleDateString()} ·{" "}
-                        {c.paymentMethod}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-slate-900">
-                        {money(Number(c.amount))}
-                      </p>
-                      <Badge tone={c.status === "POSTED" ? "success" : "warning"}>
-                        {c.status}
-                      </Badge>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-slate-500">
-                No contributions posted yet.
-              </p>
-            )}
-          </MemberSection>
-
-          <MemberSection
-            title="Portfolio breakdown"
-            description={`${money(portfolioTotal)} total savings & welfare`}
-          >
-            <div className="space-y-3">
-              {(
-                [
-                  ["Share Capital", financial.shareCapital, "bg-brand-600"],
-                  ["Weekly Savings", financial.weeklySavings, "bg-emerald-500"],
-                  ["Welfare Kitty", financial.welfareKitty, "bg-amber-500"],
-                ] as const
-              ).map(([lbl, val, color]) => {
-                const pct =
-                  portfolioTotal > 0
-                    ? Math.round((val / portfolioTotal) * 100)
-                    : 0;
-                return (
-                  <div key={lbl}>
-                    <div className="flex justify-between text-xs text-slate-600">
-                      <span>{lbl}</span>
-                      <span className="font-semibold">{money(val)}</span>
-                    </div>
-                    <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full ${color}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </MemberSection>
-
-          {financial.finesBalance > 0 ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              <FiBell className="mr-1 inline" />
-              Outstanding fines of {money(financial.finesBalance)}. Please clear
-              to maintain good standing.
-            </div>
-          ) : null}
+            <aside className="space-y-4">
+              <ShareCapitalCard arrears={state.arrears} />
+              <QuickActionsPanel />
+              <UpcomingMeetingsCard meetings={state.meetings} />
+              <MemberAlertsCard alerts={derived.alerts} />
+            </aside>
+          </div>
         </div>
-
-        <aside className="space-y-4">
-          <MemberSection
-            title="Loan eligibility"
-            description="Based on share capital + savings (welfare excluded)"
-          >
-            <p className="text-2xl font-bold text-brand-800">
-              {money(maxEligible)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Base {money(financial.loanEligibilityBase)} × 3 multiplier
-            </p>
-            <Link
-              to="/member/loans"
-              className="mt-4 inline-block text-sm font-bold text-brand-700 hover:underline"
-            >
-              Manage loans →
-            </Link>
-          </MemberSection>
-
-          <MemberSection title="Membership" description="Account snapshot">
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Member since</dt>
-                <dd className="font-semibold text-slate-800">
-                  {new Date(summary.dateJoined).toLocaleDateString()}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Duration</dt>
-                <dd className="font-semibold text-slate-800">
-                  {summary.membershipDuration?.months ?? 0} months
-                </dd>
-              </div>
-            </dl>
-          </MemberSection>
-
-          <MemberSection title="Quick links">
-            <div className="flex flex-col gap-2 text-sm font-semibold">
-              <Link
-                to="/member/contributions"
-                className="text-brand-700 hover:underline"
-              >
-                Contributions →
-              </Link>
-              <Link
-                to="/member/profile?tab=family"
-                className="text-brand-700 hover:underline"
-              >
-                Family & beneficiaries →
-              </Link>
-              <Link
-                to="/member/notifications"
-                className="text-brand-700 hover:underline"
-              >
-                Notifications →
-              </Link>
-            </div>
-          </MemberSection>
-        </aside>
-      </div>
-    </div>
+      ) : null}
+    </DashboardShell>
   );
 }
 
