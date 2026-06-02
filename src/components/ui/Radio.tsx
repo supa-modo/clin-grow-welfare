@@ -1,6 +1,5 @@
 import React, { useId } from "react";
 import clsx from "clsx";
-
 export type RadioSize = "sm" | "md" | "lg";
 export type RadioVariant = "brand" | "neutral" | "danger" | "white";
 

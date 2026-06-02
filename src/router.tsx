@@ -8,11 +8,14 @@ import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
 import { MemberRegistrationPage } from '@/pages/auth/MemberRegistrationPage';
 import { Placeholder } from '@/pages/auth/Placeholder';
 import { MembersPage } from '@/pages/admin/members';
-import { MemberBeneficiaryPage, MemberDashboardPage, MemberProfilePage } from '@/pages/member/dashboard';
+import { MemberDashboardPage } from '@/pages/member/DashboardPage';
+import { MemberProfilePage } from '@/pages/member/ProfilePage';
 import { MemberContributionsPage } from '@/pages/member/ContributionsPage';
 import { MemberLoansPage } from '@/pages/member/LoansPage';
 import { MemberMeetingsPage } from '@/pages/member/MeetingsPage';
 import { MemberWelfareClaimsPage } from '@/pages/member/WelfareClaimsPage';
+import { MemberStatementsPage } from '@/pages/member/StatementsPage';
+import { MemberConstitutionPage } from '@/pages/member/MemberConstitutionPage';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
 import { WelfarePage, MeetingsPage, ApprovalsPage, ReportsPage } from '@/pages/admin/phase5to9';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
@@ -63,14 +66,14 @@ export const router = createBrowserRouter([
       { path: 'notifications', element: <NotificationsPage /> }
     ]}]},
     { path: '/member', element: <RequireMember />, children: [{ element: <MemberLayout />, children: [
+      { path: 'constitution', element: <MemberConstitutionPage /> },
       { index: true, element: <MemberDashboardPage /> },
       { path: 'profile', element: <MemberProfilePage /> },
-      { path: 'beneficiary', element: <MemberBeneficiaryPage /> },
       { path: 'contributions', element: <MemberContributionsPage /> },
       { path: 'loans', element: <MemberLoansPage /> },
       { path: 'meetings', element: <MemberMeetingsPage /> },
       { path: 'welfare', element: <MemberWelfareClaimsPage /> },
-      { path: 'statements', element: <Placeholder title='Statements' /> },
+      { path: 'statements', element: <MemberStatementsPage /> },
       { path: 'notifications', element: <NotificationsPage /> }
     ]}]}
   ]}

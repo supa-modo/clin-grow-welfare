@@ -1,7 +1,6 @@
 import React, { forwardRef } from "react";
 import { clsx } from "clsx";
 import { FiCalendar } from "react-icons/fi";
-
 interface DateInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "type"
@@ -31,7 +30,7 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
         {label && (
           <label
             className={clsx(
-              "block text-sm pl-1.5 text-gray-700  mb-1",
+              "block text-[0.75rem] lg:text-[0.8rem] font-medium text-ink-500 mb-1 pl-2",
               labelClassName,
             )}
           >
@@ -45,7 +44,7 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
             type="date"
             placeholder="dd/mm/yyyy"
             className={clsx(
-              "w-full px-4 py-2.5 rounded-[0.6rem] border transition-all duration-200 text-[0.75rem] md:text-[0.8rem] lg:text-sm",
+              "w-full pl-2 lg:pl-4 py-2 lg:py-2.5 rounded-[0.6rem] border transition-all duration-200 text-xs lg:text-sm",
               "focus:outline-none focus:ring-1",
               "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500",
               "pr-12",

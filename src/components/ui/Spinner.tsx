@@ -1,6 +1,5 @@
 import React from 'react';
 import { clsx } from 'clsx';
-
 interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;

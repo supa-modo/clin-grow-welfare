@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RiMoreFill } from 'react-icons/ri';
 import clsx from 'clsx';
-
 export interface RowActionItem {
   key: string;
   label: string;
@@ -10,6 +9,7 @@ export interface RowActionItem {
   onClick: () => void;
   variant?: 'default' | 'danger';
   disabled?: boolean;
+  disabledReason?: string;
 }
 
 export interface RowActionsMenuProps {
@@ -64,7 +64,7 @@ export function RowActionsMenu({ items, ariaLabel = 'Row actions', triggerClassN
           setOpen((v) => !v);
         }}
         className={clsx(
-          'flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200/80 text-ink-500 transition-colors hover:border-ink-300 hover:bg-ink-50 hover:text-ink-800',
+          'flex h-7 w-9 items-center justify-center rounded-lg border border-ink-200/80 text-ink-500 transition-colors hover:border-ink-300 hover:bg-ink-50 hover:text-ink-800',
           triggerClassName
         )}
       >
@@ -90,7 +90,9 @@ export function RowActionsMenu({ items, ariaLabel = 'Row actions', triggerClassN
                 type="button"
                 role="menuitem"
                 disabled={item.disabled}
-                onClick={() => {
+                title={item.disabled ? item.disabledReason : undefined}
+                onClick={(event) => {
+                  event.stopPropagation();
                   if (!item.disabled) {
                     item.onClick();
                     setOpen(false);

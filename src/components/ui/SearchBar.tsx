@@ -5,7 +5,6 @@ import {
 } from "react";
 import { FiSearch, FiX } from "react-icons/fi";
 import clsx from "clsx";
-
 export type SearchBarProps = {
   value: string;
   /** Called with the updated string on each keystroke. */

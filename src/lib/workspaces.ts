@@ -8,6 +8,8 @@ export type AuthUser = {
   name?: string;
   email?: string | null;
   phone?: string | null;
+  memberConstitutionAccepted?: boolean;
+  memberConstitutionAcceptedAt?: string | null;
 };
 
 export const officialRoles = [
@@ -54,6 +56,7 @@ export function defaultRouteForUser(user: AuthUser | null) {
   if (!user) return '/login';
   if (isSystemAdmin(user)) return '/dashboard';
   if (isOfficial(user)) return '/officials';
+  if (user.memberId && !user.memberConstitutionAccepted) return '/member/constitution';
   if (user.memberId) return '/member';
   return '/forbidden';
 }

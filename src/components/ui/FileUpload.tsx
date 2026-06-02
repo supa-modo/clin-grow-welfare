@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import clsx from 'clsx';
 import { FiUploadCloud } from 'react-icons/fi';
-
 const DEFAULT_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.jpg,.jpeg,.png,.webp,application/pdf,image/*';
 

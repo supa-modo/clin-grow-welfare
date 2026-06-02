@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { FiChevronDown, FiFilter, FiX } from 'react-icons/fi';
-
 export type MultiFilterValue = Record<string, string[]>;
 
 export type MultiFilterOption = {
@@ -91,7 +90,7 @@ export default function MultiFilterDropdown({
         onClick={() => setOpen((v) => !v)}
         className={clsx(
           'bg-white border rounded-[0.6rem] lg:rounded-[0.7rem] px-4 py-1.5 lg:py-2 text-[0.7rem] lg:text-[0.8rem] font-semibold focus:outline-none flex items-center transition-all duration-200',
-          hasActive ? 'border-primary-600 text-primary-700' : 'border-gray-400 text-gray-700 hover:border-primary-600',
+          hasActive ? 'border-brand-600 text-brand-700' : 'border-gray-400 text-gray-700 hover:border-brand-600',
           disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer',
         )}
       >
@@ -148,7 +147,7 @@ export default function MultiFilterDropdown({
                           onClick={() => updateSection(section, opt.value)}
                           className={clsx(
                             'px-3 py-[0.1rem] text-[0.65rem] md:text-[0.7rem] lg:text-[0.75rem] rounded-[0.4rem] lg:rounded-[0.55rem] border transition-colors',
-                            active ? 'bg-primary-600 text-white' : 'bg-gray-200/70 border-gray-300 text-gray-700 hover:bg-gray-100',
+                            active ? 'bg-primary-500 text-white' : 'bg-gray-200/70 border-gray-300 text-gray-700 hover:bg-gray-100',
                           )}
                         >
                           {opt.label}

@@ -1,159 +1,367 @@
-import { useEffect, useState } from 'react';
-import { FiBell, FiCalendar, FiCreditCard, FiFileText, FiShield } from 'react-icons/fi';
-import { TbPigMoney, TbWallet } from 'react-icons/tb';
-import { memberPortalApi } from '@/services/memberApi';
-import { EmptyState, Spinner } from '@/components/ui/Feedback';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  FiBell,
+  FiCreditCard,
+  FiFileText,
+  FiShield,
+  FiUser,
+} from "react-icons/fi";
+import { TbPigMoney, TbWallet } from "react-icons/tb";
+import { memberPortalApi } from "@/services/memberApi";
+import { loanApi } from "@/services/loanApi";
+import { contributionApi } from "@/services/contributionApi";
+import { StatCard } from "@/components/ui/StatCard";
+import { Badge } from "@/components/ui/Badge";
+import {
+  ActiveLoanProgress,
+  MemberHero,
+  MemberQuickActionCard,
+  MemberSection,
+  SetupState,
+  findActiveLoan,
+  money,
+} from "@/components/member/MemberCards";
+import type { Loan, LoanStatement } from "@/types/loan";
+import type { Contribution } from "@/types/contribution";
 
-function StatusPill({ status }: { status: string }) {
-  const active = status === 'ACTIVE';
-  return (
-    <span className={`rounded-full border px-3 py-1 text-xs font-black ${active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-}
+type MemberBalances = {
+  shareCapital: number;
+  weeklySavings: number;
+  welfareKitty: number;
+  loanEligibilityBase: number;
+  activeLoanBalance: number;
+  finesBalance: number;
+};
 
-function money(value: number) {
-  return `KES ${Number(value ?? 0).toLocaleString()}`;
-}
+type DashboardSummary = {
+  firstName: string;
+  membershipNumber: string;
+  status: string;
+  registrationFeePaid: boolean;
+  dateJoined: string;
+  membershipDuration?: { months?: number };
+  financialSummary: MemberBalances;
+};
 
-function MetricCard({ label, value, note, icon }: { label: string; value: string; note: string; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-ink-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-400">{label}</p>
-          <p className="mt-2 text-2xl font-black text-ink-900">{value}</p>
-          <p className="mt-1 text-xs font-medium text-ink-500">{note}</p>
-        </div>
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700">{icon}</span>
-      </div>
-    </div>
-  );
-}
+const TYPE_LABELS: Record<string, string> = {
+  REGISTRATION: "Registration",
+  SHARE_CAPITAL: "Share Capital",
+  WEEKLY_SAVINGS: "Weekly Savings",
+  WELFARE_KITTY: "Welfare Kitty",
+  EMERGENCY_CONTRIBUTION: "Emergency",
+  FINE_PAYMENT: "Fine",
+  OTHER: "Other",
+};
 
 export function MemberDashboardPage() {
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
+  const [loanStatement, setLoanStatement] = useState<LoanStatement | null>(null);
+  const [recentContributions, setRecentContributions] = useState<Contribution[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    memberPortalApi.dashboard()
-      .then(setSummary)
-      .catch(() => setError('We could not load your member dashboard. Please try again later.'))
-      .finally(() => setLoading(false));
+    setError("");
+
+    Promise.all([
+      memberPortalApi.dashboard(),
+      loanApi.myLoans(),
+      contributionApi.myContributions({ page: 1, pageSize: 5 }),
+    ])
+      .then(async ([dash, loans, contribRes]) => {
+        if (cancelled) return;
+        setSummary(dash as DashboardSummary);
+        setRecentContributions(contribRes.data ?? []);
+
+        const active = findActiveLoan(loans);
+        setActiveLoan(active);
+        if (active) {
+          const detail = await loanApi.myLoan(active.id);
+          if (!cancelled) setLoanStatement(detail.statement);
+        } else {
+          setLoanStatement(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled)
+          setError(
+            "We could not load your member dashboard. Please try again later.",
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
     return (
-      <div className="grid min-h-72 place-items-center rounded-3xl border border-ink-100 bg-white shadow-sm">
-        <div className="flex items-center gap-3 text-sm font-bold text-ink-600"><Spinner /> Loading member dashboard...</div>
-      </div>
+      <SetupState
+        loading
+        title="Loading your dashboard"
+        message="Fetching savings, loan status, and recent activity…"
+      />
     );
   }
 
-  if (error || !summary) return <EmptyState title="No member profile linked yet" message={error || 'Your user account is not linked to a member record.'} />;
+  if (error || !summary) {
+    return (
+      <SetupState
+        title="No member profile linked yet"
+        message={
+          error ||
+          "Your user account is not linked to a member record. Contact the welfare office if this persists."
+        }
+      />
+    );
+  }
 
-  const financial = summary.financialSummary ?? {};
+  const financial = summary.financialSummary ?? {
+    shareCapital: 0,
+    weeklySavings: 0,
+    welfareKitty: 0,
+    loanEligibilityBase: 0,
+    activeLoanBalance: 0,
+    finesBalance: 0,
+  };
+  const portfolioTotal =
+    financial.shareCapital + financial.weeklySavings + financial.welfareKitty;
+  const maxEligible = financial.loanEligibilityBase * 3;
 
   return (
-    <div className="space-y-5">
-      <section className="overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-sm">
-        <div className="bg-gradient-to-r from-brand-50 via-white to-emerald-50 px-5 py-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-brand-700">Member Portal</p>
-              <h1 className="mt-1 text-2xl font-black text-ink-950 md:text-3xl">Welcome, {summary.firstName}</h1>
-              <p className="mt-2 text-sm font-semibold text-ink-500">{summary.membershipNumber}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <StatusPill status={summary.status} />
-              <span className={`rounded-full border px-3 py-1 text-xs font-black ${summary.registrationFeePaid ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-                Registration {summary.registrationFeePaid ? 'Paid' : 'Pending'}
-              </span>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-400">Member since</p>
-              <p className="mt-2 text-lg font-black text-ink-900">{new Date(summary.dateJoined).toLocaleDateString()}</p>
-            </div>
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-400">Membership age</p>
-              <p className="mt-2 text-lg font-black text-ink-900">{summary.membershipDuration?.months ?? 0} months</p>
-            </div>
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-400">Account standing</p>
-              <p className="mt-2 text-lg font-black text-ink-900">{summary.status === 'ACTIVE' && summary.registrationFeePaid ? 'In good standing' : 'Action required'}</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="space-y-6">
+      <MemberHero
+        firstName={summary.firstName}
+        membershipNumber={summary.membershipNumber}
+        status={summary.status}
+        registrationFeePaid={summary.registrationFeePaid}
+      />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Share Capital" value={money(financial.shareCapital)} note="Cumulative share capital balance" icon={<TbWallet />} />
-        <MetricCard label="Welfare Kitty" value={money(financial.welfareKitty)} note="Your welfare kitty contributions" icon={<TbPigMoney />} />
-        <MetricCard label="Weekly Savings" value={money(financial.weeklySavings)} note="Cumulative savings balance" icon={<FiCreditCard />} />
-        <MetricCard label="Active Loan Balance" value={money(financial.activeLoanBalance)} note={financial.activeLoanBalance > 0 ? 'Outstanding loan(s)' : 'No active loans'} icon={<FiShield />} />
-      </section>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Share Capital"
+          value={money(financial.shareCapital)}
+          subtitle="Cumulative share capital"
+          icon={TbWallet}
+        />
+        <StatCard
+          label="Weekly Savings"
+          value={money(financial.weeklySavings)}
+          subtitle="Savings balance"
+          icon={FiCreditCard}
+        />
+        <StatCard
+          label="Welfare Kitty"
+          value={money(financial.welfareKitty)}
+          subtitle="Welfare contributions"
+          icon={TbPigMoney}
+        />
+        <StatCard
+          label="Active Loan"
+          value={money(financial.activeLoanBalance)}
+          subtitle={
+            financial.activeLoanBalance > 0
+              ? "Outstanding balance"
+              : "No active loan"
+          }
+          icon={FiShield}
+        />
+      </div>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
-        <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-black text-ink-900">Loan Eligibility</h2>
-            <FiFileText className="text-ink-400" />
-          </div>
-          <div className="mt-4 space-y-3">
-            <div className="rounded-xl bg-brand-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 mb-1">Maximum Eligible Amount</p>
-              <p className="text-2xl font-black text-brand-900">{money(financial.loanEligibilityBase * 3)}</p>
-              <p className="text-xs text-brand-600 mt-1">Based on share capital + savings × 3 multiplier (welfare excluded)</p>
+      <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
+        <div className="space-y-6">
+          <ActiveLoanProgress loan={activeLoan} statement={loanStatement} />
+
+          <MemberSection
+            title="Quick actions"
+            description="Common tasks for your welfare account"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MemberQuickActionCard
+                title="View contributions"
+                description="History and receipts"
+                icon={<FiCreditCard className="h-6 w-6" />}
+                to="/member/contributions"
+              />
+              <MemberQuickActionCard
+                title="Apply for loan"
+                description="Check eligibility and apply"
+                icon={<FiFileText className="h-6 w-6" />}
+                to="/member/loans"
+              />
+              <MemberQuickActionCard
+                title="Account statements"
+                description="Download summaries"
+                icon={<FiFileText className="h-6 w-6" />}
+                to="/member/statements"
+              />
+              <MemberQuickActionCard
+                title="Update profile"
+                description="Contact and dependants"
+                icon={<FiUser className="h-6 w-6" />}
+                to="/member/profile"
+              />
             </div>
-            {financial.finesBalance > 0 && (
-              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
-                <FiBell className="inline mr-1" size={13} />
-                You have outstanding fines of {money(financial.finesBalance)}. Please clear to maintain good standing.
-              </div>
+          </MemberSection>
+
+          <MemberSection
+            title="Recent contributions"
+            description="Latest posted contributions"
+            action={
+              <Link
+                to="/member/contributions"
+                className="text-xs font-bold text-brand-700 hover:underline"
+              >
+                View all
+              </Link>
+            }
+          >
+            {recentContributions.length ? (
+              <ul className="divide-y divide-slate-100">
+                {recentContributions.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {TYPE_LABELS[c.contributionType] ?? c.contributionType}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(c.periodDate).toLocaleDateString()} ·{" "}
+                        {c.paymentMethod}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-slate-900">
+                        {money(Number(c.amount))}
+                      </p>
+                      <Badge tone={c.status === "POSTED" ? "success" : "warning"}>
+                        {c.status}
+                      </Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">
+                No contributions posted yet.
+              </p>
             )}
-          </div>
-        </div>
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700"><FiCalendar /></span>
-              <div>
-                <h2 className="text-base font-black text-ink-900">Portfolio Breakdown</h2>
-                <p className="text-sm font-semibold text-ink-500 mt-1">{money((financial.shareCapital ?? 0) + (financial.weeklySavings ?? 0) + (financial.welfareKitty ?? 0))} total balance</p>
-              </div>
-            </div>
-            <div className="mt-3 space-y-2 text-xs">
-              {[['Share Capital', financial.shareCapital, 'bg-brand-500'], ['Weekly Savings', financial.weeklySavings, 'bg-emerald-500'], ['Welfare Kitty', financial.welfareKitty, 'bg-amber-500']].map(([lbl, val, color]) => {
-                const total = (financial.shareCapital ?? 0) + (financial.weeklySavings ?? 0) + (financial.welfareKitty ?? 0);
-                const pct = total > 0 ? Math.round((Number(val) / total) * 100) : 0;
+          </MemberSection>
+
+          <MemberSection
+            title="Portfolio breakdown"
+            description={`${money(portfolioTotal)} total savings & welfare`}
+          >
+            <div className="space-y-3">
+              {(
+                [
+                  ["Share Capital", financial.shareCapital, "bg-brand-600"],
+                  ["Weekly Savings", financial.weeklySavings, "bg-emerald-500"],
+                  ["Welfare Kitty", financial.welfareKitty, "bg-amber-500"],
+                ] as const
+              ).map(([lbl, val, color]) => {
+                const pct =
+                  portfolioTotal > 0
+                    ? Math.round((val / portfolioTotal) * 100)
+                    : 0;
                 return (
-                  <div key={String(lbl)}>
-                    <div className="flex items-center justify-between text-ink-500"><span>{String(lbl)}</span><span className="font-semibold text-ink-700">{money(Number(val))}</span></div>
-                    <div className="mt-1 h-1.5 rounded-full bg-ink-100"><div className={`h-full rounded-full ${String(color)}`} style={{ width: `${pct}%` }} /></div>
+                  <div key={lbl}>
+                    <div className="flex justify-between text-xs text-slate-600">
+                      <span>{lbl}</span>
+                      <span className="font-semibold">{money(val)}</span>
+                    </div>
+                    <div className="mt-1 h-2 rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${color}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-          <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700"><FiBell /></span>
-              <div>
-                <h2 className="text-base font-black text-ink-900">Quick Links</h2>
-              </div>
+          </MemberSection>
+
+          {financial.finesBalance > 0 ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <FiBell className="mr-1 inline" />
+              Outstanding fines of {money(financial.finesBalance)}. Please clear
+              to maintain good standing.
             </div>
-            <div className="mt-3 flex flex-col gap-2">
-              <a href="/member/contributions" className="text-sm font-semibold text-brand-700 hover:underline">View contributions →</a>
-              <a href="/member/loans" className="text-sm font-semibold text-brand-700 hover:underline">View / apply for loans →</a>
-            </div>
-          </div>
+          ) : null}
         </div>
-      </section>
+
+        <aside className="space-y-4">
+          <MemberSection
+            title="Loan eligibility"
+            description="Based on share capital + savings (welfare excluded)"
+          >
+            <p className="text-2xl font-bold text-brand-800">
+              {money(maxEligible)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Base {money(financial.loanEligibilityBase)} × 3 multiplier
+            </p>
+            <Link
+              to="/member/loans"
+              className="mt-4 inline-block text-sm font-bold text-brand-700 hover:underline"
+            >
+              Manage loans →
+            </Link>
+          </MemberSection>
+
+          <MemberSection title="Membership" description="Account snapshot">
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-500">Member since</dt>
+                <dd className="font-semibold text-slate-800">
+                  {new Date(summary.dateJoined).toLocaleDateString()}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-500">Duration</dt>
+                <dd className="font-semibold text-slate-800">
+                  {summary.membershipDuration?.months ?? 0} months
+                </dd>
+              </div>
+            </dl>
+          </MemberSection>
+
+          <MemberSection title="Quick links">
+            <div className="flex flex-col gap-2 text-sm font-semibold">
+              <Link
+                to="/member/contributions"
+                className="text-brand-700 hover:underline"
+              >
+                Contributions →
+              </Link>
+              <Link
+                to="/member/profile?tab=family"
+                className="text-brand-700 hover:underline"
+              >
+                Family & beneficiaries →
+              </Link>
+              <Link
+                to="/member/notifications"
+                className="text-brand-700 hover:underline"
+              >
+                Notifications →
+              </Link>
+            </div>
+          </MemberSection>
+        </aside>
+      </div>
     </div>
   );
 }

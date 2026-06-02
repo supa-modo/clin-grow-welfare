@@ -1,9 +1,8 @@
 import React from "react";
 import { clsx } from "clsx";
-
 interface ToggleSwitchProps {
   checked: boolean;
-  onChange: () => void;
+  onChange: (checked: boolean) => void;
   disabled?: boolean;
   size?: "small" | "default" | "large";
   variant?: "default" | "success" | "warning" | "danger" | "secondary" | "primary";
@@ -61,7 +60,7 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
 
   return (
     <button
-      onClick={onChange}
+      onClick={() => onChange(!checked)}
       disabled={disabled}
       className={clsx(
         "relative inline-flex items-center rounded-full transition-all duration-300",

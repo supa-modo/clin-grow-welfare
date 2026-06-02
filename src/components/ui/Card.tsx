@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { StatCard as StatCardBase, type StatCardProps } from "./StatCard";
 
 export function Card({
   className,
@@ -19,24 +20,20 @@ export function Card({
   );
 }
 
+/** @deprecated Prefer importing from `@/components/ui/StatCard` */
 export function StatCard({
   label,
   value,
   detail,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
+  ...rest
+}: Pick<StatCardProps, "label" | "value" | "detail" | "icon" | "iconColor" | "borderColor" | "className">) {
   return (
-    <Card className="px-5 py-2 border-gray-400">
-      <p className="text-sm font-medium text-ink-500">{label}</p>
-      <div className="flex items-center gap-4">
-        <p className="mt-2 text-2xl font-extrabold font-google text-ink-900">{value}</p>
-        {detail ? (
-          <p className="mt-2 text-[0.85rem] text-ink-500">{detail}</p>
-        ) : null}{" "}
-      </div>
-    </Card>
+    <StatCardBase
+      label={label}
+      value={value}
+      detail={detail}
+      borderColor="border-gray-400"
+      {...rest}
+    />
   );
 }

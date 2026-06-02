@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
 import { FiX } from "react-icons/fi";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
-
 export type SlideOverProps = {
   open?: boolean;
   isOpen?: boolean;
@@ -125,35 +124,36 @@ export function SlideOver({
               <div className="min-w-0 flex-1">
                 <h2
                   id={resolvedTitleId}
-                  className="truncate text-base font-extrabold text-ink-900 sm:text-lg"
+                  className="truncate text-[0.9rem] lg:text-base font-extrabold text-secondary-600"
                 >
                   {title}
                 </h2>
                 {subtitle ? (
-                  <div className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-500">
+                  <div className="mt-0.5 lg:mt-1 line-clamp-2 text-[0.7rem] lg:text-sm leading-relaxed text-slate-500">
                     {subtitle}
                   </div>
                 ) : null}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2 pr-4">
                 {headerRight}
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-xl p-2 text-ink-500 transition hover:bg-ink-100 hover:text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  aria-label="Close"
-                >
-                  <FiX className="h-5 w-5" />
-                </button>
               </div>
             </header>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-2 lg:top-3 right-1 lg:right-2 rounded-xl p-2 text-ink-500 transition hover:bg-ink-100 hover:text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              aria-label="Close"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
 
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-kanban px-4 py-4 sm:px-5">
               {children}
             </div>
 
             {footer ? (
-              <footer className="shrink-0 rounded-b-2xl border-t border-ink-100 bg-ink-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-5 md:pb-3">
+              <footer className="shrink-0 rounded-b-2xl border-t border-ink-100 bg-ink-50/80 px-4 py-1.5 md:py-2 lg:py-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] md:px-5 md:pb-3">
                 {footer}
               </footer>
             ) : null}

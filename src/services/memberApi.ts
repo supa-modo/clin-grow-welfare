@@ -1,5 +1,5 @@
 import { api } from '@/services/api';
-import type { Member, MemberFormValues, MembershipStatus } from '@/types/member';
+import type { Member, MemberDependant, MemberDependantDocument, MemberDependantFormValues, MemberFormValues, MembershipStatus } from '@/types/member';
 
 export type MemberFilters = {
   page?: number;
@@ -42,6 +42,32 @@ export const memberApi = {
     const { data } = await api.get(`/members/${id}/compliance`);
     return data.summary;
   },
+  async dependants(id: string) {
+    const { data } = await api.get(`/members/${id}/dependants`);
+    return data.dependants as MemberDependant[];
+  },
+  async createDependant(id: string, values: MemberDependantFormValues) {
+    const { data } = await api.post(`/members/${id}/dependants`, values);
+    return data.dependant as MemberDependant;
+  },
+  async updateDependant(id: string, dependantId: string, values: Partial<MemberDependantFormValues>) {
+    const { data } = await api.patch(`/members/${id}/dependants/${dependantId}`, values);
+    return data.dependant as MemberDependant;
+  },
+  async verifyDependant(id: string, dependantId: string) {
+    const { data } = await api.post(`/members/${id}/dependants/${dependantId}/verify`);
+    return data.dependant as MemberDependant;
+  },
+  async uploadDependantDocument(id: string, dependantId: string, file: File, documentType = 'DEPENDANT_PROOF') {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', documentType);
+    const { data } = await api.post(`/members/${id}/dependants/${dependantId}/documents`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return data.document as MemberDependantDocument;
+  },
+  dependantDocumentUrl(id: string, dependantId: string, documentId: string) {
+    return `/members/${id}/dependants/${dependantId}/documents/${documentId}/download`;
+  },
 };
 
 export const memberPortalApi = {
@@ -60,5 +86,27 @@ export const memberPortalApi = {
   async beneficiaries() {
     const { data } = await api.get('/member-portal/beneficiaries');
     return data.beneficiaries;
+  },
+  async dependants() {
+    const { data } = await api.get('/member-portal/dependants');
+    return data.dependants as MemberDependant[];
+  },
+  async createDependant(values: MemberDependantFormValues) {
+    const { data } = await api.post('/member-portal/dependants', values);
+    return data.dependant as MemberDependant;
+  },
+  async updateDependant(dependantId: string, values: Partial<MemberDependantFormValues>) {
+    const { data } = await api.patch(`/member-portal/dependants/${dependantId}`, values);
+    return data.dependant as MemberDependant;
+  },
+  async uploadDependantDocument(dependantId: string, file: File, documentType = 'DEPENDANT_PROOF') {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', documentType);
+    const { data } = await api.post(`/member-portal/dependants/${dependantId}/documents`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return data.document as MemberDependantDocument;
+  },
+  dependantDocumentUrl(dependantId: string, documentId: string) {
+    return `/member-portal/dependants/${dependantId}/documents/${documentId}/download`;
   },
 };

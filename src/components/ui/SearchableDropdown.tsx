@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { FiChevronDown, FiSearch, FiX } from 'react-icons/fi';
-
+import { FiChevronDown, FiX } from 'react-icons/fi';
+import { SearchBar } from './SearchBar';
 export interface DropdownOption {
   value: string;
   label: string;
@@ -70,10 +70,12 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           disabled={disabled}
           onClick={() => !disabled && setOpen((v) => !v)}
           className={clsx(
-            'w-full flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-brand-100',
-            'disabled:bg-ink-50 disabled:cursor-not-allowed',
-            error ? 'border-red-400 bg-red-50 text-red-900' : 'border-ink-100 bg-white text-ink-900 hover:bg-ink-50',
+            "w-full flex items-center justify-between px-4 py-2 lg:py-[0.6rem] rounded-[0.6rem] border transition-all duration-200 text-xs lg:text-sm",
+            "focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500",
+            "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-ink-500",
+            "placeholder:text-ink-300 placeholder:font-normal truncate ",
+            "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-ink-500",
+            error ? "border-red-400 bg-red-50 text-red-900 placeholder:text-red-400" : "border-gray-400/70 bg-gray-100 text-ink-900",
           )}
         >
           <span className={clsx(!selected && 'text-ink-500')}>{selected ? selected.label : placeholder}</span>
@@ -95,20 +97,16 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         </button>
 
         {open ? (
-          <div className="absolute z-50 w-full mt-2 bg-white border border-ink-100 rounded-xl shadow-panel overflow-hidden">
+          <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-panel overflow-hidden">
             <div className="p-2 border-b border-ink-100">
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                <input
-                  autoFocus
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-ink-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-100 focus:border-brand-500"
-                />
-              </div>
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Search..."
+              />
+             
             </div>
-            <ul className="max-h-56 overflow-y-auto py-1">
+            <ul className="max-h-56 overflow-y-auto scrollbar-kanban py-1">
               {filtered.length === 0 ? (
                 <li className="px-4 py-3 text-sm text-ink-500 text-center">No options found</li>
               ) : (
@@ -124,7 +122,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                     }}
                     className={clsx(
                       'px-4 py-2 text-sm cursor-pointer transition-colors',
-                      opt.value === value ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-ink-700 hover:bg-ink-50',
+                      opt.value === value ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-ink-700 hover:bg-gray-100',
                       opt.disabled && 'opacity-50 cursor-not-allowed',
                     )}
                   >
@@ -143,4 +141,3 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 };
 
 export default SearchableDropdown;
-

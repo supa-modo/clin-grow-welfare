@@ -1,6 +1,5 @@
 import React, { forwardRef } from "react";
 import { clsx } from "clsx";
-
 interface SelectOption {
   value: string;
   label: string;
@@ -12,7 +11,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   labelClassName?: string;
   error?: string;
   helperText?: string;
-  options: SelectOption[];
+  options?: SelectOption[];
   placeholder?: string;
   wrapperClassName?: string;
   leftIcon?: React.ReactNode;
@@ -28,6 +27,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       helperText,
       options,
       placeholder,
+      children,
       className,
       wrapperClassName,
       leftIcon,
@@ -41,7 +41,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             className={clsx(
-              "block text-sm text-gray-700 mb-1 pl-1.5 font-source",
+              "block text-[0.65rem] lg:text-[0.8rem] font-medium text-ink-500 mb-1 pl-2",
               labelClassName,
             )}
           >
@@ -59,15 +59,16 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             className={clsx(
               variant === "primary"
-                ? "w-full px-4 py-2 lg:py-2.5 rounded-[0.6rem] border transition-all duration-200 text-[0.75rem] md:text-[0.8rem] lg:text-sm"
+                ? "w-full px-4 py-2 lg:py-2.5 border transition-all duration-200 "
                 : variant === "secondary"
-                  ? "w-full px-4 py-2 lg:py-2.5 text-sm text-gray-700 border border-gray-400/60 rounded-xl  focus:outline-none focus:ring-1 focus:ring-secondary-600 focus:border-secondary-600"
-                  : "w-full px-4 py-2 lg:py-2.5 text-sm text-gray-700 border border-gray-400/60 rounded-xl  focus:outline-none focus:ring-1 focus:ring-primary-600 focus:border-primary-600",
+                  ? "w-full px-4 py-2 lg:py-2.5 text-gray-700 border border-gray-400/60 rounded-[0.6rem]  focus:outline-none focus:ring-1 focus:ring-secondary-600 focus:border-secondary-600"
+                  : "w-full px-4 py-2 lg:py-2.5 text-gray-700 border border-gray-400/60 rounded-[0.6rem]  focus:outline-none focus:ring-1 focus:ring-primary-600 focus:border-primary-600",
               variant === "primary"
                 ? "focus:outline-none focus:ring-1 bg-gray-100"
                 : variant === "secondary"
                   ? "focus:outline-none focus:ring-1 "
                   : "focus:outline-none focus:ring-1 ",
+              "rounded-[0.6rem] text-[0.75rem] md:text-[0.8rem] lg:text-sm",
               "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500",
               "appearance-none bg-gray-100/80",
               leftIcon && "pl-11",
@@ -85,7 +86,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 {placeholder}
               </option>
             )}
-            {options.map((option) => (
+            {options?.map((option) => (
               <option
                 key={option.value}
                 value={option.value}
@@ -94,6 +95,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 {option.label}
               </option>
             ))}
+            {children}
           </select>
           {/* Dropdown arrow icon */}
           <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">

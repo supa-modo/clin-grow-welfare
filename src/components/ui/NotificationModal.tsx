@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
 import { TbAlertTriangle, TbCheck, TbTrash, TbX } from 'react-icons/tb';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-
 export type NotificationModalType = 'confirm' | 'delete';
 export type NotificationModalInputType = 'text' | 'textarea';
 

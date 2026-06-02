@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import SlideOver from './SlideOver';
-
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 const sizeToWidth: Record<ModalSize, string> = {

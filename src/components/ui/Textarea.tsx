@@ -1,6 +1,5 @@
 import React, { forwardRef } from "react";
 import { clsx } from "clsx";
-
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
@@ -12,7 +11,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm text-gray-700 mb-1 pl-1.5 font-source">
+          <label className="block text-[0.65rem] lg:text-[0.8rem] font-medium text-ink-500 mb-1 pl-2">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -23,7 +22,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             "w-full px-4 py-3 rounded-xl border transition-all duration-200 text-[0.75rem] md:text-[0.8rem] lg:text-sm",
             "focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500",
             "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500",
-            "placeholder:text-gray-400 resize-y min-h-[100px]",
+            "placeholder:text-ink-300 placeholder:font-normal resize-y min-h-[100px]",
             error
               ? "border-red-500 focus:ring-red-500/30 bg-red-50 text-red-900 placeholder:text-red-300"
               : "border-gray-300 bg-white ",

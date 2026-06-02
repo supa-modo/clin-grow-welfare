@@ -11,6 +11,34 @@ export type Beneficiary = {
   isActive: boolean;
 };
 
+export type MemberDependantDocument = {
+  id: string;
+  dependantId: string;
+  documentType: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy?: string | null;
+  createdAt: string;
+};
+
+export type MemberDependant = {
+  id: string;
+  memberId: string;
+  fullName: string;
+  relationship: string;
+  dateOfBirth?: string | null;
+  idNumber?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  documents?: MemberDependantDocument[];
+};
+
 export type Member = {
   id: string;
   membershipNumber: string;
@@ -22,6 +50,10 @@ export type Member = {
   idNumber?: string | null;
   dateJoined: string;
   dateActive?: string | null;
+  dateOfBirth?: string | null;
+  staffStatus?: string | null;
+  constitutionAcceptedAt?: string | null;
+  constitutionAcceptedBy?: string | null;
   introducedByMemberId?: string | null;
   introducedBy?: Pick<Member, 'id' | 'membershipNumber' | 'firstName' | 'lastName' | 'name'> | null;
   status: MembershipStatus;
@@ -34,8 +66,18 @@ export type Member = {
   beneficiaryRelationship: string;
   nonComplianceReasons?: string | null;
   beneficiaries?: Beneficiary[];
+  dependants?: MemberDependant[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type MemberDependantFormValues = {
+  fullName: string;
+  relationship: string;
+  dateOfBirth?: string;
+  idNumber?: string;
+  phone?: string;
+  notes?: string;
 };
 
 export type MemberFormValues = {
