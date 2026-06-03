@@ -247,12 +247,12 @@ export function MemberRegistrationPage() {
         </Button>
 
         <p className="pt-3 text-center text-xs text-ink-500 md:text-[0.8rem] lg:pt-4 lg:text-[0.85rem]">
-          Already registered?{" "}
+          Already a registered member?{" "}
           <Link
             to="/login"
             className="text-xs font-semibold text-brand-700 underline underline-offset-4 hover:text-red-600 lg:text-sm"
           >
-            Sign in
+            Sign in to your account
           </Link>
         </p>
       </form>

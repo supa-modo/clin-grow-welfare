@@ -57,6 +57,11 @@ export const loanApi = {
     return data.loan as Loan;
   },
 
+  async recordMemberAck(id: string) {
+    const { data } = await api.post(`/loans/${id}/sign-agreement`);
+    return data.loan as Loan;
+  },
+
   async repay(id: string, input: { amount: number; paymentMethod: string; paymentReference?: string }) {
     const { data } = await api.post(`/loans/${id}/repay`, input);
     return data.repayment;

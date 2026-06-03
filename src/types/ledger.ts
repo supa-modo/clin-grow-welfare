@@ -16,6 +16,7 @@ export interface WelfareSetting {
   loanStandardTermDays: number;
   loanMaxRolloverMonths: number;
   latePenaltyRate: number;
+  lateFine: number;
   loanLatePenaltyFixed: number;
   monthlyAbsentFineWithApology: number;
   monthlyAbsentFineWithoutApology: number;

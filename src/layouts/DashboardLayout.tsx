@@ -27,7 +27,7 @@ export function DashboardLayout({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header workspaceLabel={workspaceLabel} />
         <main
-          className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-4 md:px-4 lg:px-5"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 md:px-4 lg:px-5"
         >
             <Outlet />
         </main>

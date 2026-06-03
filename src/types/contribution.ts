@@ -24,6 +24,8 @@ export interface Contribution {
   createdAt: string;
   member?: { id: string; name: string; membershipNumber: string };
   fund?: { id: string; name: string; code: string };
+  meetingId?: string | null;
+  meeting?: { id: string; meetingNumber: string } | null;
 }
 
 export interface ContributionBatch {

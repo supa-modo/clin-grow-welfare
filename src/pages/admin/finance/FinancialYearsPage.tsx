@@ -13,6 +13,20 @@ import type { FinancialYear, WelfareSetting } from '@/types/ledger';
 
 function money(n: number) { return `KES ${Number(n).toLocaleString()}`; }
 
+function defaultFinancialYearForm(years: FinancialYear[] = []) {
+  const latestStartYear = years.reduce((latest, financialYear) => {
+    const year = new Date(financialYear.startDate).getFullYear();
+    return Number.isFinite(year) ? Math.max(latest, year) : latest;
+  }, 0);
+  const year = latestStartYear ? latestStartYear + 1 : new Date().getFullYear();
+
+  return {
+    name: `FY-${year}`,
+    startDate: `${year}-01-01`,
+    endDate: `${year}-12-20`,
+  };
+}
+
 export function FinancialYearsPage() {
   const [years, setYears] = useState<FinancialYear[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +34,7 @@ export function FinancialYearsPage() {
   const [showNew, setShowNew] = useState(false);
   const [showSettings, setShowSettings] = useState<FinancialYear | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', startDate: '', endDate: '' });
+  const [form, setForm] = useState(defaultFinancialYearForm());
   const [settingsForm, setSettingsForm] = useState<Partial<WelfareSetting>>({});
 
   const load = () => {
@@ -47,6 +61,7 @@ export function FinancialYearsPage() {
         loanMultiplierLimit: fy.settings.loanMultiplierLimit,
         loanMaxRolloverMonths: fy.settings.loanMaxRolloverMonths,
         latePenaltyRate: fy.settings.latePenaltyRate,
+        lateFine: fy.settings.lateFine,
       });
     }
   };
@@ -56,7 +71,7 @@ export function FinancialYearsPage() {
     try {
       await ledgerApi.createFinancialYear({ name: form.name, startDate: form.startDate, endDate: form.endDate });
       setShowNew(false);
-      setForm({ name: '', startDate: '', endDate: '' });
+      setForm(defaultFinancialYearForm(years));
       load();
     } catch (e: any) {
       alert(e.response?.data?.error ?? 'Failed to create financial year');
@@ -98,7 +113,17 @@ export function FinancialYearsPage() {
       <PageHeader
         title="Financial Years"
         subtitle="Manage financial years and welfare configuration settings"
-        action={<Button icon={<FiPlus />} onClick={() => setShowNew(true)}>New Financial Year</Button>}
+        action={
+          <Button
+            icon={<FiPlus />}
+            onClick={() => {
+              setForm(defaultFinancialYearForm(years));
+              setShowNew(true);
+            }}
+          >
+            New Financial Year
+          </Button>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -182,6 +207,7 @@ export function FinancialYearsPage() {
                 ['loanMultiplierLimit', 'Loan Multiplier'],
                 ['loanMaxRolloverMonths', 'Max Rollover Months'],
                 ['latePenaltyRate', 'Late Penalty Rate (%)'],
+                ['lateFine', 'Meeting Lateness Fine (KES)'],
               ].map(([field, label]) => (
                 <div key={field}>
                   <label className="block text-xs font-semibold text-ink-600 mb-1">{label}</label>

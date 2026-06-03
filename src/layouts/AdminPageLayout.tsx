@@ -12,7 +12,7 @@ export function AdminPageLayout({
   return (
     <div
       className={clsx(
-        "flex h-full max-h-full min-h-0 flex-col overflow-hidden",
+        "flex min-h-full flex-1 flex-col",
         className,
       )}
     >
@@ -55,7 +55,7 @@ export function AdminPageMain({
 }) {
   return (
     <div
-      className={clsx("flex min-h-0 flex-1 flex-col overflow-hidden", className)}
+      className={clsx("flex min-h-0 flex-1 flex-col", className)}
     >
       {children}
     </div>

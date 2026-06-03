@@ -8,6 +8,7 @@ import { Spinner, EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
 import { contributionApi } from '@/services/contributionApi';
 import type { Contribution, ContributionType, PaymentMethod } from '@/types/contribution';
+import { useUiStore } from '@/store/uiStore';
 
 const TYPE_LABELS: Record<ContributionType, string> = {
   REGISTRATION: 'Registration', SHARE_CAPITAL: 'Share Capital', WEEKLY_SAVINGS: 'Weekly Savings',
@@ -18,6 +19,8 @@ function money(n: number | string) { return `KES ${Number(n).toLocaleString()}`;
 function statusTone(s: string): 'success' | 'danger' | 'neutral' { return s === 'POSTED' ? 'success' : s === 'REVERSED' ? 'danger' : 'neutral'; }
 
 export function ContributionsPage() {
+  const toastSuccess = useUiStore((s) => s.toastSuccess);
+  const toastError = useUiStore((s) => s.toastError);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -51,8 +54,10 @@ export function ContributionsPage() {
       setShowNew(false);
       setForm({ memberId: '', contributionType: 'SHARE_CAPITAL', amount: '', periodDate: new Date().toISOString().slice(0, 10), paymentMethod: 'CASH', paymentReference: '' });
       load();
-    } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to post contribution');
+      toastSuccess('Contribution posted', 'Receipt has been recorded.');
+    } catch (e: unknown) {
+      const message = e && typeof e === 'object' && 'response' in e && e.response && typeof e.response === 'object' && 'data' in e.response && e.response.data && typeof e.response.data === 'object' && 'error' in e.response.data ? String(e.response.data.error) : 'Failed to post contribution';
+      toastError('Post failed', message);
     } finally {
       setSaving(false);
     }
@@ -66,8 +71,10 @@ export function ContributionsPage() {
       setShowReverse(null);
       setReverseReason('');
       load();
-    } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to reverse contribution');
+      toastSuccess('Contribution reversed', 'Ledger entry has been reversed.');
+    } catch (e: unknown) {
+      const message = e && typeof e === 'object' && 'response' in e && e.response && typeof e.response === 'object' && 'data' in e.response && e.response.data && typeof e.response.data === 'object' && 'error' in e.response.data ? String(e.response.data.error) : 'Failed to reverse contribution';
+      toastError('Reverse failed', message);
     } finally {
       setSaving(false);
     }
@@ -81,8 +88,10 @@ export function ContributionsPage() {
       setBatchResult(batch);
       setUploadFile(null);
       load();
-    } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Upload failed');
+      toastSuccess('Batch uploaded', 'Bulk contributions have been processed.');
+    } catch (e: unknown) {
+      const message = e && typeof e === 'object' && 'response' in e && e.response && typeof e.response === 'object' && 'data' in e.response && e.response.data && typeof e.response.data === 'object' && 'error' in e.response.data ? String(e.response.data.error) : 'Upload failed';
+      toastError('Upload failed', message);
     } finally {
       setSaving(false);
     }
@@ -92,6 +101,7 @@ export function ContributionsPage() {
     { key: 'receiptNo', header: 'Receipt No', render: (c) => <span className="font-mono text-xs">{c.receiptNo ?? '—'}</span> },
     { key: 'member', header: 'Member', render: (c) => <span className="font-medium">{c.member?.name ?? c.memberId}</span> },
     { key: 'type', header: 'Type', render: (c) => <Badge tone="neutral">{TYPE_LABELS[c.contributionType] ?? c.contributionType}</Badge> },
+    { key: 'meeting', header: 'Meeting', render: (c) => (c.meeting?.meetingNumber ? <Badge tone="success">{c.meeting.meetingNumber}</Badge> : <span className="text-ink-400">—</span>) },
     { key: 'amount', header: 'Amount', render: (c) => <span className="font-semibold">{money(c.amount)}</span> },
     { key: 'date', header: 'Period Date', render: (c) => new Date(c.periodDate).toLocaleDateString() },
     { key: 'status', header: 'Status', render: (c) => <Badge tone={statusTone(c.status)}>{c.status}</Badge> },
