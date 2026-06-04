@@ -62,7 +62,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 
   return (
     <div className={clsx('w-full', wrapperClassName)} ref={containerRef}>
-      {label ? <label className="block text-sm font-medium text-ink-700 mb-1 pl-0.5">{label}</label> : null}
+      {label ? <label className="block text-[0.65rem] lg:text-[0.8rem] font-medium text-ink-500 mb-1 pl-0.5">{label}</label> : null}
 
       <div className="relative">
         <button
@@ -71,7 +71,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           onClick={() => !disabled && setOpen((v) => !v)}
           className={clsx(
             "w-full flex items-center justify-between px-4 py-2 lg:py-[0.6rem] rounded-[0.6rem] border transition-all duration-200 text-xs lg:text-sm",
-            "focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500",
+            "focus:outline-none focus:ring-1 focus:ring-primary-600 focus:border-primary-600",
             "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-ink-500",
             "placeholder:text-ink-300 placeholder:font-normal truncate ",
             "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-ink-500",
@@ -122,7 +122,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                     }}
                     className={clsx(
                       'px-4 py-2 text-sm cursor-pointer transition-colors',
-                      opt.value === value ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-ink-700 hover:bg-gray-100',
+                      opt.value === value ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-ink-700 hover:bg-gray-100',
                       opt.disabled && 'opacity-50 cursor-not-allowed',
                     )}
                   >

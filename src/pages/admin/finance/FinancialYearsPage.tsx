@@ -7,8 +7,11 @@ import { Modal } from '@/components/ui/Modal';
 import { StatCard } from '@/components/ui/Card';
 import { Spinner, EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
+import { NotificationModal } from '@/components/ui/NotificationModal';
 import { FinancialYearStatusBadge } from '@/components/ledger/FinancialYearStatusBadge';
 import { ledgerApi } from '@/services/ledgerApi';
+import { useAuthStore } from '@/store/auth';
+import { useUiStore } from '@/store/uiStore';
 import type { FinancialYear, WelfareSetting } from '@/types/ledger';
 
 function money(n: number) { return `KES ${Number(n).toLocaleString()}`; }
@@ -28,6 +31,9 @@ function defaultFinancialYearForm(years: FinancialYear[] = []) {
 }
 
 export function FinancialYearsPage() {
+  const user = useAuthStore((s) => s.user);
+  const toastSuccess = useUiStore((s) => s.toastSuccess);
+  const toastError = useUiStore((s) => s.toastError);
   const [years, setYears] = useState<FinancialYear[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,6 +42,13 @@ export function FinancialYearsPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(defaultFinancialYearForm());
   const [settingsForm, setSettingsForm] = useState<Partial<WelfareSetting>>({});
+  const [confirm, setConfirm] = useState<null | { kind: 'create' } | { kind: 'saveSettings' } | { kind: 'close'; fy: FinancialYear }>(null);
+
+  const permissions = user?.permissions ?? [];
+  const canCreateYear = permissions.includes('financialYears.create');
+  const canCloseYear = permissions.includes('financialYears.close');
+  const canEditSettings = Boolean(user?.roles.some((role) => ['SystemAdmin', 'Chairperson', 'Secretary', 'AssistantSecretary'].includes(role)));
+  const settingsReadOnly = !canEditSettings || showSettings?.status === 'CLOSED' || showSettings?.status === 'AUDITED';
 
   const load = () => {
     setLoading(true);
@@ -59,9 +72,13 @@ export function FinancialYearsPage() {
         monthlyWelfareContribution: fy.settings.monthlyWelfareContribution,
         loanInterestRateMonthly: fy.settings.loanInterestRateMonthly,
         loanMultiplierLimit: fy.settings.loanMultiplierLimit,
+        loanStandardTermDays: fy.settings.loanStandardTermDays,
         loanMaxRolloverMonths: fy.settings.loanMaxRolloverMonths,
         latePenaltyRate: fy.settings.latePenaltyRate,
+        loanLatePenaltyFixed: fy.settings.loanLatePenaltyFixed,
         lateFine: fy.settings.lateFine,
+        monthlyAbsentFineWithApology: fy.settings.monthlyAbsentFineWithApology,
+        monthlyAbsentFineWithoutApology: fy.settings.monthlyAbsentFineWithoutApology,
       });
     }
   };
@@ -71,36 +88,41 @@ export function FinancialYearsPage() {
     try {
       await ledgerApi.createFinancialYear({ name: form.name, startDate: form.startDate, endDate: form.endDate });
       setShowNew(false);
+      setConfirm(null);
       setForm(defaultFinancialYearForm(years));
+      toastSuccess('Financial year created.');
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to create financial year');
+      toastError(e.response?.data?.error ?? e.response?.data?.message ?? 'Failed to create financial year');
     } finally {
       setSaving(false);
     }
   };
 
   const saveSettings = async () => {
-    if (!showSettings) return;
+    if (!showSettings || settingsReadOnly) return;
     setSaving(true);
     try {
       await ledgerApi.upsertWelfareSettings(showSettings.id, settingsForm);
+      setConfirm(null);
       setShowSettings(null);
+      toastSuccess('Financial year settings saved.');
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to save settings');
+      toastError(e.response?.data?.error ?? e.response?.data?.message ?? 'Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
   const closeFY = async (fy: FinancialYear) => {
-    if (!confirm(`Close financial year ${fy.name}? This will block new postings.`)) return;
     try {
       await ledgerApi.closeFinancialYear(fy.id);
+      setConfirm(null);
+      toastSuccess(`${fy.name} closed.`);
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to close financial year');
+      toastError(e.response?.data?.error ?? e.response?.data?.message ?? 'Failed to close financial year');
     }
   };
 
@@ -114,15 +136,17 @@ export function FinancialYearsPage() {
         title="Financial Years"
         subtitle="Manage financial years and welfare configuration settings"
         action={
-          <Button
-            icon={<FiPlus />}
-            onClick={() => {
-              setForm(defaultFinancialYearForm(years));
-              setShowNew(true);
-            }}
-          >
-            New Financial Year
-          </Button>
+          canCreateYear ? (
+            <Button
+              icon={<FiPlus />}
+              onClick={() => {
+                setForm(defaultFinancialYearForm(years));
+                setShowNew(true);
+              }}
+            >
+              New Financial Year
+            </Button>
+          ) : null
         }
       />
 
@@ -147,10 +171,12 @@ export function FinancialYearsPage() {
             {
               key: 'actions', header: '', render: (fy) => (
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="ghost" icon={<FiSettings size={14} />} onClick={() => openSettings(fy)}>Settings</Button>
-                  {fy.status === 'OPEN' && (
-                    <Button size="sm" variant="ghost" icon={<FiLock size={14} />} onClick={() => closeFY(fy)} className="text-red-600 hover:bg-red-50">Close Year</Button>
-                  )}
+                  <Button size="sm" variant="ghost" icon={<FiSettings size={14} />} onClick={() => openSettings(fy)}>
+                    {canEditSettings && !['CLOSED', 'AUDITED'].includes(fy.status) ? 'Settings' : 'View'}
+                  </Button>
+                  {fy.status === 'OPEN' && canCloseYear ? (
+                    <Button size="sm" variant="ghost" icon={<FiLock size={14} />} onClick={() => setConfirm({ kind: 'close', fy })} className="text-red-600 hover:bg-red-50">Close Year</Button>
+                  ) : null}
                 </div>
               )
             },
@@ -164,7 +190,7 @@ export function FinancialYearsPage() {
       <Modal open={showNew} title="New Financial Year" onClose={() => setShowNew(false)} footer={
         <div className="flex justify-end gap-2 px-5 py-3">
           <Button variant="secondary" onClick={() => setShowNew(false)}>Cancel</Button>
-          <Button onClick={submitNew} isLoading={saving} loadingText="Creating...">Create</Button>
+          <Button onClick={() => setConfirm({ kind: 'create' })} isLoading={saving} loadingText="Creating..." disabled={!canCreateYear}>Create</Button>
         </div>
       }>
         <div className="space-y-4 p-5">
@@ -190,11 +216,16 @@ export function FinancialYearsPage() {
         <Modal open={!!showSettings} title={`Welfare Settings — ${showSettings.name}`} onClose={() => setShowSettings(null)} size="lg" footer={
           <div className="flex justify-end gap-2 px-5 py-3">
             <Button variant="secondary" onClick={() => setShowSettings(null)}>Cancel</Button>
-            <Button onClick={saveSettings} isLoading={saving} loadingText="Saving...">Save Settings</Button>
+            {!settingsReadOnly ? (
+              <Button onClick={() => setConfirm({ kind: 'saveSettings' })} isLoading={saving} loadingText="Saving...">Save Settings</Button>
+            ) : null}
           </div>
         }>
           <div className="p-5 space-y-4">
-            <p className="text-sm text-ink-500">Configure financial parameters for {showSettings.name}. These values drive contribution validation, loan eligibility, and arrears calculations.</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-100 bg-ink-50 p-3">
+              <p className="text-sm text-ink-600">These are the same database-backed values used by contribution validation, meeting fines, welfare kitty checks, loan eligibility, interest, rollover, and penalties.</p>
+              <Badge tone={settingsReadOnly ? 'neutral' : 'success'}>{settingsReadOnly ? 'View only' : 'Editable'}</Badge>
+            </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               {[
                 ['registrationFeeAmount', 'Registration Fee (KES)'],
@@ -205,15 +236,20 @@ export function FinancialYearsPage() {
                 ['monthlyWelfareContribution', 'Monthly Welfare Kitty (KES)'],
                 ['loanInterestRateMonthly', 'Loan Interest Rate (% monthly)'],
                 ['loanMultiplierLimit', 'Loan Multiplier'],
+                ['loanStandardTermDays', 'Standard Loan Term (Days)'],
                 ['loanMaxRolloverMonths', 'Max Rollover Months'],
                 ['latePenaltyRate', 'Late Penalty Rate (%)'],
+                ['loanLatePenaltyFixed', 'Fixed Late Loan Penalty (KES)'],
                 ['lateFine', 'Meeting Lateness Fine (KES)'],
+                ['monthlyAbsentFineWithApology', 'Absent With Apology Fee (KES)'],
+                ['monthlyAbsentFineWithoutApology', 'Absent Without Apology Fine (KES)'],
               ].map(([field, label]) => (
                 <div key={field}>
                   <label className="block text-xs font-semibold text-ink-600 mb-1">{label}</label>
                   <input
                     type="number"
-                    className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm"
+                    disabled={settingsReadOnly}
+                    className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm disabled:bg-ink-50"
                     value={settingsForm[field as keyof WelfareSetting] ?? ''}
                     onChange={(e) => setSettingsForm({ ...settingsForm, [field]: Number(e.target.value) })}
                   />
@@ -223,6 +259,38 @@ export function FinancialYearsPage() {
           </div>
         </Modal>
       )}
+
+      <NotificationModal
+        isOpen={Boolean(confirm)}
+        onClose={() => setConfirm(null)}
+        title={
+          confirm?.kind === 'create'
+            ? 'Create financial year?'
+            : confirm?.kind === 'saveSettings'
+              ? 'Save financial year settings?'
+              : 'Close financial year?'
+        }
+        message={
+          confirm?.kind === 'create'
+            ? 'This will create a new financial year using the selected dates.'
+            : confirm?.kind === 'saveSettings'
+              ? 'These settings are used by contribution validation, meeting workflows, fines, and loan calculations.'
+              : `This will close ${confirm?.kind === 'close' ? confirm.fy.name : 'the financial year'} and block new postings.`
+        }
+        confirmText={
+          confirm?.kind === 'create'
+            ? 'Create'
+            : confirm?.kind === 'saveSettings'
+              ? 'Save Settings'
+              : 'Close Year'
+        }
+        type={confirm?.kind === 'close' ? 'delete' : 'confirm'}
+        onConfirm={() => {
+          if (confirm?.kind === 'create') void submitNew();
+          if (confirm?.kind === 'saveSettings') void saveSettings();
+          if (confirm?.kind === 'close') void closeFY(confirm.fy);
+        }}
+      />
     </div>
   );
 }

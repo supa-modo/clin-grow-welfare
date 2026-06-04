@@ -6,6 +6,7 @@ import { FileUpload } from '@/components/ui/FileUpload';
 import Input from '@/components/ui/Input';
 import { api } from '@/services/api';
 import { memberApi, memberPortalApi } from '@/services/memberApi';
+import { useUiStore } from '@/store/uiStore';
 import type { MemberDependant, MemberDependantFormValues } from '@/types/member';
 
 type DependantsPanelProps = {
@@ -48,6 +49,7 @@ function toForm(dependant: MemberDependant): MemberDependantFormValues {
 }
 
 export function DependantsPanel({ memberId, scope, canVerify = false }: DependantsPanelProps) {
+  const toastSuccess = useUiStore((s) => s.toastSuccess);
   const [dependants, setDependants] = useState<MemberDependant[]>([]);
   const [form, setForm] = useState<MemberDependantFormValues>(emptyForm);
   const [editing, setEditing] = useState<MemberDependant | null>(null);
@@ -96,6 +98,12 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
       }
       resetForm();
       await load();
+      if (scope === 'member') {
+        toastSuccess(
+          editing ? 'Dependant updated' : 'Dependant added',
+          'Your submission is pending official verification of details and documents.',
+        );
+      }
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -111,6 +119,9 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
     try {
       await (canUseAdminApi ? memberApi.uploadDependantDocument(memberId!, dependant.id, file) : memberPortalApi.uploadDependantDocument(dependant.id, file));
       await load();
+      if (scope === 'member') {
+        toastSuccess('Document uploaded', 'Officials will re-review this dependant before verification.');
+      }
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {

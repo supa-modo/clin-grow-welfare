@@ -19,7 +19,15 @@ export function ReportsPage() {
     ]);
     return { executive: executive.data.data, funds: funds.data.data ?? [], aging: aging.data.data ?? [], trial: trial.data.data, collections: collections.data.data };
   }, []);
-  const metrics = useMemo(() => (data?.executive ? Object.entries(data.executive).slice(0, 10) : []), [data]);
+  const metrics = useMemo(
+    () =>
+      data?.executive
+        ? Object.entries(data.executive)
+            .filter(([key]) => key !== 'charts')
+            .slice(0, 10)
+        : [],
+    [data],
+  );
   const [exporting, setExporting] = useState('');
   const runExport = async (key: string, format: 'pdf' | 'csv') => {
     setExporting(`${key}-${format}`);

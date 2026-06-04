@@ -174,7 +174,7 @@ export function MemberTopBar() {
       <header className="fixed inset-x-0 top-0 z-40 border-b border-gray-200 bg-white shadow-xs">
         <div
           ref={headerRef}
-          className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1"
+          className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3 px-3 py-1"
         >
           <Link
             to="/member"

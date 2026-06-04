@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { apiGet, apiPost, createMeeting, createReadyVoucher, exportReport, getMemberByNo, loginApi, uiLogin } from './helpers/api';
+import { apiGet, apiPost, createMeeting, createReadyVoucher, exportReport, getMemberByNo, getMembers, loginApi, uiLogin } from './helpers/api';
 
 test('full weekly meeting ceremony with attendance, collections, loan window, voucher, and close report', async ({ page, request }) => {
   const secretary = await loginApi(request, 'secretary');
@@ -25,12 +25,19 @@ test('full weekly meeting ceremony with attendance, collections, loan window, vo
   await apiPost(request, secretary, `/meetings/${meeting.id}/attendance`, { memberId: present.id, attendanceStatus: 'PRESENT_ON_TIME' });
   await apiPost(request, secretary, `/meetings/${meeting.id}/attendance`, { memberId: late.id, attendanceStatus: 'PRESENT_LATE' });
   await apiPost(request, secretary, `/meetings/${meeting.id}/attendance`, { memberId: absentNoApology.id, attendanceStatus: 'ABSENT_WITHOUT_APOLOGY' });
+  const explicitlyMarked = new Set([present.id, late.id, absentNoApology.id]);
+  for (const row of await getMembers(request, secretary)) {
+    if (row.status === 'ACTIVE' && !explicitlyMarked.has(row.id)) {
+      await apiPost(request, secretary, `/meetings/${meeting.id}/attendance`, { memberId: row.id, attendanceStatus: 'PRESENT_ON_TIME' });
+    }
+  }
 
   const fines = await apiGet(request, secretary, '/reports/fines-generated/export?format=csv');
   expect(await fines.text()).toContain('PRESENT_LATE');
 
   const session = (await (await apiPost(request, treasurer, `/meetings/${meeting.id}/collections/open`, {}, 201)).json()).session;
   await apiPost(request, treasurer, `/meetings/${meeting.id}/collections/${session.id}/items`, { memberId: present.id, collectionType: 'WEEKLY_SAVINGS', amount: 250, paymentMethod: 'MPESA', paymentReference: `E2E-SAVE-${Date.now()}` }, 201);
+  await apiPost(request, treasurer, `/meetings/${meeting.id}/collections/${session.id}/items`, { memberId: eligibleMember.id, collectionType: 'WEEKLY_SAVINGS', amount: 1000, paymentMethod: 'MPESA', paymentReference: `E2E-ELIGIBLE-SAVE-${Date.now()}` }, 201);
   await apiPost(request, treasurer, `/meetings/${meeting.id}/collections/${session.id}/items`, { memberId: present.id, collectionType: 'WELFARE_KITTY', amount: 250, paymentMethod: 'MPESA', paymentReference: `E2E-KITTY-${Date.now()}` }, 201);
 
   const poolBefore = (await (await apiGet(request, treasurer, `/meetings/${meeting.id}/loan-window/pool`)).json()).pool;
@@ -52,6 +59,7 @@ test('full weekly meeting ceremony with attendance, collections, loan window, vo
   const disbursed = await apiPost(request, treasurer, `/loans/${loan.id}/disburse`);
   expect((await disbursed.json()).loan.status).toBe('ACTIVE');
   await apiPost(request, treasurer, `/loans/${loan.id}/disburse`, {}, 400);
+  await apiPost(request, treasurer, `/meetings/loan-window/${loanWindow.id}/close`);
 
   await apiPost(request, secretary, `/meetings/${meeting.id}/minutes`, { minutes: 'E2E meeting minutes recorded and approved.' });
   await apiPost(request, secretary, `/meetings/${meeting.id}/resolutions`, { title: 'E2E loan resolution', decision: 'APPROVED', linkedEntityType: 'Loan', linkedEntityId: loan.id, votesFor: 5, votesAgainst: 0 }, 201);

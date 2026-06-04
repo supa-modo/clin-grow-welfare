@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiCheckCircle } from "react-icons/fi";
 import Input from "@/components/ui/Input";
 import DateInput from "@/components/ui/DateInput";
 import SlideOver from "@/components/ui/SlideOver";
+import SearchableDropdown, {
+  type DropdownOption,
+} from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { Button } from "@/components/ui/Button";
+import { memberApi } from "@/services/memberApi";
 import type { Member, MemberFormValues } from "@/types/member";
 
 type MemberFormErrors = Partial<Record<keyof MemberFormValues, string>>;
@@ -82,13 +86,60 @@ export function MemberFormSlideOver({
   const isEdit = Boolean(member);
   const [values, setValues] = useState<MemberFormValues>(initialValues);
   const [errors, setErrors] = useState<MemberFormErrors>({});
+  const [introducerOptions, setIntroducerOptions] = useState<DropdownOption[]>(
+    [],
+  );
+
+  const loadIntroducers = useCallback(
+    async (search = "") => {
+      try {
+        const data = await memberApi.list({
+          page: 1,
+          pageSize: 50,
+          search,
+          status: "ACTIVE",
+        });
+        const rows = data.data ?? data.members ?? [];
+        setIntroducerOptions(
+          rows
+            .filter((row) => row.id !== member?.id)
+            .map((row) => ({
+              value: row.id,
+              label: `${row.membershipNumber} - ${row.name}`,
+            })),
+        );
+      } catch {
+        setIntroducerOptions([]);
+      }
+    },
+    [member?.id],
+  );
 
   useEffect(() => {
     if (open) {
       setValues(valuesFromMember(member));
       setErrors({});
+      void loadIntroducers();
     }
-  }, [member, open]);
+  }, [member, open, loadIntroducers]);
+
+  const introducerDropdownOptions = useMemo(() => {
+    const selectedId = values.introducedByMemberId?.trim();
+    if (!selectedId || introducerOptions.some((o) => o.value === selectedId)) {
+      return introducerOptions;
+    }
+    const intro = member?.introducedBy;
+    if (intro?.id === selectedId) {
+      return [
+        {
+          value: intro.id,
+          label: `${intro.membershipNumber} - ${intro.name}`,
+        },
+        ...introducerOptions,
+      ];
+    }
+    return introducerOptions;
+  }, [introducerOptions, member?.introducedBy, values.introducedByMemberId]);
 
   const set = (key: keyof MemberFormValues, value: string | boolean) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -163,12 +214,9 @@ export function MemberFormSlideOver({
           handleSave();
         }}
       >
-        <section className="rounded-2xl border border-gray-200 bg-white p-4">
+        <section className="border-b border-gray-200 bg-white pb-6">
           <div className="mb-4">
-            <h3 className="text-sm font-bold text-gray-900">Member details</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Core identity and membership start information.
-            </p>
+            <h3 className="text-sm font-bold text-secondary-700">Member details</h3>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
@@ -199,14 +247,11 @@ export function MemberFormSlideOver({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-4">
+        <section className="border-b border-gray-200 bg-white pb-6">
           <div className="mb-4">
-            <h3 className="text-sm font-bold text-gray-900">
-              Contact & registration
+            <h3 className="text-sm font-bold text-secondary-700">
+              Contact & registration fee
             </h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Used for notifications, login access, and onboarding checks.
-            </p>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
@@ -225,16 +270,25 @@ export function MemberFormSlideOver({
               required
               placeholder="member@example.com"
             />
-            <Input
-              label="Introduced by member ID"
+            <SearchableDropdown
+              label="Introduced by"
+              options={introducerDropdownOptions}
               value={values.introducedByMemberId ?? ""}
-              onChange={(e) => set("introducedByMemberId", e.target.value)}
-              placeholder="Optional UUID"
+              onChange={(memberId) => set("introducedByMemberId", memberId)}
+              onSearchChange={(query) => {
+                void loadIntroducers(query);
+              }}
+              placeholder={
+                introducerDropdownOptions.length
+                  ? "Search active member (optional)"
+                  : "Loading members…"
+              }
+              clearable
             />
             <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
               <div className="flex h-full items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <p className="text-xs lg:text-[0.8rem] font-semibold text-primary-600">
                     Registration fee
                   </p>
                   <p className="mt-1 text-sm font-semibold text-gray-800">
@@ -250,20 +304,18 @@ export function MemberFormSlideOver({
                   }
                   variant="success"
                   title="Toggle registration fee status"
+                  disabled={Boolean(member?.registrationFeePaid)}
                 />
               </div>
             </div>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-4">
+        <section className="border-b border-gray-200 bg-white pb-6">
           <div className="mb-4">
-            <h3 className="text-sm font-bold text-gray-900">
+            <h3 className="text-sm font-bold text-secondary-700">
               Primary beneficiary
             </h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Recorded as the default 100% allocation contact.
-            </p>
           </div>
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -284,21 +336,10 @@ export function MemberFormSlideOver({
               <Input
                 label="Relationship"
                 value={values.beneficiaryRelationship}
-                onChange={(e) =>
-                  set("beneficiaryRelationship", e.target.value)
-                }
+                onChange={(e) => set("beneficiaryRelationship", e.target.value)}
                 error={errors.beneficiaryRelationship}
                 required
               />
-            </div>
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              <div className="flex items-start gap-2">
-                <FiCheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <p className="font-semibold">
-                  This beneficiary is recorded as the primary 100% allocation
-                  contact.
-                </p>
-              </div>
             </div>
           </div>
         </section>

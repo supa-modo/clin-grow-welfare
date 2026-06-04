@@ -17,7 +17,7 @@ export const loanApi = {
     return data.eligibility as LoanEligibility;
   },
 
-  async apply(input: { memberId: string; requestedAmount: number; purpose?: string; termWeeks?: number }) {
+  async apply(input: { memberId: string; requestedAmount: number; purpose?: string }) {
     const { data } = await api.post('/loans', input);
     return data.loan as Loan;
   },
@@ -40,6 +40,27 @@ export const loanApi = {
   async disburse(id: string) {
     const { data } = await api.post(`/loans/${id}/disburse`);
     return data.loan as Loan;
+  },
+
+  async getDisbursementStatus(id: string) {
+    const { data } = await api.get(`/loans/${id}/disbursement-status`);
+    return data.status as {
+      loanNumber: string;
+      memberAcknowledged: boolean;
+      treasurerVerified: boolean;
+      chairpersonAuthorized: boolean;
+      voucher: {
+        id: string;
+        voucherNo: string;
+        status: string;
+        readiness: {
+          ready: boolean;
+          hasTreasurer: boolean;
+          hasSecond: boolean;
+          management: boolean;
+        } | null;
+      } | null;
+    };
   },
 
   async generateAgreement(id: string) {
@@ -118,7 +139,7 @@ export const loanApi = {
     return data.loans as Loan[];
   },
 
-  async applyMember(input: { requestedAmount: number; purpose?: string; termWeeks?: number }) {
+  async applyMember(input: { requestedAmount: number; purpose?: string }) {
     const { data } = await api.post('/member-portal/loans', input);
     return data.loan as Loan;
   },

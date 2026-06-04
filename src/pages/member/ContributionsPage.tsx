@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { FiAlertCircle, FiDownload } from "react-icons/fi";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { DataTable, type Column } from "@/components/ui/DataTable";
-import { Spinner, EmptyState } from "@/components/ui/Feedback";
+import {
+  CashTransactionHistory,
+  type CashTransactionRow,
+} from "@/components/member/CashTransactionHistory";
 import { Badge } from "@/components/ui/Badge";
-import { StatCard } from "@/components/ui/StatCard";
+import { api } from "@/services/api";
 import { contributionApi } from "@/services/contributionApi";
 import { money } from "@/components/member/MemberCards";
+import { FinanceMetric } from "@/components/member/MemberFinancePrimitives";
 import type { Contribution } from "@/types/contribution";
 import type { MemberArrears } from "@/types/contribution";
 
@@ -35,258 +38,125 @@ export function MemberContributionsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<ListMeta | null>(null);
+  const [financialYear, setFinancialYear] = useState<{
+    name: string;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       contributionApi.myContributions({ page }),
       contributionApi.myArrears(),
+      api.get<{
+        financialYear?: {
+          name: string;
+          startDate: string;
+          endDate: string;
+        } | null;
+      }>("/member-portal/dashboard"),
     ])
-      .then(([{ data, meta: m }, { arrears: a }]) => {
+      .then(([{ data, meta: m }, { arrears: a }, dash]) => {
         setContributions(data);
         setMeta(m);
         setArrears(a);
+        setFinancialYear(dash.data.financialYear ?? null);
       })
       .finally(() => setLoading(false));
   }, [page]);
 
-  const totalArrears = arrears
-    ? arrears.shareCapital.arrears +
-      arrears.weeklySavings.arrears +
-      arrears.welfareKitty.arrears
-    : 0;
+  const totalArrears = arrears ? arrears.welfareKitty.arrears : 0;
 
-  const totalPosted = contributions.reduce(
-    (sum, c) => sum + (c.status === "POSTED" ? Number(c.amount) : 0),
-    0,
-  );
+  const historyRows: CashTransactionRow[] = contributions.map((c) => ({
+    id: c.id,
+    date: c.periodDate,
+    amount: Number(c.amount),
+    reference: c.receiptNo ?? c.paymentReference ?? null,
+    paymentMethod: c.paymentMethod,
+    status: c.status,
+    subtitle: TYPE_LABELS[c.contributionType] ?? c.contributionType,
+  }));
 
-  const columns: Column<Contribution>[] = [
-    {
-      key: "receipt",
-      header: "Receipt",
-      render: (c) => (
-        <span className="font-mono text-xs">{c.receiptNo ?? "—"}</span>
-      ),
-    },
-    {
-      key: "type",
-      header: "Type",
-      render: (c) => (
-        <Badge tone="neutral">
-          {TYPE_LABELS[c.contributionType] ?? c.contributionType}
-        </Badge>
-      ),
-    },
-    {
-      key: "fund",
-      header: "Fund",
-      render: (c) => c.fund?.name ?? "—",
-    },
-    {
-      key: "amount",
-      header: "Amount",
-      render: (c) => (
-        <span className="font-semibold">{money(Number(c.amount))}</span>
-      ),
-    },
-    {
-      key: "date",
-      header: "Date",
-      render: (c) => new Date(c.periodDate).toLocaleDateString(),
-    },
-    {
-      key: "method",
-      header: "Method",
-      render: (c) => c.paymentMethod,
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (c) => (
-        <Badge tone={c.status === "POSTED" ? "success" : "danger"}>
-          {c.status}
-        </Badge>
-      ),
-    },
-    {
-      key: "receipt_dl",
-      header: "",
-      render: (c) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={<FiDownload size={12} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            contributionApi.downloadMyReceipt(c.id);
-          }}
-        >
-          Receipt
-        </Button>
-      ),
-    },
-  ];
+  const reloadContributions = () => {
+    setLoading(true);
+    void contributionApi
+      .myContributions({ page })
+      .then(({ data, meta: m }) => {
+        setContributions(data);
+        setMeta(m);
+      })
+      .finally(() => setLoading(false));
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       <PageHeader
         title="My Contributions"
-        subtitle="View contribution history and download receipts"
+        subtitle={
+          financialYear
+            ? `Active year ${financialYear.name} (${new Date(financialYear.startDate).toLocaleDateString()} – ${new Date(financialYear.endDate).toLocaleDateString()})`
+            : "Contribution history and receipts"
+        }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="This page total"
-          value={money(totalPosted)}
-          subtitle="Posted on current page"
-        />
-        <StatCard
-          label="Share capital arrears"
-          value={money(arrears?.shareCapital.arrears ?? 0)}
-          subtitle={
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FinanceMetric
+          label="Weekly savings balance"
+          value={money(arrears?.weeklySavings.actual ?? 0)}
+          hint={
             arrears
-              ? `${money(arrears.shareCapital.actual)} of ${money(arrears.shareCapital.expected)}`
+              ? `${money(arrears.weeklySavings.currentWeekPaid ?? 0)} paid this week - ${arrears.weeklySavings.unpaidPeriods ?? 0} past meeting(s) unpaid`
               : "—"
           }
         />
-        <StatCard
-          label="Savings arrears"
-          value={money(arrears?.weeklySavings.arrears ?? 0)}
-          subtitle={
+        <FinanceMetric
+          label="Share capital balance"
+          value={money(arrears?.shareCapital.actual ?? 0)}
+          hint={
             arrears
-              ? `${money(arrears.weeklySavings.actual)} of ${money(arrears.weeklySavings.expected)}`
+              ? `${money(arrears.shareCapital.actual)} of ${money(arrears.shareCapital.maximumAllowed ?? arrears.shareCapital.expected)} maximum - ${arrears.shareCapital.status === "WINDOW_OPEN" ? "payment window open" : "payment window closed"}`
               : "—"
           }
         />
-        <StatCard
-          label="Welfare arrears"
-          value={money(arrears?.welfareKitty.arrears ?? 0)}
-          subtitle={
-            arrears
-              ? `${money(arrears.welfareKitty.actual)} of ${money(arrears.welfareKitty.expected)}`
-              : "—"
-          }
-        />
-      </div>
+      </section>
 
       {arrears && totalArrears > 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
             <FiAlertCircle className="shrink-0" />
             Outstanding arrears: {money(totalArrears)}
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {(
-              [
-                ["Share Capital", arrears.shareCapital],
-                ["Weekly Savings", arrears.weeklySavings],
-                ["Welfare Kitty", arrears.welfareKitty],
-              ] as const
-            )
+          <ul className="mt-3 divide-y divide-amber-100/80 rounded-lg border border-amber-100 bg-white">
+            {([["Welfare Kitty", arrears.welfareKitty]] as const)
               .filter(([, data]) => data.arrears > 0)
               .map(([label, data]) => (
-                <div
+                <li
                   key={label}
-                  className="rounded-xl border border-amber-100 bg-white p-3 text-xs"
+                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-sm"
                 >
-                  <p className="font-semibold text-slate-700">{label}</p>
-                  <p className="mt-1 font-bold text-red-600">
-                    {money(data.arrears)} arrears
-                  </p>
-                  <p className="text-slate-500">
-                    {money(data.actual)} / {money(data.expected)} expected
-                  </p>
-                </div>
+                  <span className="font-semibold text-ink-700">{label}</span>
+                  <span className="text-right">
+                    <span className="block font-extrabold text-red-600">
+                      {money(data.arrears)} arrears
+                    </span>
+                    <span className="text-xs text-ink-500">
+                      {money(data.actual)} / {money(data.expected)} expected
+                    </span>
+                  </span>
+                </li>
               ))}
-          </div>
+          </ul>
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner />
-        </div>
-      ) : contributions.length === 0 ? (
-        <EmptyState
-          title="No contributions yet"
-          message="Your contribution history will appear here once the treasurer posts them."
-        />
-      ) : (
-        <>
-          <div className="hidden md:block">
-            <DataTable
-              columns={columns}
-              rows={contributions}
-              getRowKey={(c) => c.id}
-              currentPage={meta?.page ?? page}
-              totalPages={meta?.totalPages ?? 1}
-              onPageChange={setPage}
-            />
-          </div>
-          <div className="space-y-3 md:hidden">
-            {contributions.map((c) => (
-              <div
-                key={c.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Badge tone="neutral">
-                    {TYPE_LABELS[c.contributionType] ?? c.contributionType}
-                  </Badge>
-                  <Badge tone={c.status === "POSTED" ? "success" : "danger"}>
-                    {c.status}
-                  </Badge>
-                </div>
-                <p className="mt-2 text-lg font-bold text-slate-900">
-                  {money(Number(c.amount))}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {new Date(c.periodDate).toLocaleDateString()} ·{" "}
-                  {c.paymentMethod}
-                </p>
-                {c.receiptNo ? (
-                  <p className="mt-1 font-mono text-[0.65rem] text-slate-400">
-                    {c.receiptNo}
-                  </p>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mt-2"
-                  icon={<FiDownload size={12} />}
-                  onClick={() => contributionApi.downloadMyReceipt(c.id)}
-                >
-                  Receipt
-                </Button>
-              </div>
-            ))}
-            {meta && meta.totalPages > 1 ? (
-              <div className="flex justify-between gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={!meta.hasPrev}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="self-center text-xs text-slate-500">
-                  Page {meta.page} of {meta.totalPages}
-                </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={!meta.hasNext}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </>
-      )}
+      <CashTransactionHistory
+        title="Contribution history"
+        rows={historyRows}
+        loading={loading}
+        emptyMessage="Your contribution history will appear here once the treasurer posts them."
+        onRefresh={reloadContributions}
+      />
     </div>
   );
 }

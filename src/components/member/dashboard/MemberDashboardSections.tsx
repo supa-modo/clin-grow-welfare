@@ -95,6 +95,18 @@ export type ContributionArrears = {
   expected: number;
   actual: number;
   arrears: number;
+  status?: string;
+  minimumRequired?: number;
+  maximumAllowed?: number;
+  windowClosesAt?: string;
+  currentWeekPaid?: number;
+  currentWeekMinimum?: number;
+  unpaidPeriods?: number;
+  unpaidMeetings?: Array<{
+    id: string;
+    meetingNumber: string;
+    meetingDate: string;
+  }>;
 };
 
 export type MemberArrearsSummary = {
@@ -201,7 +213,7 @@ export function DashboardShell({
   return <>{children}</>;
 }
 
-export function MemberWelcomeCard({
+export function   MemberWelcomeCard({
   summary,
   contributionPeriod,
 }: {
@@ -393,44 +405,43 @@ export function ContributionProgressCard({
   recentContributions: Contribution[];
 }) {
   const savings = arrears.weeklySavings;
-  const progress = percent(savings.actual, savings.expected);
-  const expectedWeeks = Math.max(0, Math.ceil(savings.expected / MIN_WEEKLY_SAVINGS_FALLBACK));
-  const paidWeeks = Math.max(0, Math.floor(savings.actual / MIN_WEEKLY_SAVINGS_FALLBACK));
+  const currentWeekMinimum = savings.currentWeekMinimum ?? MIN_WEEKLY_SAVINGS_FALLBACK;
+  const currentWeekProgress = percent(savings.currentWeekPaid ?? 0, currentWeekMinimum);
   const state =
-    savings.expected <= 0 && savings.actual <= 0
+    savings.actual <= 0
       ? "No contributions yet"
-      : savings.arrears <= 0
-        ? "Fully up to date"
-        : "Partially behind";
+      : savings.status === "PAID_CURRENT_WEEK"
+        ? "Current week paid"
+        : "Current week unpaid";
 
   return (
     <DashboardPanel
       title="Weekly contributions"
-      description="Savings progress for the current financial year"
+      description="Posted savings and current meeting follow-up status"
       icon={<PiggyBank className="h-4 w-4" />}
-      action={<Badge tone={state === "Fully up to date" ? "success" : state === "Partially behind" ? "warning" : "neutral"}>{state}</Badge>}
+      action={<Badge tone={state === "Current week paid" ? "success" : state === "Current week unpaid" ? "warning" : "neutral"}>{state}</Badge>}
     >
       <div className="grid gap-4 lg:grid-cols-[1fr_15rem]">
         <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-3xl font-black text-ink-950">{progress}%</p>
+              <p className="text-3xl font-black text-ink-950">{money(savings.actual)}</p>
               <p className="mt-1 text-sm text-ink-500">
-                {paidWeeks} paid weeks against {expectedWeeks} expected weeks
+                Total posted weekly savings
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-extrabold text-ink-900">{money(savings.actual)}</p>
-              <p className="text-xs text-ink-500">of {money(savings.expected)} expected</p>
+              <p className="text-sm font-extrabold text-ink-900">{money(savings.currentWeekPaid ?? 0)}</p>
+              <p className="text-xs text-ink-500">paid this week</p>
             </div>
           </div>
           <div className="mt-5">
-            <ProgressBar value={progress} tone={savings.arrears > 0 ? "warning" : "success"} />
+            <ProgressBar value={currentWeekProgress} tone={savings.status === "PAID_CURRENT_WEEK" ? "success" : "warning"} />
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <MetricPill label="Paid" value={money(savings.actual)} />
-            <MetricPill label="Expected" value={money(savings.expected)} />
-            <MetricPill label="Behind" value={money(savings.arrears)} tone={savings.arrears > 0 ? "warning" : "success"} />
+            <MetricPill label="Total saved" value={money(savings.actual)} />
+            <MetricPill label="This week" value={money(savings.currentWeekPaid ?? 0)} />
+            <MetricPill label="Unpaid meetings" value={String(savings.unpaidPeriods ?? 0)} tone={(savings.unpaidPeriods ?? 0) > 0 ? "warning" : "success"} />
           </div>
         </div>
         <RecentContributionList contributions={recentContributions} />
@@ -848,11 +859,11 @@ export function buildAlerts({
     });
   }
 
-  if (arrears.weeklySavings.arrears > 0) {
+  if (arrears.weeklySavings.status === "UNPAID_CURRENT_WEEK") {
     alerts.push({
-      id: "weekly-arrears",
-      title: "Weekly savings behind",
-      message: `${money(arrears.weeklySavings.arrears)} is currently behind the expected savings position.`,
+      id: "weekly-unpaid",
+      title: "Weekly savings unpaid",
+      message: "This week's saving has not been posted yet. Officials will follow up before the next meeting.",
       tone: "warning",
     });
   }

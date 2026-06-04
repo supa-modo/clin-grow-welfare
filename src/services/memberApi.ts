@@ -34,6 +34,10 @@ export const memberApi = {
     const { data } = await api.post(`/members/${id}/approve`, payload ?? {});
     return data.member as Member;
   },
+  async resetPassword(id: string) {
+    const { data } = await api.post(`/members/${id}/reset-password`);
+    return data as { ok: boolean; tempPassword?: string };
+  },
   async status(id: string, status: MembershipStatus, reason?: string) {
     const { data } = await api.post(`/members/${id}/status`, { status, reason });
     return data.member as Member;
@@ -68,6 +72,41 @@ export const memberApi = {
   dependantDocumentUrl(id: string, dependantId: string, documentId: string) {
     return `/members/${id}/dependants/${dependantId}/documents/${documentId}/download`;
   },
+  async pendingDependants() {
+    const { data } = await api.get('/members/dependants/pending');
+    return data.dependants as Array<MemberDependant & { member: { id: string; name: string; membershipNumber: string } }>;
+  },
+  async beneficiaryChangeRequests(status = 'PENDING') {
+    const { data } = await api.get('/members/beneficiary-change-requests', { params: { status } });
+    return data.requests as BeneficiaryChangeRequest[];
+  },
+  async approveBeneficiaryChange(requestId: string) {
+    const { data } = await api.post(`/members/beneficiary-change-requests/${requestId}/approve`);
+    return data;
+  },
+  async rejectBeneficiaryChange(requestId: string, rejectionReason?: string) {
+    const { data } = await api.post(`/members/beneficiary-change-requests/${requestId}/reject`, { rejectionReason });
+    return data.request as BeneficiaryChangeRequest;
+  },
+};
+
+export type BeneficiaryChangeRequest = {
+  id: string;
+  memberId: string;
+  status: string;
+  proposedName: string;
+  proposedPhone?: string | null;
+  proposedRelationship: string;
+  proposedIdNumber?: string | null;
+  note?: string | null;
+  member?: {
+    id: string;
+    name: string;
+    membershipNumber: string;
+    beneficiaryName?: string;
+    beneficiaryPhone?: string;
+    beneficiaryRelationship?: string;
+  };
 };
 
 export const memberPortalApi = {
@@ -108,5 +147,19 @@ export const memberPortalApi = {
   },
   dependantDocumentUrl(dependantId: string, documentId: string) {
     return `/member-portal/dependants/${dependantId}/documents/${documentId}/download`;
+  },
+  async beneficiaryChangeRequest() {
+    const { data } = await api.get('/member-portal/beneficiaries/change-request');
+    return data.request as BeneficiaryChangeRequest | null;
+  },
+  async submitBeneficiaryChange(values: {
+    proposedName: string;
+    proposedPhone?: string;
+    proposedRelationship: string;
+    proposedIdNumber?: string;
+    note?: string;
+  }) {
+    const { data } = await api.post('/member-portal/beneficiaries/request-change', values);
+    return data as { request: BeneficiaryChangeRequest; message: string };
   },
 };

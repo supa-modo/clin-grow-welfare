@@ -85,7 +85,9 @@ export function PortalNotificationMenu({
   async function handleMarkRead(id: string) {
     await markReadApi(id);
     setItems((current) =>
-      current.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
+      current.map((item) =>
+        item.id === id ? { ...item, isRead: true } : item,
+      ),
     );
     refreshUnreadCount();
   }
@@ -133,14 +135,14 @@ export function PortalNotificationMenu({
       {open ? (
         <div className="absolute right-0 z-50 mt-3.5 w-[18rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-b-2xl border border-ink-100 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.18)] lg:mt-2 lg:w-84 lg:rounded-2xl">
           <div className="flex items-center justify-between border-b border-ink-100 px-4 py-1.5 lg:py-2">
-            <p className="text-[0.7rem] font-semibold text-secondary-600 md:text-xs lg:text-[0.83rem]">
+            <p className="text-[0.7rem] font-semibold text-red-600 md:text-xs lg:text-[0.83rem]">
               {unread} unread item{unread === 1 ? "" : "s"}
             </p>
             <button
               type="button"
               onClick={() => void handleMarkAllRead()}
               disabled={!unread}
-              className="rounded-lg border border-primary-600/70 px-3 py-0.5 text-[0.65rem] font-bold text-brand-700 disabled:text-ink-400 md:text-[0.7rem] lg:py-[0.2rem] lg:text-[0.8rem]"
+              className="rounded-lg hover:cursor-pointer hover:bg-gray-50 border border-gray-600/70 px-3 py-0.5 text-[0.65rem] font-bold text-gray-700 disabled:text-ink-400 md:text-[0.7rem] lg:py-[0.2rem] lg:text-[0.75rem]"
             >
               Mark all read
             </button>
@@ -153,10 +155,8 @@ export function PortalNotificationMenu({
                   role="button"
                   tabIndex={0}
                   onClick={() => void handleOpenItem(item)}
-                  onKeyDown={(event) =>
-                    handleNotificationKeyDown(event, item)
-                  }
-                  className={`mb-1 rounded-xl p-2.5 lg:p-3 ${item.isRead ? "bg-white" : "bg-secondary-100/80"}`}
+                  onKeyDown={(event) => handleNotificationKeyDown(event, item)}
+                  className={`mb-1 rounded-xl p-2.5 lg:p-3 ${item.isRead ? "bg-white" : "bg-red-100/80"}`}
                   aria-label={`Open notification: ${item.title}`}
                 >
                   <div className="flex items-start justify-between gap-1">
@@ -170,7 +170,7 @@ export function PortalNotificationMenu({
                           event.stopPropagation();
                           void handleMarkRead(item.id);
                         }}
-                        className="rounded-full text-brand-700"
+                        className="rounded-full text-red-700"
                         aria-label="Mark notification read"
                       >
                         <TbCheck />

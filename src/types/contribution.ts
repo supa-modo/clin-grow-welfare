@@ -45,6 +45,18 @@ export interface ArrearsData {
   expected: number;
   actual: number;
   arrears: number;
+  status?: string;
+  minimumRequired?: number;
+  maximumAllowed?: number;
+  windowClosesAt?: string;
+  currentWeekPaid?: number;
+  currentWeekMinimum?: number;
+  unpaidPeriods?: number;
+  unpaidMeetings?: Array<{
+    id: string;
+    meetingNumber: string;
+    meetingDate: string;
+  }>;
 }
 
 export interface MemberArrears {

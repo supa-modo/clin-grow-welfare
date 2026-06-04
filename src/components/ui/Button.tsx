@@ -11,7 +11,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
     | "secondary2"
     | "red";
   icon?: ReactNode;
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: "xxs" | "xs" | "sm" | "md" | "lg";
   rounded?: "full" | "lg" | "md" | "sm" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
   isLoading?: boolean;
   loadingText?: string;
@@ -32,12 +32,17 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2  font-semibold transition focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-        "text-[0.7rem] md:text-xs lg:text-[0.85rem]",
-        size === "xs" && "min-h-6 lg:min-h-7 px-5",
-        size === "sm" && "min-h-8 lg:min-h-9 px-6",
-        size === "md" && "min-h-9 lg:min-h-10 px-6",
-        size === "lg" && "minh-10 lg:min-h-11 px-6",
+        "inline-flex items-center justify-center gap-2 hover:cursor-pointer font-semibold transition focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+        size === "xxs" &&
+          "min-h-5 lg:min-h-6 px-4 text-[0.6rem] md:text-xs lg:text-[0.75rem]",
+        size === "xs" &&
+          "min-h-6 lg:min-h-7 px-5 text-[0.65rem] md:text-xs lg:text-[0.75rem]",
+        size === "sm" &&
+          "min-h-8 lg:min-h-9 px-6 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
+        size === "md" &&
+          "min-h-9 lg:min-h-10 px-6 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
+        size === "lg" &&
+          "minh-10 lg:min-h-11 px-6 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
         rounded === "full" && "rounded-full",
         rounded === "lg" && "rounded-lg",
         rounded === "md" && "rounded-md",
@@ -48,7 +53,7 @@ export function Button({
         rounded === "4xl" && "rounded-4xl",
         rounded === "5xl" && "rounded-5xl",
         variant === "primary" &&
-          "bg-brand-700 text-white hover:bg-brand-600 border border-brand-600",
+          "bg-primary-700 text-white hover:bg-primary-600 border border-primary-600",
         variant === "secondary" &&
           "border border-gray-400 bg-white text-ink-900 hover:bg-ink-100",
         variant === "red" &&
@@ -58,7 +63,7 @@ export function Button({
         variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
         variant === "ghost" && "text-ink-700 hover:bg-ink-100",
         variant === "outline" &&
-          "border-2 border-brand-500 bg-white text-brand-500 hover:bg-brand-100",
+          "border-2 border-gray-500 bg-white text-gray-600 hover:bg-gray-100",
         className,
       )}
       disabled={disabled || isLoading}

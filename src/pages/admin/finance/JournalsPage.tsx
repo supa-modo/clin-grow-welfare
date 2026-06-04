@@ -11,7 +11,11 @@ import type { JournalEntry, LedgerAccount } from '@/types/ledger';
 
 function money(n: number) { return `KES ${Number(n).toLocaleString()}`; }
 
-export function JournalsPage() {
+function journalAmount(entry: JournalEntry) {
+  return entry.lines?.reduce((sum, line) => sum + Number(line.debitAmount), 0) ?? 0;
+}
+
+export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -87,6 +91,7 @@ export function JournalsPage() {
     { key: 'entryNo', header: 'Entry No', render: (j) => <span className="font-mono text-xs font-semibold text-brand-700">{j.entryNo}</span> },
     { key: 'date', header: 'Date', render: (j) => new Date(j.transactionDate).toLocaleDateString() },
     { key: 'description', header: 'Description', render: (j) => <span className="max-w-xs truncate block">{j.description}</span> },
+    { key: 'amount', header: 'Amount', render: (j) => <span className="font-mono text-sm font-semibold">{money(journalAmount(j))}</span> },
     { key: 'lines', header: 'Lines', render: (j) => j.lines?.length ?? '—' },
     { key: 'status', header: 'Status', render: (j) => <JournalStatusBadge status={j.status} /> },
     {
@@ -103,11 +108,17 @@ export function JournalsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Journal Entries"
-        subtitle="Double-entry bookkeeping ledger"
-        action={<Button icon={<FiPlus />} onClick={() => setShowNew(true)}>Post Journal Entry</Button>}
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Journal Entries"
+          subtitle="Double-entry bookkeeping ledger"
+          action={<Button icon={<FiPlus />} onClick={() => setShowNew(true)}>Post Journal Entry</Button>}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <Button icon={<FiPlus />} onClick={() => setShowNew(true)}>Post Journal Entry</Button>
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <input className="flex-1 rounded-lg border border-ink-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Search by entry number or description..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />

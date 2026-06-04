@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TbUser } from "react-icons/tb";
 import { DependantsPanel } from "@/components/members/DependantsPanel";
 import {
@@ -10,21 +10,46 @@ import {
 } from "@/components/members/memberUi";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import DataTable from "@/components/ui/DataTable";
+import { SearchBar } from "@/components/ui/SearchBar";
 import SlideOver from "@/components/ui/SlideOver";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
+import { api } from "@/services/api";
+import { loanApi } from "@/services/loanApi";
+import type { LoanEligibility } from "@/types/loan";
 import type { Member } from "@/types/member";
 
-type DetailTab = "overview" | "welfare" | "admin" | "dependants";
+type DetailTab = "details" | "welfare" | "loans";
 
-const selectedFinancialCards = [
-  ["Shares balance", 0, "Phase 3 ledger-ready"],
-  ["Kitty contributions", 0, "Phase 4 source"],
-  ["Monthly contributions", 0, "Phase 4 source"],
-  ["Outstanding loans", 0, "Phase 5 source"],
-  ["Loan balance", 0, "Phase 5 source"],
-  ["Last payment date", "-", "Pending contribution history"],
-] as const;
+type WelfareSummary = {
+  balances: {
+    shareCapital: number;
+    weeklySavings: number;
+    welfareKitty: number;
+    activeLoanBalance: number;
+    finesBalance: number;
+  };
+  welfarePaidThisMonth: number;
+};
+
+type ContributionRow = {
+  id: string;
+  contributionType: string;
+  amount: number;
+  periodDate: string;
+  receiptNumber?: string | null;
+};
+
+type LoanRow = {
+  id: string;
+  loanNumber?: string | null;
+  status: string;
+  requestedAmount: number;
+  outstandingPrincipal?: number | null;
+  totalOutstanding?: number | null;
+  createdAt: string;
+};
 
 export type MemberDetailSlideOverProps = {
   open: boolean;
@@ -39,6 +64,7 @@ export type MemberDetailSlideOverProps = {
   onActivate: (member: Member) => void;
   onExpel: (member: Member) => void;
   onToggleRegistration: (member: Member, paid: boolean) => void;
+  onResetPassword?: (member: Member) => void;
 };
 
 export function MemberDetailSlideOver({
@@ -54,16 +80,55 @@ export function MemberDetailSlideOver({
   onActivate,
   onExpel,
   onToggleRegistration,
+  onResetPassword,
 }: MemberDetailSlideOverProps) {
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
+  const [activeTab, setActiveTab] = useState<DetailTab>("details");
+  const [welfareSummary, setWelfareSummary] = useState<WelfareSummary | null>(null);
+  const [contributions, setContributions] = useState<ContributionRow[]>([]);
+  const [loans, setLoans] = useState<LoanRow[]>([]);
+  const [loanEligibility, setLoanEligibility] = useState<LoanEligibility | null>(null);
+  const [contribSearch, setContribSearch] = useState("");
+  const [loadingTab, setLoadingTab] = useState(false);
+
+  useEffect(() => {
+    if (!open || !member?.id) return;
+    if (activeTab !== "welfare" && activeTab !== "loans") return;
+    let cancelled = false;
+    setLoadingTab(true);
+    void (async () => {
+      try {
+        if (activeTab === "welfare") {
+          const [summaryRes, contribRes] = await Promise.all([
+            api.get(`/members/${member.id}/welfare-summary`),
+            api.get(`/members/${member.id}/contributions`, { params: { page: 1, pageSize: 25, search: contribSearch || undefined } }),
+          ]);
+          if (!cancelled) {
+            setWelfareSummary(summaryRes.data.summary ?? null);
+            setContributions(contribRes.data.data ?? []);
+          }
+        } else {
+          const [loansRes, eligibility] = await Promise.all([
+            api.get(`/members/${member.id}/loans`),
+            loanApi.getEligibility(member.id).catch(() => null),
+          ]);
+          if (!cancelled) {
+            setLoans(loansRes.data.loans ?? []);
+            setLoanEligibility(eligibility);
+          }
+        }
+      } finally {
+        if (!cancelled) setLoadingTab(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, contribSearch, member?.id, open]);
 
   if (!member) return null;
 
   const tabs = [
-    { value: "overview" as const, label: "Overview" },
+    { value: "details" as const, label: "Details" },
     { value: "welfare" as const, label: "Welfare account" },
-    { value: "admin" as const, label: "Records" },
-    { value: "dependants" as const, label: "Dependants" },
+    { value: "loans" as const, label: "Loans" },
   ];
 
   const terminal = ["WITHDRAWN", "EXPELLED", "DECEASED"].includes(member.status);
@@ -93,6 +158,11 @@ export function MemberDetailSlideOver({
             {canUpdate && !terminal ? (
               <Button variant="outline" size="sm" onClick={() => onEdit(member)}>
                 Edit member
+              </Button>
+            ) : null}
+            {canUpdate && onResetPassword ? (
+              <Button variant="outline" size="sm" onClick={() => onResetPassword(member)} disabled={busy}>
+                Reset password
               </Button>
             ) : null}
             {member.status === "PENDING" && canApprove ? (
@@ -175,12 +245,23 @@ export function MemberDetailSlideOver({
         className="mb-5"
       />
 
-      {activeTab === "overview" ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          <DetailField label="Phone" value={member.phone} />
-          <DetailField label="Email" value={member.email} />
-          <DetailField label="ID / Passport" value={member.idNumber} />
-          <DetailField label="Joined" value={formatDate(member.dateJoined)} />
+      {activeTab === "details" ? (
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <DetailField label="Phone" value={member.phone} />
+            <DetailField label="Email" value={member.email} />
+            <DetailField label="ID / Passport" value={member.idNumber} />
+            <DetailField label="Joined" value={formatDate(member.dateJoined)} />
+            <DetailField label="Approved" value={formatDate(member.approvedAt)} />
+            <DetailField label="Introduced by" value={member.introducedBy?.name} />
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Primary beneficiary</p>
+            <p className="mt-2 text-base font-extrabold text-gray-900">{member.beneficiaryName || "-"}</p>
+            <p className="mt-1 text-sm text-gray-500">{member.beneficiaryRelationship || "Relationship not set"}</p>
+            <p className="mt-1 text-sm font-semibold text-gray-700">{member.beneficiaryPhone || "-"}</p>
+          </div>
+          <DependantsPanel memberId={member.id} scope="admin" canVerify={canUpdate} />
         </div>
       ) : null}
 
@@ -188,110 +269,98 @@ export function MemberDetailSlideOver({
         <div className="space-y-4">
           {canUpdate ? (
             <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
-              <span className="text-sm font-semibold text-gray-600">
-                Registration paid
-              </span>
+              <span className="text-sm font-semibold text-gray-600">Registration paid</span>
               <ToggleSwitch
                 checked={member.registrationFeePaid}
-                onChange={() =>
-                  onToggleRegistration(member, !member.registrationFeePaid)
-                }
+                onChange={() => onToggleRegistration(member, !member.registrationFeePaid)}
                 variant="success"
-                disabled={busy}
+                disabled={busy || member.registrationFeePaid}
               />
             </div>
           ) : null}
-          <div className="grid gap-3 md:grid-cols-2">
-            {selectedFinancialCards.map(([label, value, note]) => (
-              <div
-                key={label}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  {label}
-                </p>
-                <p className="mt-2 text-xl font-extrabold text-gray-900">
-                  {typeof value === "number" ? money(value) : value}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">{note}</p>
+          {welfareSummary ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-gray-400">Share capital</p>
+                <p className="mt-2 text-xl font-extrabold">{money(welfareSummary.balances.shareCapital)}</p>
               </div>
-            ))}
-          </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-gray-400">Weekly savings</p>
+                <p className="mt-2 text-xl font-extrabold">{money(welfareSummary.balances.weeklySavings)}</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-gray-400">Welfare kitty</p>
+                <p className="mt-2 text-xl font-extrabold">{money(welfareSummary.balances.welfareKitty)}</p>
+                <p className="mt-1 text-xs text-gray-500">Paid this month: {money(welfareSummary.welfarePaidThisMonth)}</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-gray-400">Outstanding fines</p>
+                <p className="mt-2 text-xl font-extrabold">{money(welfareSummary.balances.finesBalance)}</p>
+              </div>
+            </div>
+          ) : null}
+          <SearchBar value={contribSearch} onChange={setContribSearch} placeholder="Search contributions" wrapperClassName="max-w-md" />
+          <DataTable<ContributionRow>
+            tableLoading={loadingTab}
+            columns={[
+              { header: 'Type', render: (row) => row.contributionType.replace(/_/g, ' ') },
+              { header: 'Amount', render: (row) => money(Number(row.amount)) },
+              { header: 'Period', render: (row) => formatDate(row.periodDate) },
+              { header: 'Receipt', render: (row) => row.receiptNumber ?? '—' },
+            ]}
+            rows={contributions}
+            getRowKey={(row) => row.id}
+            showAutoNumber
+            emptyTitle="No contributions"
+            emptyMessage="Posted contributions will appear here."
+          />
         </div>
       ) : null}
 
-      {activeTab === "admin" ? (
+      {activeTab === "loans" ? (
         <div className="space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">
-                  Member record
-                </h3>
-                <p className="mt-1 text-xs text-gray-500">
-                  Approval, onboarding, and primary beneficiary details in one
-                  place.
+          {loanEligibility ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-gray-400">Available loan limit</p>
+                <p className="mt-2 text-xl font-extrabold text-primary-700">
+                  {money(loanEligibility.maxEligible)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">{loanEligibility.note}</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-gray-400">Total pending (active loans)</p>
+                <p className="mt-2 text-xl font-extrabold text-red-700">
+                  {money(
+                    loans
+                      .filter((row) =>
+                        ['ACTIVE', 'PARTIALLY_PAID', 'IN_ROLLOVER', 'OVERDUE', 'DEFAULTED'].includes(row.status),
+                      )
+                      .reduce((sum, row) => sum + Number(row.totalOutstanding ?? row.outstandingPrincipal ?? 0), 0),
+                  )}
                 </p>
               </div>
-              <Badge tone={member.approvedAt ? "success" : "warning"}>
-                {member.approvedAt ? "Approved" : "Awaiting approval"}
-              </Badge>
             </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <DetailField
-                label="Approved date"
-                value={formatDate(member.approvedAt)}
-              />
-              <DetailField label="Approved by" value={member.approvedBy} />
-              <DetailField
-                label="Introduced by"
-                value={member.introducedBy?.name}
-              />
-              <DetailField
-                label="Last updated"
-                value={formatDate(member.updatedAt)}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <div className="grid gap-4 lg:grid-cols-[1fr_1.15fr]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Primary beneficiary
-                </p>
-                <p className="mt-2 text-base font-extrabold text-gray-900">
-                  {member.beneficiaryName || "-"}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {member.beneficiaryRelationship || "Relationship not set"}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-700">
-                  {member.beneficiaryPhone || "-"}
-                </p>
-                <p className="mt-3 inline-flex rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">
-                  100% primary allocation
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-gray-50 p-4">
-                <DetailField
-                  label="Notes"
-                  value={member.nonComplianceReasons}
-                />
-              </div>
-            </div>
-          </div>
+          ) : null}
+          <DataTable<LoanRow>
+            tableLoading={loadingTab}
+            columns={[
+              { header: 'Loan', render: (row) => row.loanNumber ?? row.id.slice(0, 8) },
+              { header: 'Status', render: (row) => row.status.replace(/_/g, ' ') },
+              { header: 'Requested', render: (row) => money(Number(row.requestedAmount)) },
+              {
+                header: 'Outstanding',
+                render: (row) => money(Number(row.totalOutstanding ?? row.outstandingPrincipal ?? 0)),
+              },
+              { header: 'Opened', render: (row) => formatDate(row.createdAt) },
+            ]}
+            rows={loans}
+            getRowKey={(row) => row.id}
+            showAutoNumber
+            emptyTitle="No loans"
+            emptyMessage="Member loan history will appear here."
+          />
         </div>
-      ) : null}
-
-      {activeTab === "dependants" ? (
-        <DependantsPanel
-          memberId={member.id}
-          scope="admin"
-          canVerify={canUpdate}
-        />
       ) : null}
     </SlideOver>
   );

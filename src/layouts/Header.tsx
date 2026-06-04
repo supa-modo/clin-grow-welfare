@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  FiBell,
-  FiChevronDown,
-  FiLogOut,
-  FiMenu,
-} from "react-icons/fi";
+import { FiChevronDown, FiLogOut, FiMenu } from "react-icons/fi";
 import { TbLayoutDashboard } from "react-icons/tb";
 import {
   availableWorkspaces,
@@ -16,6 +11,10 @@ import {
 import { api } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
+import {
+  PortalNotificationMenu,
+  type PortalNotificationItem,
+} from "@/components/notifications/PortalNotificationMenu";
 
 function getInitials(name?: string) {
   if (!name) return "CG";
@@ -29,9 +28,10 @@ function getInitials(name?: string) {
 
 type HeaderProps = {
   workspaceLabel?: string;
+  roleLabel?: string;
 };
 
-export function Header({ workspaceLabel }: HeaderProps) {
+export function Header({ workspaceLabel, roleLabel }: HeaderProps) {
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
@@ -41,10 +41,6 @@ export function Header({ workspaceLabel }: HeaderProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<
-    Array<{ id: string; title: string; body?: string; link?: string }>
-  >([]);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const workspaces = availableWorkspaces(user);
   const currentWorkspace: WorkspaceKey = location.pathname.startsWith("/member")
@@ -62,22 +58,6 @@ export function Header({ workspaceLabel }: HeaderProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      api.get("/notifications", { params: { status: "UNREAD" } }),
-      api.get("/notifications/unread-count"),
-    ])
-      .then(([listRes, countRes]) => {
-        setNotifications(listRes.data.notifications ?? []);
-        setUnreadCount(countRes.data.count ?? 0);
-      })
-      .catch(() => {
-        setNotifications([]);
-        setUnreadCount(0);
-      });
-  }, [user]);
-
   const switchWorkspace = (workspace: WorkspaceKey) => {
     setProfileOpen(false);
     if (workspace !== currentWorkspace) navigate(workspaceRoutes[workspace]);
@@ -87,6 +67,40 @@ export function Header({ workspaceLabel }: HeaderProps) {
     logout();
     window.location.href = "/login";
   };
+
+  const centerPath = `${workspaceRoutes[currentWorkspace]}/notifications`;
+
+  async function loadNotificationPreview(): Promise<PortalNotificationItem[]> {
+    const res = await api.get("/notifications", {
+      params: { status: "UNREAD" },
+    });
+    return (res.data.notifications ?? []).slice(0, 8).map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      message: row.body ?? "",
+      createdAt: row.createdAt,
+      isRead: row.status === "READ",
+      actionUrl: row.link,
+    }));
+  }
+
+  async function loadUnreadCount() {
+    const res = await api.get("/notifications/unread-count");
+    return Number(res.data.count ?? 0);
+  }
+
+  async function markRead(id: string) {
+    await api.patch(`/notifications/${id}/read`);
+  }
+
+  async function markAllRead() {
+    await api.patch("/notifications/read-all");
+  }
+
+  async function openNotification(item: PortalNotificationItem) {
+    await markRead(item.id).catch(() => undefined);
+    if (item.actionUrl) navigate(item.actionUrl);
+  }
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-3 md:px-4">
@@ -100,96 +114,35 @@ export function Header({ workspaceLabel }: HeaderProps) {
               toggleSidebar();
             }
           }}
-          className="grid h-9 w-9 place-items-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50 lg:hidden"
+          className="shrink-0 rounded-xl border border-gray-200 p-2 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
           aria-label="Toggle menu"
         >
-          <FiMenu className="h-4 w-4" />
+          <FiMenu className="h-5 w-5" />
         </button>
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-gray-900">
-            {workspaceLabel ?? workspaceLabels[currentWorkspace]}
+            {roleLabel ?? workspaceLabel ?? workspaceLabels[currentWorkspace]}
           </p>
           <p className="truncate text-xs text-gray-500">
-            Clin-Grow Welfare Group
+            {roleLabel
+              ? (workspaceLabel ?? workspaceLabels[currentWorkspace])
+              : "Clin-Grow Welfare Group"}
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setNotificationsOpen((open) => !open)}
-            className="relative grid h-9 w-9 place-items-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50"
-            aria-label="Notifications"
-            data-testid="notification-bell"
-          >
-            <FiBell className="h-4 w-4" />
-            {unreadCount ? (
-              <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[0.65rem] font-bold text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            ) : null}
-          </button>
-          {notificationsOpen ? (
-            <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
-              <div className="border-b border-gray-100 px-4 py-3">
-                <p className="text-sm font-bold text-gray-900">Notifications</p>
-                <p className="text-xs text-gray-500">
-                  Meeting, finance, and approval updates.
-                </p>
-              </div>
-              <div className="max-h-80 overflow-y-auto p-2">
-                {notifications.length ? (
-                  notifications.slice(0, 8).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="w-full rounded-xl px-3 py-2 text-left transition hover:bg-gray-50"
-                      onClick={async () => {
-                        await api
-                          .post(`/notifications/${item.id}/read`)
-                          .catch(() => undefined);
-                        setNotifications((rows) =>
-                          rows.filter((row) => row.id !== item.id),
-                        );
-                        setUnreadCount((count) => Math.max(0, count - 1));
-                        setNotificationsOpen(false);
-                        if (item.link) navigate(item.link);
-                      }}
-                    >
-                      <span className="block text-xs font-bold text-gray-900">
-                        {item.title}
-                      </span>
-                      {item.body ? (
-                        <span className="mt-0.5 block text-xs text-gray-500">
-                          {item.body}
-                        </span>
-                      ) : null}
-                    </button>
-                  ))
-                ) : (
-                  <p className="px-3 py-6 text-center text-sm text-gray-500">
-                    No unread notifications.
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                className="w-full border-t border-gray-100 px-4 py-3 text-sm font-bold text-brand-800 transition hover:bg-brand-50"
-                onClick={() => {
-                  setNotificationsOpen(false);
-                  navigate(
-                    `${workspaceRoutes[currentWorkspace]}/notifications`,
-                  );
-                }}
-                data-testid="notification-center-link"
-              >
-                Open notification center
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <PortalNotificationMenu
+          open={notificationsOpen}
+          onOpenChange={setNotificationsOpen}
+          centerPath={centerPath}
+          loadPreview={loadNotificationPreview}
+          loadUnreadCount={loadUnreadCount}
+          markRead={markRead}
+          markAllRead={markAllRead}
+          onOpenItem={openNotification}
+          onBellInteract={() => setProfileOpen(false)}
+        />
 
         <div ref={menuRef} className="relative">
           <button
@@ -227,9 +180,6 @@ export function Header({ workspaceLabel }: HeaderProps) {
                 </p>
               </div>
               <div className="px-2 py-2">
-                <p className="px-2 pb-1 pt-1 text-[0.68rem] font-bold uppercase tracking-wider text-gray-400">
-                  Portal
-                </p>
                 {workspaces.map((workspace) => {
                   const active = workspace === currentWorkspace;
                   return (
@@ -238,9 +188,9 @@ export function Header({ workspaceLabel }: HeaderProps) {
                       type="button"
                       role="menuitem"
                       onClick={() => switchWorkspace(workspace)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
                         active
-                          ? "bg-brand-50 text-brand-800"
+                          ? "bg-primary-100 text-primary-800"
                           : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >

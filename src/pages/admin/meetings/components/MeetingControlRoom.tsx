@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/Card";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingStep } from "../types";
-import { canAdvanceStep, canGoToStep } from "../utils";
+import { canCloseMeeting, canGoToStep, isMeetingStarted, nextStep } from "../utils";
 import { useMeetingCeremony } from "../hooks/useMeetingCeremony";
 import { StepFooter } from "./StepFooter";
 import { AttendanceStep } from "./steps/AttendanceStep";
@@ -24,7 +24,9 @@ import { RepaymentsStep } from "./steps/RepaymentsStep";
 import { SummaryStep } from "./steps/SummaryStep";
 import { LoanWindowStep } from "./steps/LoanWindowStep";
 import { CloseStep } from "./steps/CloseStep";
+import { ResolutionsStep } from "./steps/ResolutionsStep";
 import { StatCard } from "@/components/ui/StatCard";
+import { NotificationModal } from "@/components/ui/NotificationModal";
 
 type Ceremony = ReturnType<typeof useMeetingCeremony>;
 
@@ -76,6 +78,16 @@ export function MeetingControlRoom({
     generateFines,
     markAttendance,
     saveAllAttendance,
+    finalizeAttendance,
+    showAttendanceFinalize,
+    setShowAttendanceFinalize,
+    savedAttendanceIds,
+    deferFine,
+    collectionsReadiness,
+    collectionsOverride,
+    setCollectionsOverride,
+    loadCollectionsReadiness,
+    updateCollectionWaiver,
     reviewApology,
     notifyFine,
     collect,
@@ -87,6 +99,13 @@ export function MeetingControlRoom({
     runLoanAction,
     saveMinutes,
     publishMinutes,
+    uploadMinutesDocument,
+    loadPool,
+    reload,
+    closeMeeting,
+    pendingAction,
+    clearPendingAction,
+    runPendingAction,
   } = ceremony;
 
   if (!selectedMeeting) return null;
@@ -99,10 +118,19 @@ export function MeetingControlRoom({
   const setGuardedStep = (next: MeetingStep) => {
     if (canGoToStep(next, m, roster, pool)) setStep(next);
   };
-  const canClose = canAdvanceStep("loans", m, roster, pool);
+  const canClose = canCloseMeeting(m, roster, pool);
+  const meetingStarted = isMeetingStarted(m);
+  const continueStep = (m.ceremonyStep as MeetingStep | undefined) ?? nextStep("attendance") ?? "fines";
+  const stageLocked = Boolean(m.loanStageReachedAt) && ["attendance", "fines", "collections", "repayments", "summary"].includes(step);
 
   return (
-    <Card className="p-5">
+    <Card className="flex min-h-0 flex-col overflow-hidden p-0">
+      <div className="shrink-0 p-5 pb-0">
+        {stageLocked ? (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            Loan stage is locked. Attendance, fines, and collections can no longer be edited for this meeting.
+          </div>
+        ) : null}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -128,15 +156,27 @@ export function MeetingControlRoom({
           >
             Email notice
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<FiPlay />}
-            disabled={!!busy || m.status === "CLOSED"}
-            onClick={() => void action(m.id, "start")}
-          >
-            Start
-          </Button>
+          {!meetingStarted && m.status !== "CLOSED" ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<FiPlay />}
+              disabled={!!busy}
+              onClick={() => void action(m.id, "start")}
+            >
+              Start meeting
+            </Button>
+          ) : null}
+          {meetingStarted && m.status !== "CLOSED" ? (
+            <Button
+              size="sm"
+              variant="secondary2"
+              disabled={!!busy}
+              onClick={() => setGuardedStep(continueStep)}
+            >
+              Continue to {continueStep.replace(/_/g, " ")}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -146,8 +186,9 @@ export function MeetingControlRoom({
         onChange={setGuardedStep}
         className="mt-5"
       />
+      </div>
 
-      <div className="mt-5">
+      <div className="mt-5 min-h-0 flex-1 overflow-y-auto px-5 pb-5" data-meeting-step-scroll data-route-scroll-container>
         {step === "attendance" ? (
           <AttendanceStep
             meeting={m}
@@ -155,8 +196,12 @@ export function MeetingControlRoom({
             busy={busy}
             attendanceDraft={attendanceDraft}
             setAttendanceDraft={setAttendanceDraft}
+            savedAttendanceIds={savedAttendanceIds}
+            showFinalize={showAttendanceFinalize}
             onSaveRow={(memberId) => void markAttendance(m.id, memberId)}
             onSaveAll={() => void saveAllAttendance(m.id)}
+            onCloseFinalize={() => setShowAttendanceFinalize(false)}
+            onFinalize={() => void finalizeAttendance(m.id)}
             onReviewApology={(id, decision) => void reviewApology(id, decision)}
           />
         ) : null}
@@ -174,6 +219,7 @@ export function MeetingControlRoom({
               })
             }
             onNotify={(fineId) => void notifyFine(fineId)}
+            onDefer={(fineId) => void deferFine(fineId)}
           />
         ) : null}
         {step === "collections" ? (
@@ -183,6 +229,14 @@ export function MeetingControlRoom({
             busy={busy}
             collectionDraft={collectionDraft}
             setCollectionDraft={setCollectionDraft}
+            readiness={collectionsReadiness}
+            constitutionalOverride={collectionsOverride}
+            onOverrideChange={(value) => {
+              setCollectionsOverride(value);
+              void loadCollectionsReadiness(m.id, value);
+            }}
+            onRefreshReadiness={() => void loadCollectionsReadiness(m.id)}
+            onWaiver={(memberId, patch) => void updateCollectionWaiver(m.id, memberId, patch)}
             onPost={(memberId, type, amount, periodDate) =>
               void collect(m, memberId, { type, amount, periodDate })
             }
@@ -205,7 +259,10 @@ export function MeetingControlRoom({
           />
         ) : null}
         {step === "summary" ? (
-          <SummaryStep collectionTotals={collectionTotals} pool={pool} />
+          <div className="space-y-4">
+            <SummaryStep meeting={m} collectionTotals={collectionTotals} pool={pool} />
+            <ResolutionsStep meeting={m} resolutions={m.resolutions} busy={busy} onRecorded={() => void reload()} />
+          </div>
         ) : null}
         {step === "loans" ? (
           <LoanWindowStep
@@ -225,6 +282,7 @@ export function MeetingControlRoom({
             onUpdateReservation={(r) => void updateReservation(r)}
             onReleaseReservation={(r) => void releaseReservation(r)}
             onOfficialReserve={() => void officialReserve()}
+            onRefreshPool={() => void loadPool(m.id)}
             onLoanAction={(loan, label, runner) =>
               void runLoanAction(loan, label, runner)
             }
@@ -237,9 +295,10 @@ export function MeetingControlRoom({
             minutesDraft={minutesDraft}
             setMinutesDraft={setMinutesDraft}
             meetingReport={meetingReport}
-            onCloseMeeting={() => void action(m.id, "close")}
+            onCloseMeeting={() => void closeMeeting(m.id)}
             onSaveMinutes={() => void saveMinutes(m)}
             onPublish={() => void publishMinutes(m.id)}
+            onUploadMinutes={(file) => void uploadMinutesDocument(m.id, file)}
             canClose={canClose}
           />
         ) : null}
@@ -247,11 +306,22 @@ export function MeetingControlRoom({
 
       <StepFooter
         step={step}
-        setStep={setStep}
+        setStep={setGuardedStep}
         meeting={m}
         roster={roster}
         pool={pool}
         disabled={!!busy}
+        collectionsReady={collectionsReadiness?.ready || collectionsOverride}
+      />
+
+      <NotificationModal
+        isOpen={!!pendingAction}
+        onClose={clearPendingAction}
+        type={pendingAction?.type}
+        title={pendingAction?.title ?? ""}
+        message={pendingAction?.message ?? ""}
+        confirmText={pendingAction?.confirmText ?? "Confirm"}
+        onConfirm={() => void runPendingAction()}
       />
     </Card>
   );

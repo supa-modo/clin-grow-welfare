@@ -7,11 +7,23 @@ export const ledgerApi = {
     const { data } = await api.get('/ledger/financial-years');
     return data.years as FinancialYear[];
   },
+  async getActiveFinancialYear() {
+    const { data } = await api.get('/ledger/financial-years/active');
+    return data.financialYear as FinancialYear;
+  },
+  async getSystemSettings() {
+    const { data } = await api.get('/ledger/system-settings');
+    return data as { financialYear: FinancialYear; settings: WelfareSetting };
+  },
+  async updateSystemSettings(input: Partial<WelfareSetting> & Partial<{ startDate: string; endDate: string; savingsStopDate?: string; agmDate?: string }>) {
+    const { data } = await api.put('/ledger/system-settings', input);
+    return data as { financialYear: FinancialYear; settings: WelfareSetting };
+  },
   async createFinancialYear(input: { name: string; startDate: string; endDate: string; savingsStopDate?: string; agmDate?: string }) {
     const { data } = await api.post('/ledger/financial-years', input);
     return data.financialYear as FinancialYear;
   },
-  async updateFinancialYear(id: string, input: Partial<{ name: string; startDate: string; endDate: string }>) {
+  async updateFinancialYear(id: string, input: Partial<{ name: string; startDate: string; endDate: string; savingsStopDate?: string; agmDate?: string }>) {
     const { data } = await api.patch(`/ledger/financial-years/${id}`, input);
     return data.financialYear as FinancialYear;
   },

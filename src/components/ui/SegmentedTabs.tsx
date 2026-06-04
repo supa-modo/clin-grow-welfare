@@ -66,10 +66,10 @@ export function SegmentedTabs<T extends string>({
       tab.count !== undefined ? (
         <span
           className={clsx(
-            "inline-flex min-w-[1.25rem] shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[0.65rem] font-bold tabular-nums",
+            "inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[0.65rem] font-bold tabular-nums",
             variant === "line" &&
               (selected
-                ? "bg-brand-100 text-brand-800"
+                ? "bg-primary-100 text-primary-800"
                 : "bg-slate-100 text-slate-600"),
             variant === "segmented" &&
               (selected
@@ -103,7 +103,7 @@ export function SegmentedTabs<T extends string>({
           onClick={() => onChange(tab.value)}
           onKeyDown={handleTabKeyDown(tab)}
           className={clsx(
-            "shrink-0 border-b-2 px-2 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:px-3",
+            "shrink-0 border-b-2 px-2 text-sm font-medium transition-all duration-200 focus:outline-none md:px-3",
             compact ? "py-1.5" : "py-2.5",
             selected
               ? "border-brand-600 text-brand-700"
@@ -144,7 +144,7 @@ export function SegmentedTabs<T extends string>({
     return (
       <div className={clsx("border-b border-slate-200", className)}>
         <nav
-          className="-mb-px flex gap-1 overflow-x-auto pb-px [-ms-overflow-style:none] [scrollbar-width:none] md:gap-4 [&::-webkit-scrollbar]:hidden"
+          className="-mb-px flex gap-1 overflow-x-auto pb-px [-ms-overflow-style:none] scrollbar-none md:gap-4 [&::-webkit-scrollbar]:hidden"
           role="tablist"
           aria-label={ariaLabel}
         >
@@ -157,7 +157,7 @@ export function SegmentedTabs<T extends string>({
   return (
     <div
       className={clsx(
-        "flex w-full gap-1 overflow-x-auto rounded-[0.65rem] bg-gray-100/80 p-[0.2rem] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "flex w-full gap-1 overflow-x-auto rounded-[0.65rem] bg-gray-100/80 p-[0.2rem] [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden",
         className,
       )}
       role="tablist"

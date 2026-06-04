@@ -410,12 +410,12 @@ export function DataTable<T>({
         )}
       >
         <table className="w-full min-w-full border-collapse text-sm text-gray-700">
-          <thead className="border-y border-secondary-500 bg-secondary-50 font-semibold text-gray-700">
+          <thead className="border-y border-secondary-500 bg-secondary-50 text-left font-semibold text-gray-700">
             <tr>
               {resolvedShowCheckboxes ? (
                 <th
                   scope="col"
-                  className="hidden rounded-tl-xl py-2.5 pl-3 text-gray-700 sm:table-cell lg:pl-6 lg:py-3"
+                  className="hidden rounded-tl-xl py-2.5 pl-3 text-left text-gray-700 sm:table-cell lg:pl-6 lg:py-3"
                 >
                   <Checkbox
                     checked={isAllSelected}
@@ -429,7 +429,7 @@ export function DataTable<T>({
                 <th
                   scope="col"
                   className={clsx(
-                    "hidden py-2.5 pl-3 text-gray-700 sm:table-cell lg:pl-6 lg:py-3",
+                    "hidden py-2.5 pl-3 text-left text-gray-700 sm:table-cell lg:pl-6 lg:py-3",
                     !resolvedShowCheckboxes ? "rounded-tl-xl" : "",
                   )}
                 >
@@ -453,7 +453,7 @@ export function DataTable<T>({
                     scope="col"
                     aria-sort={column.sortable ? ariaSort : undefined}
                     className={clsx(
-                      "px-3 py-2.5 text-sm lg:px-6 lg:py-3",
+                      "px-3 py-2.5 text-left text-sm lg:px-6 lg:py-3",
                       column.headerClassName,
                     )}
                   >
@@ -473,7 +473,7 @@ export function DataTable<T>({
                         />
                       </button>
                     ) : (
-                      <span>{column.header}</span>
+                      <span className="block text-left">{column.header}</span>
                     )}
                   </th>
                 );
@@ -591,7 +591,7 @@ export function DataTable<T>({
                         <td
                           key={`cell-${columnId}-${rowId}`}
                           className={clsx(
-                            "px-3 py-3 align-middle lg:px-6 lg:py-3.5",
+                            "px-3 py-3 text-left align-middle lg:px-6 lg:py-3.5",
                             column.cellClassName,
                           )}
                         >

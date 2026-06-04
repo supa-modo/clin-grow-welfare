@@ -11,6 +11,7 @@ import {
 } from "react-icons/tb";
 
 import { MemberDetailSlideOver } from "@/components/members/MemberDetailSlideOver";
+import { MemberVerificationQueue } from "@/components/members/MemberVerificationQueue";
 import { MemberFormSlideOver } from "@/components/members/MemberFormSlideOver";
 import {
   formatDate,
@@ -66,7 +67,8 @@ type ConfirmationAction =
       confirmText: string;
       reason?: string;
     }
-  | { kind: "registration"; member: Member; paid: boolean };
+  | { kind: "registration"; member: Member; paid: boolean }
+  | { kind: "resetPassword"; member: Member; tempPassword?: string };
 
 function has(permission: string, permissions: string[]) {
   return permissions.includes(permission);
@@ -142,6 +144,7 @@ export function MembersPage() {
   const canCreate = has("officialsPortal.members.create", permissions);
   const canUpdate = has("officialsPortal.members.update", permissions);
   const canApprove = has("officialsPortal.members.approve", permissions);
+  const canResetPassword = has("officialsPortal.members.resetPassword", permissions);
 
   const load = useCallback(async (next: MemberFilters = filters) => {
     setLoading(true);
@@ -263,6 +266,18 @@ export function MembersPage() {
           ...compactMember(action.member),
           registrationFeePaid: action.paid,
         });
+      } else if (action.kind === "resetPassword") {
+        const result = await memberApi.resetPassword(action.member.id);
+        toastSuccess(
+          "Password reset",
+          result.tempPassword
+            ? `Temporary password: ${result.tempPassword}`
+            : "A temporary password was emailed to the member.",
+        );
+        setConfirmation(null);
+        await load(filters);
+        setBusy(false);
+        return;
       } else {
         member = await memberApi.status(
           action.member.id,
@@ -451,6 +466,13 @@ export function MembersPage() {
             confirmText: confirmation.paid ? "Confirm Payment" : "Mark Unpaid",
             type: "confirm" as const,
           }
+        : confirmation.kind === "resetPassword"
+          ? {
+              title: "Reset member password?",
+              message: `Generate a temporary password for ${confirmation.member.name}. It will be emailed when an address is on file.`,
+              confirmText: "Reset password",
+              type: "confirm" as const,
+            }
         : {
             title: confirmation.title,
             message: confirmation.message,
@@ -485,6 +507,15 @@ export function MembersPage() {
             ) : null}
           </div>
         }
+      />
+
+      <MemberVerificationQueue
+        canReview={canUpdate}
+        onOpenMember={(id) => {
+          const row = members.find((m) => m.id === id);
+          if (row) setSelectedMember(row);
+          else void memberApi.get(id).then(setSelectedMember).catch(() => undefined);
+        }}
       />
 
       <AdminPageStatsGrid className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
@@ -676,6 +707,11 @@ export function MembersPage() {
         }
         onToggleRegistration={(member, paid) =>
           setConfirmation({ kind: "registration", member, paid })
+        }
+        onResetPassword={
+          canResetPassword
+            ? (member) => setConfirmation({ kind: "resetPassword", member })
+            : undefined
         }
       />
 

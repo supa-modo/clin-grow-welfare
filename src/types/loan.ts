@@ -45,6 +45,7 @@ export interface LoanRepayment {
   paymentReference?: string;
   postedBy: string;
   journalEntryId?: string;
+  reversedAt?: string | null;
 }
 
 export interface Loan {
@@ -73,6 +74,7 @@ export interface Loan {
   disbursedBy?: string;
   disbursementJournalEntryId?: string;
   outstandingPrincipal?: number;
+  totalOutstanding?: number;
   currentRolloverMonth: number;
   lastInterestPeriod: number;
   nextInterestDate?: string;

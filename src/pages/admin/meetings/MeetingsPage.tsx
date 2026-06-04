@@ -1,6 +1,5 @@
 import { FiClock, FiRefreshCw } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
-import { StatCard } from '@/components/ui/StatCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { money } from '@/pages/admin/shared/adminFormatters';
 import { StateBlock } from '@/pages/admin/shared/adminUi';
@@ -25,12 +24,13 @@ export function MeetingsPage() {
     selectedMeeting,
     selectedId,
     setSelectedId,
+    deleteMeeting,
     pool,
     collectionTotals,
   } = ceremony;
 
   return (
-    <div className="space-y-5">
+    <div className="flex min-h-0 flex-1 flex-col space-y-4">
       <PageHeader
         title="Meeting Control Room"
         subtitle="Run the weekly welfare sitting from notice to attendance, collections, loan window, resolutions, and close report."
@@ -46,8 +46,8 @@ export function MeetingsPage() {
 
       <StateBlock loading={loading} error={error} empty={!loading && !data?.length} />
       {data?.length ? (
-        <div className="grid gap-4 xl:grid-cols-[320px_1fr]">
-          <MeetingListSidebar meetings={data} selectedId={selectedMeeting?.id ?? selectedId} onSelect={setSelectedId} />
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[320px_1fr]">
+          <MeetingListSidebar meetings={data} selectedId={selectedMeeting?.id ?? selectedId} onSelect={setSelectedId} onDelete={deleteMeeting} />
           <MeetingControlRoom ceremony={ceremony} money={money} />
         </div>
       ) : null}

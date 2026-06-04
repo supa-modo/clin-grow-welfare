@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 
 export function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const load = async () => {
+  const loaderRef = useRef(loader);
+  useEffect(() => {
+    loaderRef.current = loader;
+  });
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      setData(await loader());
+      setData(await loaderRef.current());
     } catch (err: unknown) {
       const message =
         err &&
@@ -29,7 +33,7 @@ export function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = []) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -3,13 +3,32 @@ import { FiCheck, FiX, FiDollarSign, FiEye, FiDownload, FiAlertTriangle, FiFileT
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { LoanDetailModal } from '@/components/loans/LoanDetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner, EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
+import { NotificationModal } from '@/components/ui/NotificationModal';
 import { loanApi } from '@/services/loanApi';
 import type { Loan, LoanStatus } from '@/types/loan';
 
 function money(n: number | string | undefined) { return `KES ${Number(n ?? 0).toLocaleString()}`; }
+
+function getApiError(e: unknown, fallback: string) {
+  if (
+    e &&
+    typeof e === 'object' &&
+    'response' in e &&
+    e.response &&
+    typeof e.response === 'object' &&
+    'data' in e.response &&
+    e.response.data &&
+    typeof e.response.data === 'object' &&
+    'error' in e.response.data
+  ) {
+    return String(e.response.data.error);
+  }
+  return fallback;
+}
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
   ACTIVE: 'success', PARTIALLY_PAID: 'success', CLOSED: 'neutral', DEFAULTED: 'danger',
@@ -24,8 +43,7 @@ export function LoansPage() {
   const [meta, setMeta] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [selected, setSelected] = useState<Loan | null>(null);
-  const [statement, setStatement] = useState<any>(null);
+  const [detailLoanId, setDetailLoanId] = useState<string | null>(null);
   const [showApprove, setShowApprove] = useState<Loan | null>(null);
   const [showReject, setShowReject] = useState<Loan | null>(null);
   const [showRepay, setShowRepay] = useState<Loan | null>(null);
@@ -36,6 +54,10 @@ export function LoansPage() {
   const [tab, setTab] = useState<'portfolio' | 'defaulters' | 'aging'>('portfolio');
   const [defaulters, setDefaulters] = useState<any[]>([]);
   const [aging, setAging] = useState<any>(null);
+  const [errorNotice, setErrorNotice] = useState<{ title: string; message: string } | null>(null);
+  const [disburseConfirm, setDisburseConfirm] = useState<Loan | null>(null);
+
+  const showError = (title: string, message: string) => setErrorNotice({ title, message });
 
   const load = () => {
     setLoading(true);
@@ -51,10 +73,8 @@ export function LoansPage() {
     if (tab === 'aging') loanApi.getAging().then(setAging);
   }, [tab]);
 
-  const openDetail = async (loan: Loan) => {
-    setSelected(loan);
-    const detail = await loanApi.get(loan.id);
-    setStatement(detail.statement);
+  const openDetail = (loan: Loan) => {
+    setDetailLoanId(loan.id);
   };
 
   const doVerify = async (loan: Loan) => {
@@ -62,7 +82,7 @@ export function LoansPage() {
       await loanApi.verify(loan.id);
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to verify');
+      showError('Verification failed', getApiError(e, 'Failed to verify loan.'));
     }
   };
 
@@ -74,7 +94,7 @@ export function LoansPage() {
       setShowApprove(null);
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to approve');
+      showError('Approval failed', getApiError(e, 'Failed to approve loan.'));
     } finally {
       setSaving(false);
     }
@@ -88,19 +108,24 @@ export function LoansPage() {
       setShowReject(null);
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to reject');
+      showError('Rejection failed', getApiError(e, 'Failed to reject loan.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const doDisburse = async (loan: Loan) => {
-    if (!confirm(`Disburse ${money(loan.approvedAmount ?? loan.requestedAmount)} to ${loan.member?.name}?`)) return;
+  const doDisburse = async () => {
+    if (!disburseConfirm) return;
+    const loan = disburseConfirm;
+    setSaving(true);
     try {
       await loanApi.disburse(loan.id);
+      setDisburseConfirm(null);
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to disburse');
+      showError('Disbursement failed', getApiError(e, 'Failed to disburse loan.'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -111,7 +136,7 @@ export function LoansPage() {
       if (action === 'authorize') await loanApi.authorizeAgreement(loan.id);
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to update agreement');
+      showError('Agreement update failed', getApiError(e, 'Failed to update agreement.'));
     }
   };
 
@@ -124,7 +149,7 @@ export function LoansPage() {
       setRepayForm({ amount: '', paymentMethod: 'CASH', paymentReference: '' });
       load();
     } catch (e: any) {
-      alert(e.response?.data?.error ?? 'Failed to post repayment');
+      showError('Repayment failed', getApiError(e, 'Failed to post repayment.'));
     } finally {
       setSaving(false);
     }
@@ -133,7 +158,16 @@ export function LoansPage() {
   const columns: Column<Loan>[] = [
     { key: 'loanNumber', header: 'Loan No', render: (l) => <span className="font-mono text-xs font-semibold text-brand-700">{l.loanNumber}</span> },
     { key: 'member', header: 'Member', render: (l) => <span className="font-medium">{l.member?.name ?? l.memberId}</span> },
-    { key: 'requestedAmount', header: 'Amount', render: (l) => money(l.approvedAmount ?? l.requestedAmount) },
+    { key: 'applied', header: 'Applied', render: (l) => money(l.requestedAmount) },
+    {
+      key: 'outstanding',
+      header: 'Outstanding',
+      render: (l) => (
+        <span className="font-semibold text-red-700">
+          {money(l.totalOutstanding ?? l.outstandingPrincipal ?? 0)}
+        </span>
+      ),
+    },
     { key: 'rate', header: 'Rate', render: (l) => `${l.interestRate}% pm` },
     { key: 'status', header: 'Status', render: (l) => <Badge tone={STATUS_TONE[l.status] ?? 'neutral'}>{l.status.replace(/_/g, ' ')}</Badge> },
     { key: 'date', header: 'Applied', render: (l) => new Date(l.applicationDate).toLocaleDateString() },
@@ -156,7 +190,7 @@ export function LoansPage() {
               {l.treasurerVerifiedAt && !l.chairpersonAuthorizedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'authorize'); }}>Chair Authorize</Button>}
             </>
           )}
-          {l.status === 'READY_FOR_DISBURSEMENT' && <Button size="sm" variant="ghost" icon={<FiDollarSign size={13} />} onClick={(e) => { e.stopPropagation(); doDisburse(l); }} className="text-purple-600 hover:bg-purple-50">Disburse</Button>}
+          {l.status === 'READY_FOR_DISBURSEMENT' && <Button size="sm" variant="ghost" icon={<FiDollarSign size={13} />} onClick={(e) => { e.stopPropagation(); setDisburseConfirm(l); }} className="text-purple-600 hover:bg-purple-50">Disburse</Button>}
           {['ACTIVE', 'PARTIALLY_PAID', 'IN_ROLLOVER', 'OVERDUE'].includes(l.status) && (
             <Button size="sm" variant="ghost" icon={<FiDollarSign size={13} />} onClick={(e) => { e.stopPropagation(); setShowRepay(l); }} className="text-green-600 hover:bg-green-50">Repay</Button>
           )}
@@ -191,7 +225,7 @@ export function LoansPage() {
             </select>
           </div>
           {loading ? <div className="flex justify-center py-12"><Spinner /></div> : (
-            <DataTable columns={columns} rows={loans} getRowKey={(l) => l.id} onRowClick={openDetail} selectedRowId={selected?.id} />
+            <DataTable columns={columns} rows={loans} getRowKey={(l) => l.id} onRowClick={openDetail} selectedRowId={detailLoanId ?? undefined} />
           )}
           {meta && meta.totalPages > 1 && (
             <div className="flex items-center justify-between text-sm text-ink-500">
@@ -252,33 +286,11 @@ export function LoansPage() {
         </div>
       )}
 
-      {/* Loan Detail Modal */}
-      {selected && (
-        <Modal open={!!selected} title={`Loan — ${selected.loanNumber}`} onClose={() => { setSelected(null); setStatement(null); }} size="xl">
-          <div className="p-5 space-y-4">
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div><span className="font-semibold text-ink-600">Member:</span> {selected.member?.name}</div>
-              <div><span className="font-semibold text-ink-600">Status:</span> <Badge tone={STATUS_TONE[selected.status] ?? 'neutral'}>{selected.status.replace(/_/g, ' ')}</Badge></div>
-              <div><span className="font-semibold text-ink-600">Rate:</span> {selected.interestRate}% pm</div>
-              <div><span className="font-semibold text-ink-600">Applied:</span> {money(selected.requestedAmount)}</div>
-              <div><span className="font-semibold text-ink-600">Approved:</span> {selected.approvedAmount ? money(selected.approvedAmount) : '—'}</div>
-              {selected.disbursedAt && <div><span className="font-semibold text-ink-600">Disbursed:</span> {new Date(selected.disbursedAt).toLocaleDateString()}</div>}
-            </div>
-            {statement && (
-              <div className="rounded-lg bg-ink-50 p-4 grid grid-cols-2 gap-3 text-sm">
-                <div><span className="font-semibold text-ink-600">Disbursed:</span> {money(statement.disbursed)}</div>
-                <div><span className="font-semibold text-ink-600">Total Interest:</span> {money(statement.totalInterest)}</div>
-                <div><span className="font-semibold text-ink-600">Total Penalties:</span> {money(statement.totalPenalties)}</div>
-                <div><span className="font-semibold text-ink-600">Total Repaid:</span> {money(statement.totalRepaid)}</div>
-                <div className="col-span-2 border-t border-ink-200 pt-2 text-base font-bold text-ink-900"><span className="text-ink-600">Outstanding Balance:</span> {money(statement.outstanding)}</div>
-              </div>
-            )}
-            <div className="flex justify-end">
-              <Button size="sm" variant="secondary" icon={<FiDownload size={13} />} onClick={() => loanApi.downloadStatement(selected.id, `statement-${selected.loanNumber}.pdf`)}>Download Statement</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <LoanDetailModal
+        loanId={detailLoanId}
+        open={Boolean(detailLoanId)}
+        onClose={() => setDetailLoanId(null)}
+      />
 
       {/* Approve Modal */}
       {showApprove && (
@@ -343,6 +355,30 @@ export function LoansPage() {
           </div>
         </Modal>
       )}
+
+      <NotificationModal
+        isOpen={!!disburseConfirm}
+        onClose={() => setDisburseConfirm(null)}
+        title="Confirm loan disbursement"
+        message={
+          disburseConfirm
+            ? `Disburse ${money(disburseConfirm.approvedAmount ?? disburseConfirm.requestedAmount)} to ${disburseConfirm.member?.name ?? 'this member'}? A payment voucher will be prepared and marked paid if all controls pass.`
+            : ''
+        }
+        confirmText={saving ? 'Disbursing...' : 'Disburse'}
+        cancelText="Cancel"
+        onConfirm={() => void doDisburse()}
+      />
+
+      <NotificationModal
+        isOpen={!!errorNotice}
+        onClose={() => setErrorNotice(null)}
+        title={errorNotice?.title ?? 'Action failed'}
+        message={errorNotice?.message ?? ''}
+        confirmText="OK"
+        showCancel={false}
+        onConfirm={() => setErrorNotice(null)}
+      />
     </div>
   );
 }

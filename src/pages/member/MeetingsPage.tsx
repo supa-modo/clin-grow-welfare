@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import { useMeetingsLiveRefresh } from "@/hooks/useMeetingRealtime";
+import { Link } from "react-router-dom";
 import { loanApi } from "@/services/loanApi";
 import type { LoanEligibility } from "@/types/loan";
 import { FiCalendar, FiCreditCard, FiFileText, FiSend, FiShield } from "react-icons/fi";
@@ -7,12 +9,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner, EmptyState } from "@/components/ui/Feedback";
-import {
-  MemberHero,
-  MemberSection,
-  SetupState,
-} from "@/components/member/MemberCards";
-import { memberPortalApi } from "@/services/memberApi";
+import { MemberSection, SetupState } from "@/components/member/MemberCards";
+import { StatCell } from "@/components/member/MemberFinancePrimitives";
 import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
 
@@ -29,7 +27,7 @@ type MeetingRecord = {
   attendance?: MeetingAttendance[];
   loanWindows?: Array<{ id: string; status: string; remainingAmount?: number; totalLoanablePool?: number }>;
   apologies?: Array<{ id: string; reason: string; status?: string; reviewComment?: string }>;
-  report?: { id: string; summary?: any } | null;
+  report?: { id: string; summary?: Record<string, unknown> } | null;
   resolutions?: Array<{ id: string; title: string; decision: string }>;
 };
 
@@ -74,18 +72,14 @@ function statusTone(status?: string): "neutral" | "success" | "warning" | "dange
   return "neutral";
 }
 
+const startedStatuses = new Set(["ATTENDANCE_RECORDING", "COLLECTIONS_OPEN", "LOAN_WINDOW_OPEN", "RESOLUTIONS_OPEN", "CLOSING_REVIEW", "ONGOING", "CLOSED", "COMPLETED"]);
+
 export function MemberMeetingsPage() {
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
   const user = useAuthStore((s) => s.user);
   const [meetings, setMeetings] = useState<MeetingRecord[]>([]);
   const [fines, setFines] = useState<FineRecord[]>([]);
-  const [hero, setHero] = useState({
-    firstName: "Member",
-    membershipNumber: "",
-    status: "ACTIVE",
-    registrationFeePaid: true,
-  });
   const [reasonByMeeting, setReasonByMeeting] = useState<Record<string, string>>(
     {},
   );
@@ -97,10 +91,9 @@ export function MemberMeetingsPage() {
   const [eligibility, setEligibility] = useState<LoanEligibility | null>(null);
 
   const load = async () => {
-    const [meetingsRes, finesRes, dash, elig] = await Promise.all([
+    const [meetingsRes, finesRes, elig] = await Promise.all([
       api.get<{ meetings: MeetingRecord[] }>("/member-portal/meetings"),
       api.get<{ fines: FineRecord[] }>("/member-portal/fines"),
-      memberPortalApi.dashboard().catch(() => null),
       loanApi.myEligibility().catch(() => null),
     ]);
     const nextMeetings = meetingsRes.data.meetings ?? [];
@@ -121,14 +114,6 @@ export function MemberMeetingsPage() {
         }),
     );
     setLivePoolByMeeting(pools);
-    if (dash) {
-      setHero({
-        firstName: dash.firstName,
-        membershipNumber: dash.membershipNumber,
-        status: dash.status,
-        registrationFeePaid: dash.registrationFeePaid,
-      });
-    }
   };
 
   const refreshLivePools = useCallback(async (list: MeetingRecord[]) => {
@@ -154,12 +139,13 @@ export function MemberMeetingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    const hasOpen = meetings.some((m) => m.loanWindows?.some((w) => w.status === "OPEN"));
-    if (!hasOpen) return undefined;
-    const timer = window.setInterval(() => void refreshLivePools(meetings), 15_000);
-    return () => window.clearInterval(timer);
-  }, [meetings, refreshLivePools]);
+  const onLiveMeeting = useCallback((meetingId: string) => {
+    void load().catch(() => undefined);
+    const target = meetings.find((m) => m.id === meetingId);
+    if (target) void refreshLivePools([target]);
+  }, [load, meetings, refreshLivePools]);
+
+  useMeetingsLiveRefresh(onLiveMeeting);
 
   const submitApology = async (meetingId: string) => {
     const reason = reasonByMeeting[meetingId]?.trim();
@@ -221,23 +207,17 @@ export function MemberMeetingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <MemberHero
-        firstName={hero.firstName}
-        membershipNumber={hero.membershipNumber}
-        status={hero.status}
-        registrationFeePaid={hero.registrationFeePaid}
-        subtitle="View meeting notices, attendance, open loan windows, and submit apologies when you cannot attend."
-      />
-
+    <div className="space-y-5">
       <PageHeader
-        title="Meetings, apologies & loan windows"
-        subtitle="Meeting notices, apology status, attendance fines, published reports, and live loan windows"
+        title="Meetings"
+        subtitle="Notices, attendance, apologies, and live loan windows"
       />
 
       {eligibility ? (
-        <p className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
-          You may apply for up to <span className="font-bold">{money(eligibility.maxEligible)}</span> based on your savings and share position.
+        <p className="rounded-lg border border-ink-100 bg-ink-50 px-4 py-3 text-sm text-ink-800">
+          You may apply for up to{" "}
+          <span className="font-extrabold">{money(eligibility.maxEligible)}</span>{" "}
+          based on your savings and share position.
         </p>
       ) : null}
 
@@ -259,6 +239,7 @@ export function MemberMeetingsPage() {
               const fineMeetingId = fine.meetingId ?? fine.attendance?.meetingId ?? fine.apology?.meetingId;
               return fineMeetingId === meeting.id;
             });
+            const reportSummary = meeting.report?.summary;
 
             return (
               <MemberSection
@@ -267,9 +248,7 @@ export function MemberMeetingsPage() {
                 description={new Date(meeting.meetingDate).toLocaleString()}
                 action={
                   <div className="flex flex-wrap gap-2">
-                    <Badge
-                      tone={statusTone(meeting.status)}
-                    >
+                    <Badge tone={statusTone(meeting.status)}>
                       {meeting.status}
                     </Badge>
                     {openLoanWindow ? (
@@ -279,43 +258,46 @@ export function MemberMeetingsPage() {
                 }
               >
                 {meeting.agenda ? (
-                  <p className="mb-4 text-sm text-slate-600">{meeting.agenda}</p>
+                  <p className="mb-4 text-sm leading-relaxed text-ink-600">{meeting.agenda}</p>
                 ) : null}
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <FiCalendar className="shrink-0 text-brand-600" />
-                      <span>Attendance</span>
-                    </div>
-                    <p className="mt-1 font-bold text-slate-900">{attendance}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <FiShield className="shrink-0 text-brand-600" />
-                      <span>Apology</span>
-                    </div>
-                    <p className="mt-1 font-bold text-slate-900">{apology?.status ?? "None submitted"}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <FiCreditCard className="shrink-0 text-brand-600" />
-                      <span>Meeting fines</span>
-                    </div>
-                    <p className="mt-1 font-bold text-slate-900">{money(meetingFines.reduce((sum, fine) => sum + Number(fine.amount), 0))}</p>
-                  </div>
+
+                <Link
+                  className="mb-4 flex min-h-10 w-full items-center justify-center rounded-lg border border-ink-200 bg-white px-4 text-xs font-semibold text-ink-900 transition hover:bg-ink-50 sm:ml-auto sm:w-auto sm:min-w-[8rem]"
+                  to={`/member/meetings/${meeting.id}`}
+                >
+                  View details
+                </Link>
+
+                <div className="divide-y divide-ink-100 rounded-lg border border-ink-100 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                  <StatCell
+                    label="Attendance"
+                    value={attendance}
+                    icon={<FiCalendar size={14} />}
+                  />
+                  <StatCell
+                    label="Apology"
+                    value={apology?.status ?? "None submitted"}
+                    icon={<FiShield size={14} />}
+                  />
+                  <StatCell
+                    label="Meeting fines"
+                    value={money(meetingFines.reduce((sum, fine) => sum + Number(fine.amount), 0))}
+                    icon={<FiCreditCard size={14} />}
+                  />
                 </div>
 
                 {hasApology ? (
-                  <p className="mt-4 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
-                    Apology on record: <span className="font-semibold">{apology?.status}</span>{apology?.reviewComment ? ` - ${apology.reviewComment}` : ""}
+                  <p className="mt-4 rounded-lg border border-ink-100 bg-ink-50 px-3 py-2 text-sm text-ink-800">
+                    Apology on record: <span className="font-semibold">{apology?.status}</span>
+                    {apology?.reviewComment ? ` — ${apology.reviewComment}` : ""}
                   </p>
-                ) : !["CLOSED", "CANCELLED", "COMPLETED"].includes(meeting.status) ? (
-                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Submit apology before the meeting (if absent)
+                ) : !startedStatuses.has(meeting.status) && !["CANCELLED"].includes(meeting.status) ? (
+                  <div className="mt-4 space-y-3 border-t border-ink-100 pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-ink-500">
+                      Submit apology (if absent)
                     </label>
                     <textarea
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      className="min-h-[4.5rem] w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm"
                       rows={2}
                       value={reasonByMeeting[meeting.id] ?? ""}
                       onChange={(e) =>
@@ -328,6 +310,7 @@ export function MemberMeetingsPage() {
                     />
                     <Button
                       variant="secondary"
+                      className="w-full sm:w-auto"
                       icon={
                         submittingId === meeting.id ? (
                           <Spinner />
@@ -344,42 +327,66 @@ export function MemberMeetingsPage() {
                 ) : null}
 
                 {openLoanWindow ? (
-                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="mt-4 rounded-lg border border-ink-100 bg-ink-50 p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-bold text-emerald-950">Loan window is open</p>
-                        <p className="mt-1 text-sm text-emerald-800">Apply from the live meeting pool. Officials can review and reserve during the sitting.</p>
+                        <p className="text-sm font-extrabold text-ink-900">Loan window open</p>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-600">
+                          Apply from the live meeting pool during the sitting.
+                        </p>
                       </div>
-                      <Badge tone="success">Available: {money(livePoolByMeeting[meeting.id]?.remainingAmount ?? openLoanWindow.remainingAmount)}</Badge>
+                      <Badge tone="success">
+                        Available: {money(livePoolByMeeting[meeting.id]?.remainingAmount ?? openLoanWindow.remainingAmount)}
+                      </Badge>
                     </div>
-                    <div className="mt-3 grid gap-2 md:grid-cols-[140px_1fr_auto]">
-                      <input className="rounded-lg border border-emerald-200 px-3 py-2 text-sm" inputMode="numeric" placeholder="Amount" value={loanAmountByWindow[openLoanWindow.id] ?? ""} onChange={(e) => setLoanAmountByWindow((state) => ({ ...state, [openLoanWindow.id]: e.target.value }))} />
-                      <input className="rounded-lg border border-emerald-200 px-3 py-2 text-sm" placeholder="Purpose" value={loanPurposeByWindow[openLoanWindow.id] ?? ""} onChange={(e) => setLoanPurposeByWindow((state) => ({ ...state, [openLoanWindow.id]: e.target.value }))} />
-                      <Button icon={<FiSend />} disabled={submittingId === openLoanWindow.id} onClick={() => void applyForLoan(openLoanWindow.id)}>Apply</Button>
+                    <div className="mt-3 flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,8rem)_1fr_auto] sm:items-center">
+                      <input
+                        className="min-h-10 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+                        inputMode="numeric"
+                        placeholder="Amount"
+                        value={loanAmountByWindow[openLoanWindow.id] ?? ""}
+                        onChange={(e) => setLoanAmountByWindow((state) => ({ ...state, [openLoanWindow.id]: e.target.value }))}
+                      />
+                      <input
+                        className="min-h-10 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Purpose"
+                        value={loanPurposeByWindow[openLoanWindow.id] ?? ""}
+                        onChange={(e) => setLoanPurposeByWindow((state) => ({ ...state, [openLoanWindow.id]: e.target.value }))}
+                      />
+                      <Button
+                        className="w-full sm:w-auto"
+                        icon={<FiSend />}
+                        disabled={submittingId === openLoanWindow.id}
+                        onClick={() => void applyForLoan(openLoanWindow.id)}
+                      >
+                        Apply
+                      </Button>
                     </div>
                   </div>
                 ) : null}
 
-                {meeting.report?.summary ? (
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-800"><FiFileText /> Meeting report</div>
-                    <div className="mt-2 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                      {typeof meeting.report.summary === "object" && meeting.report.summary !== null ? (
-                        <>
-                          {"quorumMet" in meeting.report.summary ? (
-                            <p>Quorum: {(meeting.report.summary as { quorumMet?: boolean }).quorumMet ? "Met" : "Not met"}</p>
-                          ) : null}
-                          {"collectionTotals" in meeting.report.summary ? (
-                            <p>Collections posted: {Object.keys((meeting.report.summary as { collectionTotals?: object }).collectionTotals ?? {}).length} types</p>
-                          ) : null}
-                          {"loanablePool" in meeting.report.summary ? (
-                            <p>Loan pool: {money((meeting.report.summary as { loanablePool?: { totalLoanablePool?: number } }).loanablePool?.totalLoanablePool)}</p>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="text-slate-600">Summary available after officials close the meeting.</p>
-                      )}
+                {reportSummary && typeof reportSummary === "object" ? (
+                  <div className="mt-4 rounded-lg border border-ink-100 bg-white p-4">
+                    <div className="flex items-center gap-2 text-sm font-extrabold text-ink-800">
+                      <FiFileText /> Meeting report
                     </div>
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-600">
+                      {"quorumMet" in reportSummary ? (
+                        <li>Quorum: {(reportSummary as { quorumMet?: boolean }).quorumMet ? "Met" : "Not met"}</li>
+                      ) : null}
+                      {"collectionTotals" in reportSummary ? (
+                        <li>
+                          Collections posted:{" "}
+                          {Object.keys((reportSummary as { collectionTotals?: object }).collectionTotals ?? {}).length} types
+                        </li>
+                      ) : null}
+                      {"loanablePool" in reportSummary ? (
+                        <li>
+                          Loan pool:{" "}
+                          {money((reportSummary as { loanablePool?: { totalLoanablePool?: number } }).loanablePool?.totalLoanablePool)}
+                        </li>
+                      ) : null}
+                    </ul>
                   </div>
                 ) : null}
               </MemberSection>

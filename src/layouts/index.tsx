@@ -2,12 +2,12 @@ import { Outlet } from "react-router-dom";
 import { Toasts } from "@/components/ui/Feedback";
 import { MemberTopBar } from "@/components/layouts/MemberTopBar";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
-import { adminNavGroups, officialsNavGroups } from "@/navigation/adminNav";
+import { adminNavItems, officialsNavItems } from "@/navigation/adminNav";
 
 export function AdminLayout() {
   return (
     <DashboardLayout
-      navGroups={adminNavGroups}
+      navItems={adminNavItems}
       brandTitle="Clin-Grow Admin"
       brandSubtitle="Welfare operations"
       workspaceLabel="Administration"
@@ -18,7 +18,7 @@ export function AdminLayout() {
 export function OfficialsLayout() {
   return (
     <DashboardLayout
-      navGroups={officialsNavGroups}
+      navItems={officialsNavItems}
       brandTitle="Officials Portal"
       brandSubtitle="Welfare operations"
       workspaceLabel="Officials"

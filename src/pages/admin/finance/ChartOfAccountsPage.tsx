@@ -17,7 +17,7 @@ const TYPE_COLORS: Record<LedgerAccountType, 'success' | 'neutral' | 'warning' |
   EXPENSE: 'danger',
 };
 
-export function ChartOfAccountsPage() {
+export function ChartOfAccountsPage({ embedded = false }: { embedded?: boolean }) {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -53,11 +53,17 @@ export function ChartOfAccountsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Chart of Accounts"
-        subtitle="Manage the system's ledger accounts organized by type"
-        action={<Button icon={<FiPlus />} onClick={() => setShowNew(true)}>New Account</Button>}
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Chart of Accounts"
+          subtitle="Manage the system's ledger accounts organized by type"
+          action={<Button icon={<FiPlus />} onClick={() => setShowNew(true)}>New Account</Button>}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <Button icon={<FiPlus />} onClick={() => setShowNew(true)}>New Account</Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>

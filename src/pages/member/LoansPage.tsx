@@ -4,6 +4,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
+import {
+  CashTransactionHistory,
+  type CashTransactionRow,
+} from "@/components/member/CashTransactionHistory";
 import { Spinner, EmptyState } from "@/components/ui/Feedback";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
@@ -69,7 +73,6 @@ export function MemberLoansPage() {
   const [form, setForm] = useState({
     requestedAmount: "",
     purpose: "",
-    termWeeks: "",
   });
 
   const load = async () => {
@@ -116,11 +119,13 @@ export function MemberLoansPage() {
       await loanApi.applyMember({
         requestedAmount: Number(form.requestedAmount),
         purpose: form.purpose || undefined,
-        termWeeks: form.termWeeks ? Number(form.termWeeks) : undefined,
       });
       setShowApply(false);
-      setForm({ requestedAmount: "", purpose: "", termWeeks: "" });
-      toastSuccess("Application submitted", "Your loan application was sent for review.");
+      setForm({ requestedAmount: "", purpose: "" });
+      toastSuccess(
+        "Application submitted",
+        "Your loan application was sent for review.",
+      );
       await load();
     } catch (e: unknown) {
       toastError("Application failed", getApiError(e));
@@ -248,15 +253,19 @@ export function MemberLoansPage() {
         subtitle="Track your loan history, outstanding balance, and apply for new loans"
         action={
           eligibility && !eligibility.hasActiveLoan ? (
-            <Button icon={<FiPlus />} onClick={() => setShowApply(true)}>
-              Apply for Loan
+            <Button
+              icon={<FiPlus size={14} />}
+              className="w-full"
+              onClick={() => setShowApply(true)}
+            >
+              Apply for a Loan
             </Button>
           ) : undefined
         }
       />
 
       {eligibility ? (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2">
           <StatCard
             label="Max eligible"
             value={money(eligibility.maxEligible)}
@@ -267,15 +276,6 @@ export function MemberLoansPage() {
             value={money(eligibility.baseAmount)}
             subtitle="Shares + savings"
           />
-          <StatCard
-            label="Status"
-            value={eligibility.hasActiveLoan ? "Active loan" : "Eligible"}
-            subtitle={
-              eligibility.hasActiveLoan
-                ? "Repay current loan first"
-                : "Can apply now"
-            }
-          />
         </div>
       ) : null}
 
@@ -284,9 +284,7 @@ export function MemberLoansPage() {
           loan={activeLoan}
           statement={activeStatement}
           onViewDetails={
-            activeLoan
-              ? () => void openDetail(activeLoan)
-              : undefined
+            activeLoan ? () => void openDetail(activeLoan) : undefined
           }
         />
       ) : null}
@@ -375,6 +373,9 @@ export function MemberLoansPage() {
               {eligibility.multiplier}× base)
             </div>
           ) : null}
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+            Loans run for 4 weeks and carry 10% interest even when repaid early.
+          </p>
           <div>
             <label className="mb-1 block text-sm font-semibold text-slate-700">
               Requested Amount (KES) <span className="text-red-500">*</span>
@@ -399,20 +400,6 @@ export function MemberLoansPage() {
               value={form.purpose}
               onChange={(e) => setForm({ ...form, purpose: e.target.value })}
               placeholder="Brief description of loan purpose…"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700">
-              Preferred Term (weeks)
-            </label>
-            <input
-              type="number"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              value={form.termWeeks}
-              onChange={(e) =>
-                setForm({ ...form, termWeeks: e.target.value })
-              }
-              placeholder="e.g. 12"
             />
           </div>
         </div>
@@ -499,25 +486,19 @@ export function MemberLoansPage() {
             ) : null}
             {showDetail.loan.repayments &&
             showDetail.loan.repayments.length > 0 ? (
-              <div>
-                <h3 className="mb-2 text-sm font-bold text-slate-900">
-                  Repayment History
-                </h3>
-                <div className="space-y-1">
-                  {showDetail.loan.repayments.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between border-b border-slate-50 pb-1 text-xs text-slate-600"
-                    >
-                      <span>
-                        {new Date(r.paymentDate).toLocaleDateString()} —{" "}
-                        {r.paymentMethod}
-                      </span>
-                      <span className="font-semibold">{money(r.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <CashTransactionHistory
+                title="Repayment history"
+                rows={showDetail.loan.repayments.map(
+                  (r): CashTransactionRow => ({
+                    id: r.id,
+                    date: r.paymentDate,
+                    amount: Number(r.amount),
+                    reference: r.paymentReference ?? null,
+                    paymentMethod: r.paymentMethod,
+                    status: "POSTED",
+                  }),
+                )}
+              />
             ) : null}
             <div className="flex justify-end">
               <Button

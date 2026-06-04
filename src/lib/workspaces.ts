@@ -60,3 +60,24 @@ export function defaultRouteForUser(user: AuthUser | null) {
   if (user.memberId) return '/member';
   return '/forbidden';
 }
+
+const roleDisplayNames: Record<string, string> = {
+  SystemAdmin: 'System Administrator',
+  AssistantSecretary: 'Assistant Secretary',
+  NominatedSignatory: 'Nominated Signatory',
+  InternalAuditor: 'Internal Auditor',
+};
+
+export function displayRoleLabel(user: AuthUser | null): string | undefined {
+  if (!user?.roles.length) return undefined;
+  if (user.roles.includes('SystemAdmin')) return roleDisplayNames.SystemAdmin;
+  const official = officialRoles.find((role) => user.roles.includes(role));
+  if (official) return roleDisplayNames[official] ?? official;
+  if (user.roles.includes('Member')) return 'Member';
+  return roleDisplayNames[user.roles[0]] ?? user.roles[0];
+}
+
+export function canViewLedgerNav(user: AuthUser | null) {
+  if (!user) return false;
+  return isSystemAdmin(user) || user.roles.includes('Treasurer');
+}
