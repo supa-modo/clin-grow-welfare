@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { FiCheckCircle, FiUser } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Spinner } from '@/components/ui/Feedback';
 import { memberApi, type BeneficiaryChangeRequest } from '@/services/memberApi';
 import type { MemberDependant } from '@/types/member';
 import { useUiStore } from '@/store/uiStore';
@@ -72,8 +71,13 @@ export function MemberVerificationQueue({ canReview, onOpenMember }: Props) {
   if (!canReview) return null;
   if (loading) {
     return (
-      <Card className="flex items-center gap-3 p-4 text-sm font-semibold text-ink-600">
-        <Spinner /> Loading verification queue...
+      <Card className="animate-pulse border-amber-100 bg-amber-50/50 p-4" aria-busy>
+        <div className="h-5 w-56 rounded bg-slate-200" />
+        <div className="mt-2 h-4 w-72 max-w-full rounded bg-slate-100" />
+        <div className="mt-4 space-y-3">
+          <div className="h-20 rounded-xl border border-amber-100 bg-white" />
+          <div className="h-20 rounded-xl border border-amber-100 bg-white" />
+        </div>
       </Card>
     );
   }

@@ -30,7 +30,7 @@ export default function AuthLeftPanel({
 
       <div className='relative flex flex-col flex-1 max-w-xl mx-auto w-full px-12 xl:px-16 py-12 xl:py-14'>
         <div className='mb-14'>
-          <img src='/logo.png' alt='Clin-Grow Welfare Group' className='w-28 h-auto' />
+          <img src='/logo.webp' alt='Clin-Grow Welfare Group' className='w-28 h-auto' />
         </div>
 
         <div className='flex-1 flex flex-col justify-center'>

@@ -181,7 +181,7 @@ export function MemberTopBar() {
             className="flex min-w-0 shrink items-center gap-2.5"
           >
             <img
-              src="/logo.png"
+              src="/logo.webp"
               alt=""
               className="h-14 w-14 shrink-0 rounded-lg"
               onError={(e) => {

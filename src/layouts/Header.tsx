@@ -114,19 +114,24 @@ export function Header({ workspaceLabel, roleLabel }: HeaderProps) {
               toggleSidebar();
             }
           }}
-          className="shrink-0 rounded-xl border border-gray-200 p-2 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+          className="shrink-0  text-gray-500 transition hover:text-gray-700"
           aria-label="Toggle menu"
         >
-          <FiMenu className="h-5 w-5" />
+          <FiMenu className="h-6 w-6" />
         </button>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-gray-900">
-            {roleLabel ?? workspaceLabel ?? workspaceLabels[currentWorkspace]}
-          </p>
-          <p className="truncate text-xs text-gray-500">
+        <div className="pl-4 min-w-0">
+          <p className="flex items-center gap-4 truncate text-sm font-bold text-gray-900">
             {roleLabel
-              ? (workspaceLabel ?? workspaceLabels[currentWorkspace])
+              ? `${workspaceLabel ?? workspaceLabels[currentWorkspace]} workspace`
               : "Clin-Grow Welfare Group"}
+            {roleLabel ? (
+              <div className="flex items-center gap-4">
+                <div className="w-px h-4 bg-gray-300" />
+                <span className="truncate font-google text-xs font-semibold tracking-wide text-gray-500">
+                  {roleLabel}
+                </span>
+              </div>
+            ) : null}
           </p>
         </div>
       </div>

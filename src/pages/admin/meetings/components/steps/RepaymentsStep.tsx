@@ -167,7 +167,7 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
               ))}
             </select>
             <input
-              className="w-full min-w-[7rem] rounded-lg border border-ink-200 px-2 py-1 text-xs"
+              className="w-full min-w-28 rounded-lg border border-ink-200 px-2 py-1 text-xs"
               placeholder="Receipt ref"
               value={draft.reference}
               onChange={(e) =>

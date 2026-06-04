@@ -83,8 +83,8 @@ export function MemberStatusChart({
                   nameKey="label"
                   innerRadius={65}
                   outerRadius={115}
-                  paddingAngle={2}
-                  cornerRadius={6}
+                  paddingAngle={4}
+                  cornerRadius={16}
                   strokeWidth={0}
                 >
                   {breakdown.map((_, index) => (
@@ -129,14 +129,14 @@ export function MemberStatusChart({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-[0.78rem] font-semibold text-ink-700">
-                        {item.label}
+                      <p className="truncate text-[0.78rem] text-secondary-600">
+                        {item.label} Members
                       </p>
                       <p className="shrink-0 text-[0.78rem] font-bold text-ink-900">
                         {count.toLocaleString("en-KE")}
                       </p>
                     </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-100">
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
                       <div
                         className="h-full rounded-full"
                         style={{
@@ -145,7 +145,7 @@ export function MemberStatusChart({
                         }}
                       />
                     </div>
-                    <p className="mt-0.5 text-[0.68rem] font-medium text-ink-500">
+                    <p className="mt-0.5 text-[0.68rem] font-medium text-gray-600">
                       {percent.toFixed(1)}% of registry
                     </p>
                   </div>
@@ -431,12 +431,9 @@ const loanWatchColumns: Column<LoanAgingRow>[] = [
 ];
 
 export function PortalDashboardTables({
-  approvals,
   aging,
   loading,
-  approvalsHref,
   loansHref,
-  showApprovals,
 }: {
   approvals: ApprovalInboxItem[];
   aging: LoanAgingRow[];
@@ -462,41 +459,41 @@ export function PortalDashboardTables({
 
   return (
     <div className="">
-      
-        <div className="flex items-center justify-between px-4 py-3">
-          <h2 className="text-sm font-extrabold text-ink-900">
-            Loan portfolio watchlist
-          </h2>
-          <Link
-            to={loansHref}
-            className="text-xs font-bold text-brand-700 hover:underline"
-          >
-            View all loans
-          </Link>
-        </div>
-        <DataTable
-          search
-          searchValue={search}
-          onSearchChange={setSearch}
-          hasSearched={searchQuery.length > 0}
-          searchPlaceholder="Search by loan number or member name"
-          searchAriaLabel="Search loan portfolio watchlist"
-          columns={loanWatchColumns}
-          rows={watchlist}
-          getRowKey={(row) => row.loanNumber}
-          showCheckboxes={false}
-          showAutoNumber={false}
-          tableLoading={loading}
-          totalItems={watchlist.length}
-          startIndex={watchlist.length ? 1 : 0}
-          endIndex={watchlist.length}
-          emptyTitle={searchQuery ? "No matching loans" : "No loans on watchlist"}
-          emptyMessage={
-            searchQuery
-              ? "Try a different loan number or member name."
-              : "No active or overdue loans in the aging report."
-          }
-        />
+      <div className="flex items-center justify-between px-4 py-3">
+        <h2 className="text-sm lg:text-base font-bold text-red-600">
+          Loan portfolio watchlist
+        </h2>
+        <Link
+          to={loansHref}
+          className="text-sm font-bold text-brand-700 underline underline-offset-4"
+        >
+          View all loans
+        </Link>
+      </div>
+      <DataTable
+        
+        search
+        searchValue={search}
+        onSearchChange={setSearch}
+        hasSearched={searchQuery.length > 0}
+        searchPlaceholder="Search by loan number or member name"
+        searchAriaLabel="Search loan portfolio watchlist"
+        columns={loanWatchColumns}
+        rows={watchlist}
+        getRowKey={(row) => row.loanNumber}
+        showCheckboxes
+        showAutoNumber
+        tableLoading={loading}
+        totalItems={watchlist.length}
+        startIndex={watchlist.length ? 1 : 0}
+        endIndex={watchlist.length}
+        emptyTitle={searchQuery ? "No matching loans" : "No loans on watchlist"}
+        emptyMessage={
+          searchQuery
+            ? "Try a different loan number or member name."
+            : "No active or overdue loans in the aging report."
+        }
+      />
     </div>
   );
 }

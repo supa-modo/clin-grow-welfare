@@ -31,7 +31,7 @@ const AuthLeftPanel: React.FC<{
       <div className="relative mx-auto flex w-full max-w-xl flex-col px-12 py-12 xl:px-16 xl:py-14">
         <div className="flex items-center gap-4">
           <div className="grid h-22 w-22 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/25 bg-white shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
-            <img src="/logo.png" alt="Clin-Grow Welfare Group logo" className="h-20 w-20 object-contain" />
+            <img src="/logo.webp" alt="Clin-Grow Welfare Group logo" className="h-20 w-20 object-contain" />
           </div>
           <div>
             <p className="text-lg font-extrabold leading-tight tracking-tight">Clin-Grow</p>

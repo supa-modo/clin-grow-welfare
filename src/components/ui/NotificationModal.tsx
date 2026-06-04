@@ -74,12 +74,12 @@ export function NotificationModal({
     if (type === 'delete') {
       return {
         icon: TbTrash,
-        iconBg: 'bg-gradient-to-br from-secondary-600 to-secondary-500',
+        iconBg: 'bg-gradient-to-br from-red-600 to-red-500',
         borderColor: 'border-red-100',
         bgColor: 'bg-red-50/90',
         titleColor: 'text-red-900',
         messageColor: 'text-red-800',
-        primaryButton: 'bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800'
+        primaryButton: 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
       };
     }
     return {
@@ -127,7 +127,7 @@ export function NotificationModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-200 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
           onClick={handleBackdropClick}
         >
           <motion.div

@@ -13,6 +13,9 @@ import {
   TbUsers,
 } from "react-icons/tb";
 import { FiCheckCircle, FiCreditCard } from "react-icons/fi";
+import { MdSpaceDashboard } from "react-icons/md";
+import { PiUsersThreeDuotone } from "react-icons/pi";
+import { FaClipboardUser } from "react-icons/fa6";
 
 export type NavItemDef = {
   path: string;
@@ -35,19 +38,19 @@ export const adminNavItems: NavItemDef[] = [
   {
     path: "/dashboard",
     label: "Dashboard",
-    icon: TbLayoutDashboard,
+    icon: MdSpaceDashboard,
     exactMatch: true,
   },
   {
     path: "/dashboard/members",
     label: "Members",
-    icon: TbUsers,
+    icon: PiUsersThreeDuotone,
     permission: "officialsPortal.members.view",
   },
   {
     path: "/dashboard/users",
     label: "User Roles",
-    icon: TbUserCog,
+    icon: FaClipboardUser,
     permission: "users.view",
   },
   {

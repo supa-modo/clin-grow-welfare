@@ -14,7 +14,12 @@ import { Card } from "@/components/ui/Card";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingStep } from "../types";
-import { canCloseMeeting, canGoToStep, isMeetingStarted, nextStep } from "../utils";
+import {
+  canCloseMeeting,
+  canGoToStep,
+  isMeetingStarted,
+  nextStep,
+} from "../utils";
 import { useMeetingCeremony } from "../hooks/useMeetingCeremony";
 import { StepFooter } from "./StepFooter";
 import { AttendanceStep } from "./steps/AttendanceStep";
@@ -120,75 +125,87 @@ export function MeetingControlRoom({
   };
   const canClose = canCloseMeeting(m, roster, pool);
   const meetingStarted = isMeetingStarted(m);
-  const continueStep = (m.ceremonyStep as MeetingStep | undefined) ?? nextStep("attendance") ?? "fines";
-  const stageLocked = Boolean(m.loanStageReachedAt) && ["attendance", "fines", "collections", "repayments", "summary"].includes(step);
+  const continueStep =
+    (m.ceremonyStep as MeetingStep | undefined) ??
+    nextStep("attendance") ??
+    "fines";
+  const stageLocked =
+    Boolean(m.loanStageReachedAt) &&
+    ["attendance", "fines", "collections", "repayments", "summary"].includes(
+      step,
+    );
 
   return (
     <Card className="flex min-h-0 flex-col overflow-hidden p-0">
       <div className="shrink-0 p-5 pb-0">
         {stageLocked ? (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-            Loan stage is locked. Attendance, fines, and collections can no longer be edited for this meeting.
+            Loan stage is locked. Attendance, fines, and collections can no
+            longer be edited for this meeting.
           </div>
         ) : null}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-xl font-extrabold text-ink-900">
-              {m.meetingNumber}
-            </h3>
-            <Badge tone={tone(m.status)}>{m.status}</Badge>
-            <Badge>{m.meetingType}</Badge>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-xl font-extrabold text-ink-900">
+                {m.meetingNumber}
+              </h3>
+              <Badge tone={tone(m.status)}>{m.status}</Badge>
+              <Badge>{m.meetingType}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-ink-500">
+              {new Date(m.meetingDate).toLocaleString()} -{" "}
+              {m.venue ?? "Venue pending"}
+            </p>
+            <p className="mt-2 max-w-3xl text-sm text-ink-600">{m.agenda}</p>
           </div>
-          <p className="mt-1 text-sm text-ink-500">
-            {new Date(m.meetingDate).toLocaleString()} -{" "}
-            {m.venue ?? "Venue pending"}
-          </p>
-          <p className="mt-2 max-w-3xl text-sm text-ink-600">{m.agenda}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<FiSend />}
-            disabled={!!busy || m.status === "CLOSED"}
-            onClick={() => void sendNotice(m.id)}
-          >
-            Email notice
-          </Button>
-          {!meetingStarted && m.status !== "CLOSED" ? (
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="secondary"
-              icon={<FiPlay />}
-              disabled={!!busy}
-              onClick={() => void action(m.id, "start")}
+              icon={<FiSend />}
+              disabled={!!busy || m.status === "CLOSED"}
+              onClick={() => void sendNotice(m.id)}
             >
-              Start meeting
+              Email notice
             </Button>
-          ) : null}
-          {meetingStarted && m.status !== "CLOSED" ? (
-            <Button
-              size="sm"
-              variant="secondary2"
-              disabled={!!busy}
-              onClick={() => setGuardedStep(continueStep)}
-            >
-              Continue to {continueStep.replace(/_/g, " ")}
-            </Button>
-          ) : null}
+            {!meetingStarted && m.status !== "CLOSED" ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<FiPlay />}
+                disabled={!!busy}
+                onClick={() => void action(m.id, "start")}
+              >
+                Start meeting
+              </Button>
+            ) : null}
+            {meetingStarted && m.status !== "CLOSED" ? (
+              <Button
+                size="sm"
+                variant="secondary2"
+                disabled={!!busy}
+                onClick={() => setGuardedStep(continueStep)}
+              >
+                Continue to {continueStep.replace(/_/g, " ")}
+              </Button>
+            ) : null}
+          </div>
         </div>
+
+        <SegmentedTabs<MeetingStep>
+          tabs={guardedTabs}
+          value={step}
+          onChange={setGuardedStep}
+          className="mt-5"
+        />
       </div>
 
-      <SegmentedTabs<MeetingStep>
-        tabs={guardedTabs}
-        value={step}
-        onChange={setGuardedStep}
-        className="mt-5"
-      />
-      </div>
-
-      <div className="mt-5 min-h-0 flex-1 overflow-y-auto px-5 pb-5" data-meeting-step-scroll data-route-scroll-container>
+      <div
+        className="mt-5 min-h-0 flex-1 overflow-y-auto px-5 pb-2"
+        data-meeting-step-scroll
+        data-route-scroll-container
+      >
         {step === "attendance" ? (
           <AttendanceStep
             meeting={m}
@@ -236,7 +253,9 @@ export function MeetingControlRoom({
               void loadCollectionsReadiness(m.id, value);
             }}
             onRefreshReadiness={() => void loadCollectionsReadiness(m.id)}
-            onWaiver={(memberId, patch) => void updateCollectionWaiver(m.id, memberId, patch)}
+            onWaiver={(memberId, patch) =>
+              void updateCollectionWaiver(m.id, memberId, patch)
+            }
             onPost={(memberId, type, amount, periodDate) =>
               void collect(m, memberId, { type, amount, periodDate })
             }
@@ -260,8 +279,17 @@ export function MeetingControlRoom({
         ) : null}
         {step === "summary" ? (
           <div className="space-y-4">
-            <SummaryStep meeting={m} collectionTotals={collectionTotals} pool={pool} />
-            <ResolutionsStep meeting={m} resolutions={m.resolutions} busy={busy} onRecorded={() => void reload()} />
+            <SummaryStep
+              meeting={m}
+              collectionTotals={collectionTotals}
+              pool={pool}
+            />
+            <ResolutionsStep
+              meeting={m}
+              resolutions={m.resolutions}
+              busy={busy}
+              onRecorded={() => void reload()}
+            />
           </div>
         ) : null}
         {step === "loans" ? (

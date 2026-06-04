@@ -79,6 +79,7 @@ export function FinancialYearsPage() {
         lateFine: fy.settings.lateFine,
         monthlyAbsentFineWithApology: fy.settings.monthlyAbsentFineWithApology,
         monthlyAbsentFineWithoutApology: fy.settings.monthlyAbsentFineWithoutApology,
+        meetingEmailRemindersEnabled: fy.settings.meetingEmailRemindersEnabled,
       });
     }
   };
@@ -227,6 +228,16 @@ export function FinancialYearsPage() {
               <Badge tone={settingsReadOnly ? 'neutral' : 'success'}>{settingsReadOnly ? 'View only' : 'Editable'}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              <label className="col-span-2 flex items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50 px-3 py-2 text-xs font-semibold text-ink-700">
+                <span>Send meeting schedule, notice, and reminder emails</span>
+                <input
+                  type="checkbox"
+                  disabled={settingsReadOnly}
+                  checked={Boolean(settingsForm.meetingEmailRemindersEnabled ?? true)}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, meetingEmailRemindersEnabled: e.target.checked })}
+                  className="h-4 w-4 rounded border-ink-300 text-brand-700 focus:ring-brand-600"
+                />
+              </label>
               {[
                 ['registrationFeeAmount', 'Registration Fee (KES)'],
                 ['minShareCapital', 'Min Share Capital (KES)'],
@@ -250,7 +261,7 @@ export function FinancialYearsPage() {
                     type="number"
                     disabled={settingsReadOnly}
                     className="w-full rounded-lg border border-ink-300 px-3 py-2 text-sm disabled:bg-ink-50"
-                    value={settingsForm[field as keyof WelfareSetting] ?? ''}
+                    value={(settingsForm[field as keyof WelfareSetting] as string | number | undefined) ?? ''}
                     onChange={(e) => setSettingsForm({ ...settingsForm, [field]: Number(e.target.value) })}
                   />
                 </div>

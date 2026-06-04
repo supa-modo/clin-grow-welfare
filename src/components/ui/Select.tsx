@@ -59,10 +59,10 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             className={clsx(
               variant === "primary"
-                ? "w-full px-4 py-2 lg:py-2.5 border transition-all duration-200 "
+                ? "w-full px-4 py-2 border transition-all duration-200 "
                 : variant === "secondary"
-                  ? "w-full px-4 py-2 lg:py-2.5 text-gray-700 border border-gray-400/60 rounded-[0.6rem]  focus:outline-none focus:ring-1 focus:ring-secondary-600 focus:border-secondary-600"
-                  : "w-full px-4 py-2 lg:py-2.5 text-gray-700 border border-gray-400/60 rounded-[0.6rem]  focus:outline-none focus:ring-1 focus:ring-primary-600 focus:border-primary-600",
+                  ? "w-full px-4 py-2 text-gray-700 border border-gray-400/60 rounded-[0.6rem]  focus:outline-none focus:ring-1 focus:ring-secondary-600 focus:border-secondary-600"
+                  : "w-full px-4 py-2 text-gray-700 border border-gray-400/60 rounded-[0.6rem]  focus:outline-none focus:ring-1 focus:ring-primary-600 focus:border-primary-600",
               variant === "primary"
                 ? "focus:outline-none focus:ring-1 bg-gray-100"
                 : variant === "secondary"

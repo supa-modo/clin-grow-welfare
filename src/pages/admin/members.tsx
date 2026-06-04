@@ -2,12 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiDownload, FiUserPlus } from "react-icons/fi";
 import {
   TbCircleDashed,
-  TbCreditCard,
   TbEdit,
   TbEye,
   TbUserCancel,
   TbUserCheck,
-  TbUsers,
 } from "react-icons/tb";
 
 import { MemberDetailSlideOver } from "@/components/members/MemberDetailSlideOver";
@@ -21,14 +19,14 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import MultiFilterDropdown, {
-  type MultiFilterValue,
+import type {
+  MultiFilterSection,
+  MultiFilterValue,
 } from "@/components/ui/MultiFilterDropdown";
 import { NotificationModal } from "@/components/ui/NotificationModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RefreshIconButton } from "@/components/ui/RefreshIconButton";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
-import { SearchBar } from "@/components/ui/SearchBar";
 import StatCard from "@/components/ui/StatCard";
 import {
   AdminPageLayout,
@@ -43,18 +41,45 @@ import type {
   MemberFormValues,
   MembershipStatus,
 } from "@/types/member";
+import { PiUsersThreeDuotone } from "react-icons/pi";
 
-const statusOptions: Array<{ value: MembershipStatus | ""; label: string }> =
-  [
-    { value: "", label: "All statuses" },
-    { value: "PENDING", label: "Pending approval" },
-    { value: "ACTIVE", label: "Active" },
-    { value: "NON_COMPLIANT", label: "Non-compliant" },
-    { value: "SUSPENDED", label: "Suspended" },
-    { value: "WITHDRAWN", label: "Withdrawn" },
-    { value: "EXPELLED", label: "Expelled" },
-    { value: "DECEASED", label: "Deceased" },
-  ];
+const statusOptions: Array<{ value: MembershipStatus | ""; label: string }> = [
+  { value: "", label: "All statuses" },
+  { value: "PENDING", label: "Pending approval" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "NON_COMPLIANT", label: "Non-compliant" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "WITHDRAWN", label: "Withdrawn" },
+  { value: "EXPELLED", label: "Expelled" },
+  { value: "DECEASED", label: "Deceased" },
+];
+
+const memberFilterSections: MultiFilterSection[] = [
+  {
+    id: "status",
+    title: "Member status",
+    options: statusOptions.map((option) => ({
+      value: option.value,
+      label: option.label,
+    })),
+  },
+  {
+    id: "registration",
+    title: "Registration payment",
+    options: [
+      { value: "PAID", label: "Paid" },
+      { value: "PENDING", label: "Pending" },
+    ],
+  },
+  {
+    id: "compliance",
+    title: "Approval readiness",
+    options: [
+      { value: "READY", label: "Active + paid" },
+      { value: "ACTION_REQUIRED", label: "Action required" },
+    ],
+  },
+];
 
 type ConfirmationAction =
   | { kind: "approve"; member: Member }
@@ -86,6 +111,21 @@ function getApiError(error: unknown) {
     );
   }
   return "Member action failed.";
+}
+
+function MembersStatCardSkeleton() {
+  return (
+    <div className="animate-pulse rounded-[1.2rem] border border-gray-400 bg-white px-4 py-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center gap-4">
+        <div className="h-11 w-11 shrink-0 rounded-xl bg-slate-200" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-4 w-28 max-w-full rounded bg-slate-200" />
+          <div className="h-8 w-14 rounded bg-slate-200" />
+          <div className="h-3 w-36 max-w-full rounded bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function compactMember(member: Member) {
@@ -144,29 +184,35 @@ export function MembersPage() {
   const canCreate = has("officialsPortal.members.create", permissions);
   const canUpdate = has("officialsPortal.members.update", permissions);
   const canApprove = has("officialsPortal.members.approve", permissions);
-  const canResetPassword = has("officialsPortal.members.resetPassword", permissions);
+  const canResetPassword = has(
+    "officialsPortal.members.resetPassword",
+    permissions,
+  );
 
-  const load = useCallback(async (next: MemberFilters = filters) => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await memberApi.list(next);
-      setMembers(data.data ?? data.members ?? []);
-      setMeta(data.meta);
-      setSelectedMember((current) => {
-        if (!current) return current;
-        return (
-          (data.data ?? data.members ?? []).find(
-            (member) => member.id === current.id,
-          ) ?? current
-        );
-      });
-    } catch (err) {
-      setError(getApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+  const load = useCallback(
+    async (next: MemberFilters = filters) => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await memberApi.list(next);
+        setMembers(data.data ?? data.members ?? []);
+        setMeta(data.meta);
+        setSelectedMember((current) => {
+          if (!current) return current;
+          return (
+            (data.data ?? data.members ?? []).find(
+              (member) => member.id === current.id,
+            ) ?? current
+          );
+        });
+      } catch (err) {
+        setError(getApiError(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters],
+  );
 
   useEffect(() => {
     void load(filters);
@@ -241,10 +287,7 @@ export function MembersPage() {
         toastSuccess("Member updated", `${member.name} has been updated.`);
       } else {
         const member = await memberApi.create(values);
-        toastSuccess(
-          "Member created",
-          `${member.name} is pending approval.`,
-        );
+        toastSuccess("Member created", `${member.name} is pending approval.`);
       }
       setFormOpen(false);
       await load({ ...filters, page: 1 });
@@ -338,8 +381,7 @@ export function MembersPage() {
   const pageSize = filters.pageSize ?? 20;
   const totalPages = meta?.totalPages ?? 1;
   const totalItems = meta?.total ?? filteredMembers.length;
-  const startIndex =
-    totalItems > 0 ? (page - 1) * pageSize + 1 : 0;
+  const startIndex = totalItems > 0 ? (page - 1) * pageSize + 1 : 0;
   const endIndex = Math.min(page * pageSize, totalItems);
 
   const columns: Column<Member>[] = [
@@ -347,7 +389,7 @@ export function MembersPage() {
       id: "member",
       header: "Member",
       cell: (member) => (
-        <div className="min-w-[13rem]">
+        <div className="min-w-48">
           <p className="font-semibold text-gray-900">{member.name}</p>
           <p className="mt-0.5 text-xs text-gray-500">
             {member.membershipNumber}
@@ -359,7 +401,7 @@ export function MembersPage() {
       id: "contact",
       header: "Phone / Email",
       cell: (member) => (
-        <div className="min-w-[12rem] text-sm">
+        <div className=" text-sm">
           <p className="text-gray-900">{member.phone ?? "-"}</p>
           <p className="mt-0.5 text-xs text-gray-500">
             {member.email ?? "No email captured"}
@@ -371,7 +413,7 @@ export function MembersPage() {
       id: "beneficiary",
       header: "Beneficiary",
       cell: (member) => (
-        <div className="min-w-[10rem]">
+        <div className="min-w-40">
           <p className="font-medium text-gray-900">{member.beneficiaryName}</p>
           <p className="text-xs text-gray-500">
             {member.beneficiaryRelationship}
@@ -393,7 +435,7 @@ export function MembersPage() {
       header: "Status",
       cell: (member) => (
         <Badge tone={membershipStatusBadgeTone[member.status]}>
-          {statusLabel(member.status)}
+          {statusLabel(member.status).toLowerCase()}
         </Badge>
       ),
     },
@@ -439,7 +481,10 @@ export function MembersPage() {
         }
         return (
           <div onClick={(event) => event.stopPropagation()}>
-            <RowActionsMenu items={items} ariaLabel={`Actions for ${member.name}`} />
+            <RowActionsMenu
+              items={items}
+              ariaLabel={`Actions for ${member.name}`}
+            />
           </div>
         );
       },
@@ -473,16 +518,18 @@ export function MembersPage() {
               confirmText: "Reset password",
               type: "confirm" as const,
             }
-        : {
-            title: confirmation.title,
-            message: confirmation.message,
-            confirmText: confirmation.confirmText,
-            type:
-              confirmation.status === "EXPELLED"
-                ? ("delete" as const)
-                : ("confirm" as const),
-          }
+          : {
+              title: confirmation.title,
+              message: confirmation.message,
+              confirmText: confirmation.confirmText,
+              type:
+                confirmation.status === "EXPELLED"
+                  ? ("delete" as const)
+                  : ("confirm" as const),
+            }
     : null;
+
+  const isInitialLoad = loading && members.length === 0;
 
   return (
     <AdminPageLayout>
@@ -514,60 +561,58 @@ export function MembersPage() {
         onOpenMember={(id) => {
           const row = members.find((m) => m.id === id);
           if (row) setSelectedMember(row);
-          else void memberApi.get(id).then(setSelectedMember).catch(() => undefined);
+          else
+            void memberApi
+              .get(id)
+              .then(setSelectedMember)
+              .catch(() => undefined);
         }}
       />
 
-      <AdminPageStatsGrid className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        <StatCard
-          icon={TbUsers}
-          iconColor="#1f7a76"
-          label="Total Members"
-          value={counts.total}
-          subtitle="All registry records"
-        />
-        <StatCard
-          icon={TbUserCheck}
-          iconColor="#16a34a"
-          label="Active"
-          value={counts.active}
-          subtitle="In good standing"
-        />
-        <StatCard
-          icon={TbCircleDashed}
-          iconColor="#d97706"
-          label="Pending"
-          value={counts.pending}
-          subtitle="Awaiting approval"
-        />
-        <StatCard
-          icon={TbUserCancel}
-          iconColor="#dc2626"
-          label="Suspended"
-          value={counts.suspended}
-          subtitle="Temporarily blocked"
-        />
-        <StatCard
-          icon={TbUserCancel}
-          iconColor="#64748b"
-          label="Inactive"
-          value={counts.inactive}
-          subtitle="Withdrawn, expelled, deceased"
-        />
-        <StatCard
-          icon={TbCreditCard}
-          iconColor="#2563eb"
-          label="Reg. Paid"
-          value={counts.paid}
-          subtitle="Confirmed payments"
-        />
-        <StatCard
-          icon={TbCreditCard}
-          iconColor="#f97316"
-          label="Reg. Pending"
-          value={counts.unpaid}
-          subtitle="Needs follow-up"
-        />
+      <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
+        {isInitialLoad
+          ? Array.from({ length: 5 }, (_, index) => (
+              <MembersStatCardSkeleton key={`member-stat-skeleton-${index}`} />
+            ))
+          : (
+            <>
+              <StatCard
+                icon={PiUsersThreeDuotone}
+                iconColor="#1f7a76"
+                label="Total Members"
+                value={counts.total}
+                subtitle="All registry records"
+              />
+              <StatCard
+                icon={TbUserCheck}
+                iconColor="#16a34a"
+                label="Active"
+                value={counts.active}
+                subtitle="In good standing"
+              />
+              <StatCard
+                icon={TbCircleDashed}
+                iconColor="#d97706"
+                label="Pending"
+                value={counts.pending}
+                subtitle="Awaiting approval"
+              />
+              <StatCard
+                icon={TbUserCancel}
+                iconColor="#dc2626"
+                label="Suspended"
+                value={counts.suspended}
+                subtitle="Temporarily blocked"
+              />
+              <StatCard
+                icon={TbUserCancel}
+                iconColor="#64748b"
+                label="Inactive"
+                value={counts.inactive}
+                subtitle="Withdrawn, expelled, deceased"
+              />
+            </>
+          )}
       </AdminPageStatsGrid>
 
       {error ? (
@@ -577,86 +622,48 @@ export function MembersPage() {
       ) : null}
 
       <AdminPageMain>
-        <div className="flex h-full flex-col rounded-[1.3rem] border border-gray-500/40 bg-white shadow-sm">
-          <div className="shrink-0 border-b border-gray-200 p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <SearchBar
-                value={filters.search ?? ""}
-                onChange={(search) =>
-                  setFilters((current) => ({ ...current, search, page: 1 }))
-                }
-                placeholder="Search name, member number, phone, email, or ID"
-                wrapperClassName="min-w-[280px] flex-1 max-w-none"
-                onClear={() =>
-                  setFilters((current) => ({ ...current, search: "" }))
-                }
-              />
-              <MultiFilterDropdown
-                value={filterValue}
-                onChange={setFilterValue}
-                buttonLabel="Member Filters"
-                title="Member Filters"
-                sections={[
-                  {
-                    id: "status",
-                    title: "Member status",
-                    options: statusOptions.map((option) => ({
-                      value: option.value,
-                      label: option.label,
-                    })),
-                  },
-                  {
-                    id: "registration",
-                    title: "Registration payment",
-                    options: [
-                      { value: "PAID", label: "Paid" },
-                      { value: "PENDING", label: "Pending" },
-                    ],
-                  },
-                  {
-                    id: "compliance",
-                    title: "Approval readiness",
-                    options: [
-                      { value: "READY", label: "Active + paid" },
-                      { value: "ACTION_REQUIRED", label: "Action required" },
-                    ],
-                  },
-                ]}
-              />
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-hidden p-4">
-            <DataTable
-              columns={columns}
-              rows={filteredMembers}
-              getRowKey={(member) => member.id}
-              selectedRowId={selectedMember?.id ?? null}
-              onRowClick={(member) => setSelectedMember(member)}
-              tableLoading={loading}
-              hasSearched={Boolean(filters.search)}
-              showAutoNumber
-              showCheckboxes={false}
-              startIndex={startIndex}
-              endIndex={endIndex}
-              totalItems={totalItems}
-              currentPage={page}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              onPageChange={(nextPage) =>
-                setFilters((current) => ({ ...current, page: nextPage }))
-              }
-              onPageSizeChange={(nextSize) =>
-                setFilters((current) => ({
-                  ...current,
-                  pageSize: nextSize,
-                  page: 1,
-                }))
-              }
-              fillContainer
-            />
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={filteredMembers}
+          getRowKey={(member) => member.id}
+          selectedRowId={selectedMember?.id ?? null}
+          onRowClick={(member) => setSelectedMember(member)}
+          search
+          searchValue={filters.search ?? ""}
+          onSearchChange={(search) =>
+            setFilters((current) => ({ ...current, search, page: 1 }))
+          }
+          searchPlaceholder="Search name, member number, phone, email, or ID"
+          filter
+          filterValue={filterValue}
+          onFilterChange={setFilterValue}
+          filterSections={memberFilterSections}
+          filterButtonLabel="Member Filters"
+          filterTitle="Member Filters"
+          tableLoading={loading}
+          loadingSkeletonRows={pageSize}
+          hasSearched={Boolean(filters.search)}
+          showAutoNumber
+          showCheckboxes={false}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          totalItems={totalItems}
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={(nextPage) =>
+            setFilters((current) => ({ ...current, page: nextPage }))
+          }
+          onPageSizeChange={(nextSize) =>
+            setFilters((current) => ({
+              ...current,
+              pageSize: nextSize,
+              page: 1,
+            }))
+          }
+          fillContainer
+          containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
+        />
       </AdminPageMain>
 
       <MemberDetailSlideOver
@@ -670,9 +677,7 @@ export function MembersPage() {
           setSelectedMember(null);
           openEdit(member);
         }}
-        onApprove={(member) =>
-          setConfirmation({ kind: "approve", member })
-        }
+        onApprove={(member) => setConfirmation({ kind: "approve", member })}
         onSuspend={(member) =>
           setConfirmation({
             kind: "status",
@@ -700,8 +705,7 @@ export function MembersPage() {
             member,
             status: "EXPELLED",
             title: "Expel member?",
-            message:
-              "This is a terminal membership action.",
+            message: "This is a terminal membership action.",
             confirmText: "Expel Member",
           })
         }

@@ -8,8 +8,7 @@ export function AdminLayout() {
   return (
     <DashboardLayout
       navItems={adminNavItems}
-      brandTitle="Clin-Grow Admin"
-      brandSubtitle="Welfare operations"
+      brandTitle="Clin-Grow Administrator"
       workspaceLabel="Administration"
     />
   );
@@ -20,8 +19,7 @@ export function OfficialsLayout() {
     <DashboardLayout
       navItems={officialsNavItems}
       brandTitle="Officials Portal"
-      brandSubtitle="Welfare operations"
-      workspaceLabel="Officials"
+      workspaceLabel="Welfare Officials"
     />
   );
 }

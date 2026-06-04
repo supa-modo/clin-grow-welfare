@@ -20,6 +20,7 @@ export interface WelfareSetting {
   loanLatePenaltyFixed: number;
   monthlyAbsentFineWithApology: number;
   monthlyAbsentFineWithoutApology: number;
+  meetingEmailRemindersEnabled: boolean;
 }
 
 export interface FinancialYear {

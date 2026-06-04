@@ -46,11 +46,12 @@ const groups: Array<{
   },
   {
     title: "Meeting fines",
-    description: "Used during attendance and fines generation in meeting workflows.",
+    description: "Used during attendance, fines generation, and meeting notification workflows.",
     fields: [
       ["lateFine", "Late attendance fine (KES)", "number"],
       ["monthlyAbsentFineWithApology", "Absent with apology fee (KES)", "number"],
       ["monthlyAbsentFineWithoutApology", "Absent without apology fine (KES)", "number"],
+      ["meetingEmailRemindersEnabled", "Send meeting emails", "checkbox"],
     ],
   },
   {
@@ -116,7 +117,7 @@ export function SystemSettingsPage() {
   const setField = (field: keyof SettingsForm, value: string, type: string) => {
     setForm((current) => ({
       ...current,
-      [field]: type === "number" ? Number(value) : value,
+      [field]: type === "number" ? Number(value) : type === "checkbox" ? value === "true" : value,
     }));
   };
 
@@ -179,18 +180,34 @@ export function SystemSettingsPage() {
                 <p className="mt-1 text-xs text-ink-500">{group.description}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {group.fields.map(([field, label, type]) => (
-                  <label key={String(field)} className="text-xs font-semibold text-ink-600">
-                    {label}
-                    <input
-                      type={type}
-                      value={(form[field] as string | number | undefined) ?? ""}
-                      disabled={loading || !financialYear || !canEdit}
-                      onChange={(event) => setField(field, event.target.value, type)}
-                      className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-800 outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600 disabled:bg-ink-50"
-                    />
-                  </label>
-                ))}
+                {group.fields.map(([field, label, type]) => {
+                  if (type === "checkbox") {
+                    return (
+                      <label key={String(field)} className="flex items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50 px-3 py-2 text-xs font-semibold text-ink-700">
+                        <span>{label}</span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(form[field] ?? true)}
+                          disabled={loading || !financialYear || !canEdit}
+                          onChange={(event) => setField(field, String(event.target.checked), type)}
+                          className="h-4 w-4 rounded border-ink-300 text-brand-700 focus:ring-brand-600"
+                        />
+                      </label>
+                    );
+                  }
+                  return (
+                    <label key={String(field)} className="text-xs font-semibold text-ink-600">
+                      {label}
+                      <input
+                        type={type}
+                        value={(form[field] as string | number | undefined) ?? ""}
+                        disabled={loading || !financialYear || !canEdit}
+                        onChange={(event) => setField(field, event.target.value, type)}
+                        className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-800 outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600 disabled:bg-ink-50"
+                      />
+                    </label>
+                  );
+                })}
               </div>
             </section>
           ))}

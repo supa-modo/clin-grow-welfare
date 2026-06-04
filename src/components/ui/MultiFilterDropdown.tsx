@@ -147,7 +147,7 @@ export default function MultiFilterDropdown({
                           onClick={() => updateSection(section, opt.value)}
                           className={clsx(
                             'px-3 py-[0.1rem] text-[0.65rem] md:text-[0.7rem] lg:text-[0.75rem] rounded-[0.4rem] lg:rounded-[0.55rem] border transition-colors',
-                            active ? 'bg-primary-500 text-white' : 'bg-gray-200/70 border-gray-300 text-gray-700 hover:bg-gray-100',
+                            active ? 'bg-primary-600 text-white' : 'bg-gray-200/70 border-gray-300 text-gray-700 hover:bg-gray-100',
                           )}
                         >
                           {opt.label}

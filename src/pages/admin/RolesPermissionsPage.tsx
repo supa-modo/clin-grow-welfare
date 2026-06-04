@@ -37,7 +37,7 @@ export function RolesPermissionsPage() {
   const [editingRole, setEditingRole] = useState<AdminRole | null>(null);
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
-
+  const [search, setSearch] = useState("");
   const permissionByName = useMemo(
     () => new Map(permissions.map((permission) => [permission.name, permission])),
     [permissions],
@@ -45,7 +45,7 @@ export function RolesPermissionsPage() {
   const grouped = useMemo(() => groupPermissions(permissions), [permissions]);
   const groupNames = Object.keys(grouped).sort();
 
-  const load = async () => {
+  const load = async (nextSearch = search) => {
     setLoading(true);
     try {
       const [roleResult, permissionResult] = await Promise.all([
@@ -62,7 +62,7 @@ export function RolesPermissionsPage() {
   };
 
   useEffect(() => {
-    void load();
+    void load(search);
   }, []);
 
   const openEditor = (role: AdminRole) => {
@@ -127,6 +127,7 @@ export function RolesPermissionsPage() {
         <Button
           size="sm"
           variant="secondary"
+          className="w-full shrink-0"
           icon={<TbShieldCog />}
           disabled={role.name === "SystemAdmin"}
           onClick={() => openEditor(role)}
@@ -142,10 +143,17 @@ export function RolesPermissionsPage() {
       <PageHeader
         title="Roles and permissions"
         subtitle="Review role access and edit the permissions assigned to each official role."
-        action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load()} disabled={loading}>Refresh</Button>}
+        action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load(search)} disabled={loading}>Refresh</Button>}
       />
       <AdminPageMain className="overflow-y-auto pb-6">
         <DataTable
+        search
+        searchPlaceholder="Search by role name"
+        searchValue={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          void load(value as string);
+        }}
           rows={roles}
           columns={columns}
           getRowKey={(role) => role.id}

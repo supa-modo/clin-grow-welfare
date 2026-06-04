@@ -262,7 +262,7 @@ export function MemberMeetingsPage() {
                 ) : null}
 
                 <Link
-                  className="mb-4 flex min-h-10 w-full items-center justify-center rounded-lg border border-ink-200 bg-white px-4 text-xs font-semibold text-ink-900 transition hover:bg-ink-50 sm:ml-auto sm:w-auto sm:min-w-[8rem]"
+                  className="mb-4 flex min-h-10 w-full items-center justify-center rounded-lg border border-ink-200 bg-white px-4 text-xs font-semibold text-ink-900 transition hover:bg-ink-50 md:ml-auto md:w-auto md:min-w-32"
                   to={`/member/meetings/${meeting.id}`}
                 >
                   View details

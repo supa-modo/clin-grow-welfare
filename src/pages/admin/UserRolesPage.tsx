@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import Checkbox from "@/components/ui/Checkbox";
 import { NotificationModal } from "@/components/ui/NotificationModal";
-import { SearchBar } from "@/components/ui/SearchBar";
 import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
 import { userAdminApi, type AdminRole, type AdminUser } from "@/services/userAdminApi";
@@ -40,7 +39,7 @@ function apiError(error: unknown) {
 
 export function UserRolesPage() {
   const authUser = useAuthStore((s) => s.user);
-  const canManageRoles = authUser?.permissions.includes("users.manageRoles") ?? false;
+  const canManageRoles = Boolean(authUser?.roles.includes("SystemAdmin") || authUser?.permissions.includes("users.manageRoles"));
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -199,29 +198,29 @@ export function UserRolesPage() {
   ];
 
   return (
-    <AdminPageLayout className="min-h-0">
+    <AdminPageLayout className="min-h-0 overflow-y-auto">
       <PageHeader
         title="User roles"
         subtitle="Promote members to official roles and review system access."
         action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load(search)} disabled={loading}>Refresh</Button>}
       />
-      <AdminPageMain className="pb-6">
+      <AdminPageMain className="pb-2">
         {!canManageRoles ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             You can view users but cannot change roles without <strong>users.manageRoles</strong>. Sign out and sign in again if permissions were recently updated.
           </p>
         ) : null}
-        <div className="mb-3 max-w-md">
-          <SearchBar
-            value={search}
-            onChange={(value) => {
-              setSearch(value);
-              void load(value);
-            }}
-            placeholder="Search by name, email, or member number"
-          />
-        </div>
+       
         <DataTable
+        showAutoNumber
+        showCheckboxes
+        search
+        searchPlaceholder="Search by name, email, or member number"
+        searchValue={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          void load(value);
+        }}
           rows={users}
           columns={columns}
           getRowKey={(user) => user.id}

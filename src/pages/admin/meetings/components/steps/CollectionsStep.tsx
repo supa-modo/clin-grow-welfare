@@ -165,7 +165,7 @@ export function CollectionsStep({
     const weeklyBlocked = kind === 'week' && selectedWeekRemaining <= 0;
 
     return (
-      <div className="min-w-[10rem]">
+      <div className="min-w-40">
         <p className="mb-1 text-xs font-semibold text-ink-500">{displayLabel}</p>
         <div className="flex flex-wrap items-center gap-1">
           <input

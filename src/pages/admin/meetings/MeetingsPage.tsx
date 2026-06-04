@@ -46,7 +46,7 @@ export function MeetingsPage() {
 
       <StateBlock loading={loading} error={error} empty={!loading && !data?.length} />
       {data?.length ? (
-        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[320px_1fr]">
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[380px_1fr]">
           <MeetingListSidebar meetings={data} selectedId={selectedMeeting?.id ?? selectedId} onSelect={setSelectedId} onDelete={deleteMeeting} />
           <MeetingControlRoom ceremony={ceremony} money={money} />
         </div>

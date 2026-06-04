@@ -15,11 +15,10 @@ function normalizePath(path: string) {
 type SidebarProps = {
   items: NavItemDef[];
   brandTitle: string;
-  brandSubtitle?: string;
   roleLabel?: string;
 };
 
-export function Sidebar({ items, brandTitle, brandSubtitle, roleLabel }: SidebarProps) {
+export function Sidebar({ items, brandTitle, roleLabel }: SidebarProps) {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const mobileDrawerOpen = useUiStore((s) => s.mobileDrawerOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
@@ -144,33 +143,25 @@ export function Sidebar({ items, brandTitle, brandSubtitle, roleLabel }: Sidebar
           {(!collapsed || isMobile) && (
             <div className="flex min-w-0 items-center gap-2.5">
               <img
-                src="/favicon.svg"
+                src="/logo.webp"
                 alt=""
-                className="h-9 w-9 shrink-0 rounded-lg bg-white/10 p-1"
+                className="h-16 w-16 shrink-0"
               />
               <div className="min-w-0 flex-col">
                 <span className="font-google text-lg font-extrabold leading-tight tracking-wide text-primary-300">
                   {brandTitle}
                 </span>
-                {brandSubtitle ? (
-                  <span className="truncate font-google text-[0.65rem] font-medium tracking-wide text-primary-200/90">
-                    {brandSubtitle}
-                  </span>
-                ) : null}
-                {roleLabel ? (
-                  <span className="truncate font-google text-[0.62rem] font-semibold tracking-wide text-white/80">
-                    {roleLabel}
-                  </span>
-                ) : null}
+               
+                
               </div>
             </div>
           )}
           {collapsed && !isMobile && (
             <img
-              src="/favicon.svg"
+              src="/logo.webp"
               alt={brandTitle}
               title={brandTitle}
-              className="h-9 w-9 rounded-lg bg-white/10 p-1"
+              className="h-16 w-16 shrink-0"
             />
           )}
           {isMobile ? (

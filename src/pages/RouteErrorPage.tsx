@@ -23,7 +23,7 @@ export function RouteErrorPage() {
     <main className="min-h-screen bg-primary-50 px-6 py-10 text-ink-900">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-xl flex-col items-center justify-center text-center">
         <img
-          src="/logo.png"
+          src="/logo.webp"
           alt="Clin-Grow Welfare Group logo"
           className="mb-6 h-24 w-24 object-contain"
         />

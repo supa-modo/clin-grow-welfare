@@ -36,7 +36,7 @@ export function AuthLogoHeader() {
   return (
     <div className="mb-2 flex items-center justify-center gap-2.5">
       <img
-        src="/logo.png"
+        src="/logo.webp"
         alt="Clin-Grow Welfare Group logo"
         className="h-auto w-28"
       />

@@ -16,7 +16,6 @@ type DashboardLayoutProps = {
 export function DashboardLayout({
   navItems,
   brandTitle,
-  brandSubtitle,
   workspaceLabel,
 }: DashboardLayoutProps) {
   const user = useAuthStore((s) => s.user);
@@ -27,7 +26,6 @@ export function DashboardLayout({
       <Sidebar
         items={navItems}
         brandTitle={brandTitle}
-        brandSubtitle={brandSubtitle}
         roleLabel={roleLabel}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
