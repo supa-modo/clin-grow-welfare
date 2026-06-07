@@ -8,9 +8,11 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import { useUiStore, type Toast, type ToastTone } from "@/store/uiStore";
-export function Spinner() {
+
+export function Spinner({ color = "primary" }: { color?: "primary" | "secondary" | "white" }) {
+  const colorClass = color === "secondary" ? "border-secondary-600" : color === "white" ? "border-white" : "border-primary-600";
   return (
-    <span className="inline-block h-4 w-4 lg:h-5 lg:w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+    <span className={`inline-block h-4 w-4 lg:h-5 lg:w-5 animate-spin rounded-full border-2 ${colorClass} border-t-transparent`} />
   );
 }
 
@@ -153,7 +155,7 @@ export function Toasts() {
   const toasts = useUiStore((s) => s.toasts);
   if (toasts.length === 0) return null;
   return createPortal(
-    <div className="pointer-events-none fixed right-4 top-4 z-[400] flex w-[min(100vw-2rem,20rem)] flex-col items-end gap-2">
+    <div className="pointer-events-none fixed right-4 top-4 z-400 flex w-[min(100vw-2rem,20rem)] flex-col items-end gap-2">
       <div className="pointer-events-auto flex w-full flex-col gap-2">
         {toasts.map((t) => (
           <ToastRow key={t.id} toast={t} />

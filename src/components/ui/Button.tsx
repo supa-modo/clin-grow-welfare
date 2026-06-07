@@ -69,7 +69,7 @@ export function Button({
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? <Spinner /> : icon}
+      {isLoading ? <Spinner color="white" /> : icon}
       {isLoading && loadingText ? loadingText : children}
     </button>
   );
