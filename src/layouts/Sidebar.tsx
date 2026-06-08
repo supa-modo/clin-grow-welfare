@@ -28,7 +28,7 @@ export function Sidebar({ items, brandTitle, roleLabel }: SidebarProps) {
   const isMobile = useMediaQuery("(max-width: 1023px)");
 
   const visibleItems = useMemo(() => {
-    const filtered = filterNavItems(items, user?.permissions ?? []);
+    const filtered = filterNavItems(items, user?.permissions ?? [], user?.roles ?? []);
     return filtered.filter((item) => !item.ledgerNavOnly || canViewLedgerNav(user));
   }, [items, user]);
 

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiDownload, FiInfo, FiPlus } from "react-icons/fi";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
@@ -10,12 +9,20 @@ import {
 } from "@/components/member/CashTransactionHistory";
 import { Spinner, EmptyState } from "@/components/ui/Feedback";
 import { Badge } from "@/components/ui/Badge";
-import { StatCard } from "@/components/ui/StatCard";
 import {
   ActiveLoanProgress,
   findActiveLoan,
   money,
 } from "@/components/member/MemberCards";
+import {
+  FinanceMetric,
+  MobileRecordCard,
+} from "@/components/member/MemberFinancePrimitives";
+import {
+  MemberHeroCard,
+  MemberSectionCard,
+  MemberWelcomeHeader,
+} from "@/components/member/MemberPortalUi";
 import { loanApi } from "@/services/loanApi";
 import { useUiStore } from "@/store/uiStore";
 import type { Loan, LoanEligibility, LoanStatement } from "@/types/loan";
@@ -246,37 +253,65 @@ export function MemberLoansPage() {
     },
   ];
 
+  const activeOutstanding = useMemo(() => {
+    if (!activeLoan) return 0;
+    return Number(
+      activeStatement?.outstanding ?? activeLoan.outstandingPrincipal ?? 0,
+    );
+  }, [activeLoan, activeStatement]);
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="My Loans"
-        subtitle="Track your loan history, outstanding balance, and apply for new loans"
-        action={
-          eligibility && !eligibility.hasActiveLoan ? (
-            <Button
-              icon={<FiPlus size={14} />}
-              className="w-full"
-              onClick={() => setShowApply(true)}
-            >
-              Apply for a Loan
-            </Button>
-          ) : undefined
-        }
-      />
+    <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <MemberWelcomeHeader
+          greeting="Loans"
+          name="Borrowing & repayments"
+          membershipNumber="Track eligibility, active loans, and history"
+          statusLabel={
+            eligibility?.hasActiveLoan ? "Active loan on account" : "No active loan"
+          }
+        />
+        {eligibility && !eligibility.hasActiveLoan ? (
+          <Button
+            icon={<FiPlus size={14} />}
+            className="w-full shrink-0 sm:w-auto"
+            onClick={() => setShowApply(true)}
+          >
+            Apply for a Loan
+          </Button>
+        ) : null}
+      </div>
+
+      {activeLoan ? (
+        <MemberHeroCard
+          label="Active loan outstanding"
+          value={money(activeOutstanding)}
+          hint={`Loan ${activeLoan.loanNumber} · ${activeLoan.status.replace(/_/g, " ")}`}
+        />
+      ) : eligibility ? (
+        <MemberHeroCard
+          label="Maximum eligible to borrow"
+          value={money(eligibility.maxEligible)}
+          hint={`${eligibility.multiplier}× base · shares + savings`}
+          trendLabel="Apply when a meeting loan window is open"
+        />
+      ) : null}
 
       {eligibility ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          <StatCard
+        <section className="grid gap-3 sm:grid-cols-2">
+          <FinanceMetric
             label="Max eligible"
             value={money(eligibility.maxEligible)}
-            subtitle={`${eligibility.multiplier}× base`}
+            hint={`${eligibility.multiplier}× your contribution base`}
+            accent="primary"
           />
-          <StatCard
+          <FinanceMetric
             label="Base amount"
             value={money(eligibility.baseAmount)}
-            subtitle="Shares + savings"
+            hint="Share capital + weekly savings"
+            accent="secondary"
           />
-        </div>
+        </section>
       ) : null}
 
       {!loading ? (
@@ -290,60 +325,66 @@ export function MemberLoansPage() {
       ) : null}
 
       {eligibility?.hasActiveLoan ? (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <FiInfo className="shrink-0" />
           You have an active loan. Apply for a new loan once the current one is
           fully repaid.
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner />
-        </div>
-      ) : loans.length === 0 ? (
-        <EmptyState
-          title="No loans yet"
-          message="Apply for your first loan using the button above."
-        />
-      ) : (
-        <>
-          <div className="hidden md:block">
-            <DataTable
-              columns={columns}
-              rows={loans}
-              getRowKey={(l) => l.id}
-              onRowClick={(l) => void openDetail(l)}
-            />
+      <MemberSectionCard
+        title="Loan history"
+        subtitle="All applications and repayments on your account"
+      >
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Spinner />
           </div>
-          <div className="space-y-3 md:hidden">
-            {loans.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => void openDetail(l)}
-                className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand-200"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-mono text-xs font-bold text-brand-700">
-                    {l.loanNumber}
-                  </span>
-                  <Badge tone={STATUS_TONE[l.status] ?? "neutral"}>
-                    {l.status.replace(/_/g, " ")}
-                  </Badge>
-                </div>
-                <p className="mt-2 text-lg font-bold text-slate-900">
-                  {money(l.approvedAmount ?? l.requestedAmount)}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {l.interestRate}% pm ·{" "}
-                  {new Date(l.applicationDate).toLocaleDateString()}
-                </p>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+        ) : loans.length === 0 ? (
+          <EmptyState
+            title="No loans yet"
+            message="Apply for your first loan when you are eligible and a meeting loan window is open."
+          />
+        ) : (
+          <>
+            <div className="hidden md:block">
+              <DataTable
+                columns={columns}
+                rows={loans}
+                getRowKey={(l) => l.id}
+                onRowClick={(l) => void openDetail(l)}
+              />
+            </div>
+            <div className="space-y-3 md:hidden">
+              {loans.map((l) => (
+                <MobileRecordCard key={l.id}>
+                  <button
+                    type="button"
+                    onClick={() => void openDetail(l)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-xs font-bold text-brand-700">
+                        {l.loanNumber}
+                      </span>
+                      <Badge tone={STATUS_TONE[l.status] ?? "neutral"}>
+                        {l.status.replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 font-google text-xl font-extrabold text-ink-950">
+                      {money(l.approvedAmount ?? l.requestedAmount)}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-500">
+                      {l.interestRate}% pm ·{" "}
+                      {new Date(l.applicationDate).toLocaleDateString()}
+                    </p>
+                  </button>
+                </MobileRecordCard>
+              ))}
+            </div>
+          </>
+        )}
+      </MemberSectionCard>
 
       <Modal
         open={showApply}

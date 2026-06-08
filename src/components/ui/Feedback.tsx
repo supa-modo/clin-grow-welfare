@@ -12,7 +12,7 @@ import { useUiStore, type Toast, type ToastTone } from "@/store/uiStore";
 export function Spinner({ color = "primary" }: { color?: "primary" | "secondary" | "white" }) {
   const colorClass = color === "secondary" ? "border-secondary-600" : color === "white" ? "border-white" : "border-primary-600";
   return (
-    <span className={`inline-block h-4 w-4 lg:h-5 lg:w-5 animate-spin rounded-full border-2 ${colorClass} border-t-transparent`} />
+    <span className={`inline-block h-3.5 w-3.5 lg:h-4 lg:w-4 animate-spin rounded-full border-2 ${colorClass} border-t-transparent`} />
   );
 }
 

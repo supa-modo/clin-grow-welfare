@@ -3,8 +3,8 @@ import { FiPlus, FiRefreshCw, FiEye } from 'react-icons/fi';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import type { MultiFilterSection, MultiFilterValue } from '@/components/ui/MultiFilterDropdown';
 import { Modal } from '@/components/ui/Modal';
-import { Spinner, EmptyState } from '@/components/ui/Feedback';
 import { JournalStatusBadge } from '@/components/ledger/JournalEntryStatusBadge';
 import { ledgerApi } from '@/services/ledgerApi';
 import type { JournalEntry, LedgerAccount } from '@/types/ledger';
@@ -15,12 +15,26 @@ function journalAmount(entry: JournalEntry) {
   return entry.lines?.reduce((sum, line) => sum + Number(line.debitAmount), 0) ?? 0;
 }
 
+const journalFilterSections: MultiFilterSection[] = [
+  {
+    id: 'status',
+    title: 'Journal status',
+    options: [
+      { value: 'POSTED', label: 'Posted' },
+      { value: 'REVERSED', label: 'Reversed' },
+      { value: 'DRAFT', label: 'Draft' },
+    ],
+  },
+];
+
 export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [filterValue, setFilterValue] = useState<MultiFilterValue>({ status: [] });
   const [selected, setSelected] = useState<JournalEntry | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
@@ -40,12 +54,20 @@ export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
 
   const load = () => {
     setLoading(true);
-    ledgerApi.listJournals({ page, search: search || undefined })
+    ledgerApi.listJournals({ page, search: search || undefined, status: statusFilter || undefined })
       .then(({ data, meta }) => { setJournals(data); setMeta(meta); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [page, search]);
+  useEffect(() => { load(); }, [page, search, statusFilter]);
+  useEffect(() => {
+    const nextStatus = String(filterValue.status?.[0] ?? '');
+    setStatusFilter((current) => {
+      if (current === nextStatus) return current;
+      setPage(1);
+      return nextStatus;
+    });
+  }, [filterValue.status]);
   useEffect(() => { ledgerApi.listAccounts().then(setAccounts); }, []);
 
   const addLine = () => setNewForm({ ...newForm, lines: [...newForm.lines, { ledgerAccountId: '', debitAmount: 0, creditAmount: 0, description: '' }] });
@@ -120,25 +142,33 @@ export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <input className="flex-1 rounded-lg border border-ink-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Search by entry number or description..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12"><Spinner /></div>
-      ) : (
-        <DataTable columns={columns} rows={journals} getRowKey={(j) => j.id} onRowClick={(j) => setSelected(j)} selectedRowId={selected?.id} />
-      )}
-
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-ink-500">
-          <span>Page {meta.page} of {meta.totalPages} ({meta.total} entries)</span>
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" disabled={!meta.hasPrev} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button size="sm" variant="secondary" disabled={!meta.hasNext} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={journals}
+        getRowKey={(j) => j.id}
+        onRowClick={(j) => setSelected(j)}
+        selectedRowId={selected?.id}
+        search
+        searchValue={search}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
+        searchPlaceholder="Search by entry number or description"
+        filter
+        filterValue={filterValue}
+        onFilterChange={setFilterValue}
+        filterSections={journalFilterSections}
+        filterButtonLabel="Journal Filters"
+        filterTitle="Journal Filters"
+        tableLoading={loading}
+        showAutoNumber
+        startIndex={meta?.total ? (page - 1) * ((meta.pageSize ?? journals.length) || 20) + 1 : 0}
+        endIndex={meta?.total ? Math.min(page * ((meta.pageSize ?? journals.length) || 20), meta.total) : journals.length}
+        totalItems={meta?.total ?? journals.length}
+        currentPage={page}
+        totalPages={meta?.totalPages ?? 1}
+        onPageChange={setPage}
+        emptyTitle="No journal entries"
+        emptyMessage="Posted and reversed journal entries will appear here."
+      />
 
       {/* View entry */}
       {selected && (

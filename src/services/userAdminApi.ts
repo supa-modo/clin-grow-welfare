@@ -53,6 +53,11 @@ export const userAdminApi = {
     return data as { user: AdminUser };
   },
 
+  async createRole(payload: { name: string; description?: string | null; permissionIds: string[] }) {
+    const { data } = await api.post("/users/roles", payload);
+    return data as { role: AdminRole };
+  },
+
   async updateRolePermissions(roleId: string, permissionIds: string[]) {
     const { data } = await api.put(`/users/roles/${roleId}/permissions`, { permissionIds });
     return data as { role: AdminRole };

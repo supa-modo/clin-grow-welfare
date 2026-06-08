@@ -212,7 +212,9 @@ export const officialsNavGroups: NavGroupDef[] = [
 export function filterNavItems(
   items: NavItemDef[],
   permissions: string[],
+  roles: string[] = [],
 ): NavItemDef[] {
+  if (roles.includes("SystemAdmin")) return items;
   return items.filter(
     (item) => !item.permission || permissions.includes(item.permission),
   );
@@ -221,11 +223,12 @@ export function filterNavItems(
 export function filterNavGroups(
   groups: NavGroupDef[],
   permissions: string[],
+  roles: string[] = [],
 ): NavGroupDef[] {
   return groups
     .map((group) => ({
       ...group,
-      items: filterNavItems(group.items, permissions),
+      items: filterNavItems(group.items, permissions, roles),
     }))
     .filter((group) => group.items.length > 0);
 }

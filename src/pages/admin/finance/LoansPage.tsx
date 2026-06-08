@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FiCheck, FiX, FiDollarSign, FiEye, FiDownload, FiAlertTriangle, FiFileText } from 'react-icons/fi';
+import { TbCash, TbClock, TbCreditCard, TbTrendingUp } from 'react-icons/tb';
+import { AdminPageLayout, AdminPageMain, AdminPageStatsGrid } from '@/layouts/AdminPageLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import type { MultiFilterSection, MultiFilterValue } from '@/components/ui/MultiFilterDropdown';
 import { LoanDetailModal } from '@/components/loans/LoanDetailModal';
 import { Modal } from '@/components/ui/Modal';
-import { Spinner, EmptyState } from '@/components/ui/Feedback';
+import { EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
 import { NotificationModal } from '@/components/ui/NotificationModal';
+import StatCard from '@/components/ui/StatCard';
 import { loanApi } from '@/services/loanApi';
 import type { Loan, LoanStatus } from '@/types/loan';
 
@@ -36,6 +40,25 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> 
   READY_FOR_DISBURSEMENT: 'warning', REJECTED: 'danger', IN_ROLLOVER: 'warning',
 };
 
+const loanFilterSections: MultiFilterSection[] = [
+  {
+    id: 'status',
+    title: 'Loan status',
+    options: [
+      'SUBMITTED',
+      'PENDING_MEETING_APPROVAL',
+      'AGREEMENT_PENDING',
+      'READY_FOR_DISBURSEMENT',
+      'ACTIVE',
+      'PARTIALLY_PAID',
+      'OVERDUE',
+      'DEFAULTED',
+      'CLOSED',
+      'REJECTED',
+    ].map((status) => ({ value: status, label: status.replace(/_/g, ' ') })),
+  },
+];
+
 export function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +66,7 @@ export function LoansPage() {
   const [meta, setMeta] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [filterValue, setFilterValue] = useState<MultiFilterValue>({ status: [] });
   const [detailLoanId, setDetailLoanId] = useState<string | null>(null);
   const [showApprove, setShowApprove] = useState<Loan | null>(null);
   const [showReject, setShowReject] = useState<Loan | null>(null);
@@ -67,6 +91,15 @@ export function LoansPage() {
   };
 
   useEffect(() => { load(); }, [page, search, statusFilter]);
+
+  useEffect(() => {
+    const nextStatus = String(filterValue.status?.[0] ?? '');
+    setStatusFilter((current) => {
+      if (current === nextStatus) return current;
+      setPage(1);
+      return nextStatus;
+    });
+  }, [filterValue.status]);
 
   useEffect(() => {
     if (tab === 'defaulters') loanApi.getDefaulters().then((r) => setDefaulters(r.data));
@@ -199,8 +232,22 @@ export function LoansPage() {
     },
   ];
 
+  const stats = useMemo(() => {
+    const totalOutstanding = loans.reduce((sum, loan) => sum + Number(loan.totalOutstanding ?? loan.outstandingPrincipal ?? 0), 0);
+    const activeCount = loans.filter((loan) => ['ACTIVE', 'PARTIALLY_PAID', 'IN_ROLLOVER', 'OVERDUE'].includes(loan.status)).length;
+    const approvalQueue = loans.filter((loan) => ['SUBMITTED', 'UNDER_REVIEW', 'PENDING_MEETING_APPROVAL'].includes(loan.status)).length;
+    const atRisk = loans.filter((loan) => ['OVERDUE', 'DEFAULTED'].includes(loan.status)).length;
+    return {
+      total: meta?.total ?? loans.length,
+      totalOutstanding,
+      activeCount,
+      approvalQueue,
+      atRisk,
+    };
+  }, [loans, meta]);
+
   return (
-    <div className="space-y-6">
+    <AdminPageLayout>
       <PageHeader
         title="Loan Portfolio"
         subtitle="Manage loan applications, disbursements, and repayments"
@@ -215,28 +262,45 @@ export function LoansPage() {
         }
       />
 
+      <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={TbCreditCard} iconColor="#1f7a76" label="Total loans" value={stats.total} subtitle="Portfolio records" />
+        <StatCard icon={TbCash} iconColor="#dc2626" label="Outstanding" value={money(stats.totalOutstanding)} subtitle="Current page balance" />
+        <StatCard icon={TbTrendingUp} iconColor="#16a34a" label="Active loans" value={stats.activeCount} subtitle="Repayment in progress" />
+        <StatCard icon={TbClock} iconColor="#d97706" label="Approval queue" value={stats.approvalQueue} subtitle={`${stats.atRisk} at risk`} />
+      </AdminPageStatsGrid>
+
       {tab === 'portfolio' && (
-        <>
-          <div className="flex flex-wrap items-center gap-3">
-            <input className="w-72 rounded-lg border border-ink-300 px-3 py-2 text-sm" placeholder="Search member or loan number..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-            <select className="rounded-lg border border-ink-300 px-3 py-2 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-              <option value="">All Statuses</option>
-              {['SUBMITTED', 'PENDING_MEETING_APPROVAL', 'READY_FOR_DISBURSEMENT', 'ACTIVE', 'PARTIALLY_PAID', 'OVERDUE', 'DEFAULTED', 'CLOSED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-            </select>
-          </div>
-          {loading ? <div className="flex justify-center py-12"><Spinner /></div> : (
-            <DataTable columns={columns} rows={loans} getRowKey={(l) => l.id} onRowClick={openDetail} selectedRowId={detailLoanId ?? undefined} />
-          )}
-          {meta && meta.totalPages > 1 && (
-            <div className="flex items-center justify-between text-sm text-ink-500">
-              <span>{meta.total} loans</span>
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" disabled={!meta.hasPrev} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                <Button size="sm" variant="secondary" disabled={!meta.hasNext} onClick={() => setPage((p) => p + 1)}>Next</Button>
-              </div>
-            </div>
-          )}
-        </>
+        <AdminPageMain>
+          <DataTable
+            columns={columns}
+            rows={loans}
+            getRowKey={(l) => l.id}
+            onRowClick={openDetail}
+            selectedRowId={detailLoanId ?? undefined}
+            search
+            searchValue={search}
+            onSearchChange={(value) => { setSearch(value); setPage(1); }}
+            searchPlaceholder="Search member or loan number"
+            filter
+            filterValue={filterValue}
+            onFilterChange={setFilterValue}
+            filterSections={loanFilterSections}
+            filterButtonLabel="Loan Filters"
+            filterTitle="Loan Filters"
+            tableLoading={loading}
+            showAutoNumber
+            startIndex={meta?.total ? (page - 1) * ((meta.pageSize ?? loans.length) || 20) + 1 : 0}
+            endIndex={meta?.total ? Math.min(page * ((meta.pageSize ?? loans.length) || 20), meta.total) : loans.length}
+            totalItems={meta?.total ?? loans.length}
+            currentPage={page}
+            totalPages={meta?.totalPages ?? 1}
+            onPageChange={setPage}
+            fillContainer
+            containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
+            emptyTitle="No loans found"
+            emptyMessage="Loan applications and active facilities will appear here."
+          />
+        </AdminPageMain>
       )}
 
       {tab === 'defaulters' && (
@@ -379,6 +443,6 @@ export function LoansPage() {
         showCancel={false}
         onConfirm={() => setErrorNotice(null)}
       />
-    </div>
+    </AdminPageLayout>
   );
 }

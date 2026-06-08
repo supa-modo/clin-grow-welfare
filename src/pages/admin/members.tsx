@@ -36,6 +36,7 @@ import {
 import { memberApi, type MemberFilters } from "@/services/memberApi";
 import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
+import { isSystemAdmin } from "@/lib/workspaces";
 import type {
   Member,
   MemberFormValues,
@@ -95,8 +96,8 @@ type ConfirmationAction =
   | { kind: "registration"; member: Member; paid: boolean }
   | { kind: "resetPassword"; member: Member; tempPassword?: string };
 
-function has(permission: string, permissions: string[]) {
-  return permissions.includes(permission);
+function has(permission: string, permissions: string[], systemAdmin = false) {
+  return systemAdmin || permissions.includes(permission);
 }
 
 function getApiError(error: unknown) {
@@ -149,6 +150,7 @@ export function MembersPage() {
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
   const permissions = user?.permissions ?? [];
+  const systemAdmin = isSystemAdmin(user);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -181,12 +183,13 @@ export function MembersPage() {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
 
-  const canCreate = has("officialsPortal.members.create", permissions);
-  const canUpdate = has("officialsPortal.members.update", permissions);
-  const canApprove = has("officialsPortal.members.approve", permissions);
+  const canCreate = has("officialsPortal.members.create", permissions, systemAdmin);
+  const canUpdate = has("officialsPortal.members.update", permissions, systemAdmin);
+  const canApprove = has("officialsPortal.members.approve", permissions, systemAdmin);
   const canResetPassword = has(
     "officialsPortal.members.resetPassword",
     permissions,
+    systemAdmin,
   );
 
   const load = useCallback(

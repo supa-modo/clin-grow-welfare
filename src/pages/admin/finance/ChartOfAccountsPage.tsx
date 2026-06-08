@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { DataTable } from '@/components/ui/DataTable';
+import { DataTable, type Column } from '@/components/ui/DataTable';
+import type { MultiFilterSection, MultiFilterValue } from '@/components/ui/MultiFilterDropdown';
 import { Modal } from '@/components/ui/Modal';
-import { Spinner, EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
 import { ledgerApi } from '@/services/ledgerApi';
 import type { LedgerAccount, LedgerAccountType } from '@/types/ledger';
@@ -17,11 +17,29 @@ const TYPE_COLORS: Record<LedgerAccountType, 'success' | 'neutral' | 'warning' |
   EXPENSE: 'danger',
 };
 
+const accountFilterSections: MultiFilterSection[] = [
+  {
+    id: 'type',
+    title: 'Account type',
+    options: ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'].map((type) => ({ value: type, label: type })),
+  },
+  {
+    id: 'system',
+    title: 'Account class',
+    options: [
+      { value: 'SYSTEM', label: 'System accounts' },
+      { value: 'CUSTOM', label: 'Custom accounts' },
+    ],
+  },
+];
+
 export function ChartOfAccountsPage({ embedded = false }: { embedded?: boolean }) {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterValue, setFilterValue] = useState<MultiFilterValue>({ type: [], system: [] });
   const [form, setForm] = useState({ code: '', name: '', type: 'ASSET' as LedgerAccountType, fundId: '' });
 
   const load = () => {
@@ -45,11 +63,28 @@ export function ChartOfAccountsPage({ embedded = false }: { embedded?: boolean }
     }
   };
 
-  const grouped = accounts.reduce<Record<string, LedgerAccount[]>>((acc, a) => {
-    acc[a.type] = acc[a.type] ?? [];
-    acc[a.type].push(a);
-    return acc;
-  }, {});
+  const filteredAccounts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const type = String(filterValue.type?.[0] ?? '');
+    const system = String(filterValue.system?.[0] ?? '');
+    return accounts.filter((account) => {
+      if (type && account.type !== type) return false;
+      if (system === 'SYSTEM' && !account.isSystemAccount) return false;
+      if (system === 'CUSTOM' && account.isSystemAccount) return false;
+      if (!term) return true;
+      return [account.code, account.name, account.type, account.fund?.name].some((value) =>
+        String(value ?? '').toLowerCase().includes(term),
+      );
+    });
+  }, [accounts, filterValue.system, filterValue.type, search]);
+
+  const columns: Column<LedgerAccount>[] = [
+    { key: 'code', header: 'Code', render: (a) => <span className="font-mono text-xs text-ink-700">{a.code}</span> },
+    { key: 'name', header: 'Name', render: (a) => <span className="font-medium text-ink-900">{a.name}</span> },
+    { key: 'type', header: 'Type', render: (a) => <Badge tone={TYPE_COLORS[a.type]}>{a.type}</Badge> },
+    { key: 'fund', header: 'Fund', render: (a) => a.fund?.name ?? <span className="text-ink-400">None</span> },
+    { key: 'system', header: 'Class', render: (a) => a.isSystemAccount ? <Badge tone="neutral">System</Badge> : <Badge tone="gray2">Custom</Badge> },
+  ];
 
   return (
     <div className="space-y-6">
@@ -65,32 +100,25 @@ export function ChartOfAccountsPage({ embedded = false }: { embedded?: boolean }
         </div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center py-12"><Spinner /></div>
-      ) : !accounts.length ? (
-        <EmptyState title="No accounts found" message="Create your first ledger account." />
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([type, accts]) => (
-            <div key={type}>
-              <div className="mb-2 flex items-center gap-2">
-                <h3 className="text-sm font-bold uppercase text-ink-500 tracking-wide">{type}</h3>
-                <Badge tone={TYPE_COLORS[type as LedgerAccountType]}>{accts.length}</Badge>
-              </div>
-              <DataTable
-                columns={[
-                  { key: 'code', header: 'Code', render: (a) => <span className="font-mono text-xs text-ink-700">{a.code}</span> },
-                  { key: 'name', header: 'Name', render: (a) => <span className="font-medium text-ink-900">{a.name}</span> },
-                  { key: 'fund', header: 'Fund', render: (a) => a.fund?.name ?? <span className="text-ink-400">—</span> },
-                  { key: 'system', header: '', render: (a) => a.isSystemAccount ? <Badge tone="neutral">System</Badge> : null },
-                ]}
-                rows={accts}
-                getRowKey={(a) => a.id}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={filteredAccounts}
+        getRowKey={(a) => a.id}
+        search
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search account code, name, type, or fund"
+        filter
+        filterValue={filterValue}
+        onFilterChange={setFilterValue}
+        filterSections={accountFilterSections}
+        filterButtonLabel="Account Filters"
+        filterTitle="Account Filters"
+        tableLoading={loading}
+        showAutoNumber
+        emptyTitle="No accounts found"
+        emptyMessage="Create your first ledger account or adjust the filters."
+      />
 
       <Modal open={showNew} title="New Ledger Account" onClose={() => setShowNew(false)} footer={
         <div className="flex justify-end gap-2 px-5 py-3">

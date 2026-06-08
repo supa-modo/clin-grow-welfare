@@ -1,11 +1,14 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { FiPlus, FiUpload, FiRefreshCw, FiDownload, FiAlertCircle } from 'react-icons/fi';
+import { TbReceipt, TbScale, TbTrendingDown, TbWallet } from 'react-icons/tb';
+import { AdminPageLayout, AdminPageMain, AdminPageStatsGrid } from '@/layouts/AdminPageLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import type { MultiFilterSection, MultiFilterValue } from '@/components/ui/MultiFilterDropdown';
 import { Modal } from '@/components/ui/Modal';
-import { Spinner, EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
+import StatCard from '@/components/ui/StatCard';
 import { contributionApi } from '@/services/contributionApi';
 import type { Contribution, ContributionType, PaymentMethod } from '@/types/contribution';
 import { useUiStore } from '@/store/uiStore';
@@ -18,6 +21,22 @@ const TYPE_LABELS: Record<ContributionType, string> = {
 function money(n: number | string) { return `KES ${Number(n).toLocaleString()}`; }
 function statusTone(s: string): 'success' | 'danger' | 'neutral' { return s === 'POSTED' ? 'success' : s === 'REVERSED' ? 'danger' : 'neutral'; }
 
+const contributionFilterSections: MultiFilterSection[] = [
+  {
+    id: 'status',
+    title: 'Posting status',
+    options: [
+      { value: 'POSTED', label: 'Posted' },
+      { value: 'REVERSED', label: 'Reversed' },
+    ],
+  },
+  {
+    id: 'type',
+    title: 'Contribution type',
+    options: Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label })),
+  },
+];
+
 export function ContributionsPage() {
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
@@ -28,6 +47,7 @@ export function ContributionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [filterValue, setFilterValue] = useState<MultiFilterValue>({ status: [], type: [] });
   const [showNew, setShowNew] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showReverse, setShowReverse] = useState<Contribution | null>(null);
@@ -46,6 +66,21 @@ export function ContributionsPage() {
   };
 
   useEffect(() => { load(); }, [page, search, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    const nextStatus = String(filterValue.status?.[0] ?? '');
+    const nextType = String(filterValue.type?.[0] ?? '');
+    setStatusFilter((current) => {
+      if (current === nextStatus) return current;
+      setPage(1);
+      return nextStatus;
+    });
+    setTypeFilter((current) => {
+      if (current === nextType) return current;
+      setPage(1);
+      return nextType;
+    });
+  }, [filterValue.status, filterValue.type]);
 
   const submit = async () => {
     setSaving(true);
@@ -117,8 +152,21 @@ export function ContributionsPage() {
     },
   ];
 
+  const stats = useMemo(() => {
+    const posted = contributions.filter((contribution) => contribution.status === 'POSTED');
+    const reversed = contributions.filter((contribution) => contribution.status === 'REVERSED');
+    const totalPosted = posted.reduce((sum, contribution) => sum + Number(contribution.amount), 0);
+    const reversedAmount = reversed.reduce((sum, contribution) => sum + Number(contribution.amount), 0);
+    return {
+      total: meta?.total ?? contributions.length,
+      totalPosted,
+      reversed: reversed.length,
+      reversedAmount,
+    };
+  }, [contributions, meta]);
+
   return (
-    <div className="space-y-6">
+    <AdminPageLayout>
       <PageHeader
         title="Contributions"
         subtitle="Record and manage member contributions"
@@ -130,35 +178,42 @@ export function ContributionsPage() {
         }
       />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <input className="w-72 rounded-lg border border-ink-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Search member or receipt..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <select className="rounded-lg border border-ink-300 px-3 py-2 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All Statuses</option>
-          <option value="POSTED">Posted</option>
-          <option value="REVERSED">Reversed</option>
-        </select>
-        <select className="rounded-lg border border-ink-300 px-3 py-2 text-sm" value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
-          <option value="">All Types</option>
-          {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-      </div>
+      <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={TbReceipt} iconColor="#1f7a76" label="Receipts" value={stats.total} subtitle="Matching records" />
+        <StatCard icon={TbWallet} iconColor="#16a34a" label="Posted value" value={money(stats.totalPosted)} subtitle="Current page total" />
+        <StatCard icon={TbTrendingDown} iconColor="#dc2626" label="Reversals" value={stats.reversed} subtitle={money(stats.reversedAmount)} />
+        <StatCard icon={TbScale} iconColor="#d97706" label="Net posted" value={money(stats.totalPosted - stats.reversedAmount)} subtitle="After reversals shown" />
+      </AdminPageStatsGrid>
 
-      {loading ? (
-        <div className="flex justify-center py-12"><Spinner /></div>
-      ) : (
-        <DataTable columns={columns} rows={contributions} getRowKey={(c) => c.id} />
-      )}
-
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-ink-500">
-          <span>{meta.total} contributions</span>
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" disabled={!meta.hasPrev} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button size="sm" variant="secondary" disabled={!meta.hasNext} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      )}
+      <AdminPageMain>
+        <DataTable
+          columns={columns}
+          rows={contributions}
+          getRowKey={(c) => c.id}
+          search
+          searchValue={search}
+          onSearchChange={(value) => { setSearch(value); setPage(1); }}
+          searchPlaceholder="Search member or receipt"
+          filter
+          filterValue={filterValue}
+          onFilterChange={setFilterValue}
+          filterSections={contributionFilterSections}
+          filterButtonLabel="Contribution Filters"
+          filterTitle="Contribution Filters"
+          tableLoading={loading}
+          showAutoNumber
+          startIndex={meta?.total ? (page - 1) * ((meta.pageSize ?? contributions.length) || 20) + 1 : 0}
+          endIndex={meta?.total ? Math.min(page * ((meta.pageSize ?? contributions.length) || 20), meta.total) : contributions.length}
+          totalItems={meta?.total ?? contributions.length}
+          currentPage={page}
+          totalPages={meta?.totalPages ?? 1}
+          onPageChange={setPage}
+          fillContainer
+          containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
+          emptyTitle="No contributions found"
+          emptyMessage="Receipts will appear here once member contributions are posted."
+        />
+      </AdminPageMain>
 
       {/* New Contribution */}
       <Modal open={showNew} title="Record Contribution" onClose={() => setShowNew(false)} footer={
@@ -269,6 +324,6 @@ export function ContributionsPage() {
           )}
         </div>
       </Modal>
-    </div>
+    </AdminPageLayout>
   );
 }

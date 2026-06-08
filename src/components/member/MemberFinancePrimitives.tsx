@@ -9,28 +9,47 @@ export function FinanceMetric({
   value,
   hint,
   className,
+  icon,
+  accent = "default",
 }: {
   label: string;
   value: string;
   hint?: string;
   className?: string;
+  icon?: ReactNode;
+  accent?: "default" | "primary" | "secondary";
 }) {
+  const accentClass =
+    accent === "primary"
+      ? "border-primary-100 bg-gradient-to-br from-primary-50/80 to-white"
+      : accent === "secondary"
+        ? "border-secondary-100 bg-gradient-to-br from-secondary-50/80 to-white"
+        : "border-ink-100 bg-white";
+
   return (
     <div
       className={clsx(
-        "rounded-lg border border-ink-100 bg-white p-4 shadow-sm",
+        "rounded-2xl border p-4 shadow-sm",
+        accentClass,
         className,
       )}
     >
-      <p className="text-[0.68rem] font-bold uppercase tracking-wide text-ink-500">
-        {label}
-      </p>
-      <p className="mt-1 font-google text-2xl font-extrabold tracking-tight text-ink-950">
-        {value}
-      </p>
-      {hint ? (
-        <p className="mt-1.5 text-xs leading-5 text-ink-500">{hint}</p>
-      ) : null}
+      <div className="flex items-start gap-3">
+        {icon ? (
+          <span className="mt-0.5 shrink-0 text-brand-600">{icon}</span>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="text-[0.68rem] font-bold uppercase tracking-wide text-ink-500">
+            {label}
+          </p>
+          <p className="mt-1 font-google text-2xl font-extrabold tracking-tight text-ink-950">
+            {value}
+          </p>
+          {hint ? (
+            <p className="mt-1.5 text-xs leading-5 text-ink-500">{hint}</p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -149,7 +168,7 @@ export function LoanRepaymentBlock({
         : "success";
 
   return (
-    <section className="rounded-lg border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 pb-4">
         <div>
           <p className="text-[0.68rem] font-bold uppercase tracking-wide text-ink-500">
@@ -202,7 +221,7 @@ export function LoanEmptyBlock({
   money: (n: number) => string;
 }) {
   return (
-    <section className="rounded-lg border border-dashed border-ink-200 bg-ink-50 p-5 text-center sm:p-6">
+    <section className="rounded-2xl border border-dashed border-ink-200 bg-ink-50 p-5 text-center sm:p-6">
       <p className="text-sm font-extrabold text-ink-900">No active loan</p>
       <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-ink-500">
         Apply when you are eligible and officials open a meeting loan window.

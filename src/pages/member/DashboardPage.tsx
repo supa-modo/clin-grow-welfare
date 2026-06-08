@@ -6,7 +6,6 @@ import { memberPortalApi } from "@/services/memberApi";
 import type { MemberArrears } from "@/types/contribution";
 import type { Loan, LoanEligibility, LoanStatement } from "@/types/loan";
 import {
-  AlertStrip,
   DashboardShell,
   buildAlerts,
   findActiveLoan,
@@ -15,12 +14,7 @@ import {
   type MemberDashboardSummary,
   type MemberArrearsSummary,
 } from "@/components/member/dashboard/MemberDashboardSections";
-import {
-  DashboardBalanceGrid,
-  DashboardLoanSection,
-  DashboardMeetingsPreview,
-  DashboardSlimHeader,
-} from "@/components/member/dashboard/MemberDashboardOverview";
+import { DashboardOverviewLayout } from "@/components/member/dashboard/MemberDashboardOverview";
 
 const emptyArrears: MemberArrearsSummary = {
   shareCapital: { expected: 0, actual: 0, arrears: 0 },
@@ -188,17 +182,15 @@ export function MemberDashboardPage() {
   return (
     <DashboardShell loading={loading} error={error}>
       {state.summary ? (
-        <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
-          <DashboardSlimHeader summary={state.summary} />
-          <AlertStrip alerts={alerts} />
-          <DashboardBalanceGrid arrears={state.arrears} />
-          <DashboardLoanSection
-            loan={state.activeLoan}
-            statement={state.loanStatement}
-            eligibility={state.eligibility}
-          />
-          <DashboardMeetingsPreview meetings={state.meetings} />
-        </div>
+        <DashboardOverviewLayout
+          summary={state.summary}
+          arrears={state.arrears}
+          alerts={alerts}
+          activeLoan={state.activeLoan}
+          loanStatement={state.loanStatement}
+          eligibility={state.eligibility}
+          meetings={state.meetings}
+        />
       ) : null}
     </DashboardShell>
   );

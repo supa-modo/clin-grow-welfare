@@ -26,7 +26,7 @@ export function OfficialsLayout() {
 
 export function MemberLayout() {
   return (
-    <div className="min-h-screen w-full overflow-x-clip bg-white text-ink-900">
+    <div className="min-h-screen w-full overflow-x-clip bg-ink-50 text-ink-900">
       <MemberTopBar />
       <main
         className="mx-auto min-h-[calc(100vh-5rem)] w-full max-w-7xl overflow-x-clip px-2 pb-24 pt-20 sm:px-3 md:pb-10 lg:pb-10"

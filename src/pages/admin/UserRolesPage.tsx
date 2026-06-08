@@ -7,7 +7,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import Checkbox from "@/components/ui/Checkbox";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { NotificationModal } from "@/components/ui/NotificationModal";
 import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
@@ -198,13 +198,13 @@ export function UserRolesPage() {
   ];
 
   return (
-    <AdminPageLayout className="min-h-0 overflow-y-auto">
+    <AdminPageLayout className="min-h-0 overflow-hidden">
       <PageHeader
         title="User roles"
         subtitle="Promote members to official roles and review system access."
         action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load(search)} disabled={loading}>Refresh</Button>}
       />
-      <AdminPageMain className="pb-2">
+      <AdminPageMain className="overflow-y-auto pb-6">
         {!canManageRoles ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             You can view users but cannot change roles without <strong>users.manageRoles</strong>. Sign out and sign in again if permissions were recently updated.
@@ -212,15 +212,14 @@ export function UserRolesPage() {
         ) : null}
        
         <DataTable
-        showAutoNumber
-        showCheckboxes
-        search
-        searchPlaceholder="Search by name, email, or member number"
-        searchValue={search}
-        onSearchChange={(value) => {
-          setSearch(value);
-          void load(value);
-        }}
+          showAutoNumber
+          search
+          searchPlaceholder="Search by name, email, or member number"
+          searchValue={search}
+          onSearchChange={(value) => {
+            setSearch(value);
+            void load(value);
+          }}
           rows={users}
           columns={columns}
           getRowKey={(user) => user.id}
@@ -250,23 +249,27 @@ export function UserRolesPage() {
               {filteredRoles.map((role) => {
                 const holder = exclusiveRoleConflict(role.name);
                 const taken = Boolean(holder) && !selectedRoleIds.has(role.id);
+                const checked = selectedRoleIds.has(role.id);
+                const disabled = !canManageRoles || taken;
                 return (
-                  <label key={role.id} className="rounded-lg border border-ink-100 bg-white p-3 shadow-sm">
-                    <Checkbox
-                      checked={selectedRoleIds.has(role.id)}
-                      onChange={(checked) => toggleRole(role, checked)}
-                      label={role.name}
-                      disabled={
-                        !canManageRoles
-                        || taken
-                        || (role.name === "SystemAdmin" && editing.roles.some((row) => row.name === "SystemAdmin"))
-                      }
+                  <div key={role.id} className="rounded-lg border border-ink-100 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-ink-900">{role.name}</p>
+                        <p className="mt-1 text-xs text-ink-500">{role.permissions.length} permission(s)</p>
+                      </div>
+                      <ToggleSwitch
+                        checked={checked}
+                        onChange={(nextChecked) => toggleRole(role, nextChecked)}
+                        disabled={disabled}
+                        variant={role.name === "SystemAdmin" ? "danger" : "primary"}
+                        title={disabled && taken ? `${role.name} is held by ${holder}` : `Toggle ${role.name}`}
                     />
-                    <p className="mt-2 text-xs text-ink-500">{role.permissions.length} permission(s)</p>
+                    </div>
                     {taken ? (
                       <p className="mt-1 text-xs font-semibold text-amber-700">Held by {holder}</p>
                     ) : null}
-                  </label>
+                  </div>
                 );
               })}
             </div>

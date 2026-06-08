@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -52,8 +52,13 @@ export function LoginPage() {
   const [rememberIdentifier, setRememberIdentifier] = useState(
     shouldRememberIdentifier,
   );
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const status = useAuthStore((s) => s.status);
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get("session") === "expired";
 
   const {
     formState: { errors, isSubmitting },
@@ -67,6 +72,10 @@ export function LoginPage() {
       password: "",
     },
   });
+
+  if (status === "ready" && token) {
+    return <Navigate to={defaultRouteForUser(user)} replace />;
+  }
 
   const submit = handleSubmit(async (values) => {
     setApiError("");
@@ -113,6 +122,9 @@ export function LoginPage() {
       </div>
 
       {apiError ? <AuthErrorBanner message={apiError} /> : null}
+      {sessionExpired && !apiError ? (
+        <AuthErrorBanner message="Your session has expired. Please sign in again." />
+      ) : null}
 
       <form onSubmit={submit} className="pt-2 flex flex-col gap-2" noValidate>
         <div className="flex flex-col gap-4 px-1 lg:px-4">

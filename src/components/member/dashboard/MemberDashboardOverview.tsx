@@ -1,9 +1,18 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Landmark, PiggyBank, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { MemberContributionsTrendChart } from "@/components/member/MemberContributionsTrendChart";
 import {
-  FinanceMetric,
+  MemberAlertChips,
+  MemberFundRow,
+  MemberHeroCard,
+  MemberQuickActions,
+  MemberSectionCard,
+  MemberWelcomeHeader,
+} from "@/components/member/MemberPortalUi";
+import {
   LoanEmptyBlock,
   LoanRepaymentBlock,
 } from "@/components/member/MemberFinancePrimitives";
@@ -19,6 +28,13 @@ import {
   type MemberDashboardSummary,
 } from "./MemberDashboardSections";
 
+function greetingForTime() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function DashboardSlimHeader({
   summary,
 }: {
@@ -28,29 +44,41 @@ export function DashboardSlimHeader({
     summary.status === "ACTIVE" && summary.registrationFeePaid;
 
   return (
-    <header className="border-b border-ink-100 pb-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-        Member home
-      </p>
-      <h1 className="mt-1 font-google text-xl font-extrabold tracking-tight text-ink-950 sm:text-2xl">
-        Welcome, {summary.firstName || "Member"}
-      </h1>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-ink-600">
-          {summary.membershipNumber || "—"}
-        </span>
-        <span className="text-ink-300">·</span>
-        <span className="text-xs text-ink-500">
-          {goodStanding ? "Good standing" : "Review required"}
-        </span>
-        <Badge tone={summary.status === "ACTIVE" ? "success" : "warning"}>
-          {normalizeStatus(summary.status)}
-        </Badge>
-        <Badge tone={summary.registrationFeePaid ? "success" : "warning"}>
-          Registration {summary.registrationFeePaid ? "paid" : "pending"}
-        </Badge>
-      </div>
-    </header>
+    <MemberWelcomeHeader
+      greeting={greetingForTime()}
+      name={summary.firstName || "Member"}
+      membershipNumber={summary.membershipNumber || "—"}
+      statusLabel={goodStanding ? "Good standing" : "Review required"}
+      avatarName={summary.name ?? summary.firstName}
+    />
+  );
+}
+
+export function DashboardPortfolioHero({
+  summary,
+  arrears,
+}: {
+  summary: MemberDashboardSummary;
+  arrears: MemberArrearsSummary;
+}) {
+  const portfolioTotal =
+    Number(summary.financialSummary.shareCapital ?? 0) +
+    Number(summary.financialSummary.weeklySavings ?? 0) +
+    Number(summary.financialSummary.welfareKitty ?? 0);
+
+  const savings = arrears.weeklySavings;
+  const trendLabel =
+    savings.status === "PAID_CURRENT_WEEK"
+      ? `${money(savings.currentWeekPaid ?? 0)} paid this week`
+      : `${savings.unpaidPeriods ?? 0} unpaid meeting(s)`;
+
+  return (
+    <MemberHeroCard
+      label="Portfolio balance"
+      value={money(portfolioTotal)}
+      hint="Share capital, weekly savings, and welfare kitty combined"
+      trendLabel={trendLabel}
+    />
   );
 }
 
@@ -61,24 +89,42 @@ export function DashboardBalanceGrid({
 }) {
   const savings = arrears.weeklySavings;
   const share = arrears.shareCapital;
+  const welfare = arrears.welfareKitty;
 
   return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <FinanceMetric
-        label="Weekly savings balance"
-        value={money(savings.actual)}
-        hint={
-          savings.status === "PAID_CURRENT_WEEK"
-            ? `${money(savings.currentWeekPaid ?? 0)} paid this week`
-            : `${savings.unpaidPeriods ?? 0} past meeting(s) unpaid`
-        }
-      />
-      <FinanceMetric
-        label="Share capital total"
-        value={money(share.actual)}
-        hint="Ownership capital used for loan eligibility"
-      />
-    </section>
+    <MemberSectionCard title="My funds" subtitle="Balances across your welfare accounts">
+      <div className="space-y-2">
+        <MemberFundRow
+          icon={<PiggyBank className="h-5 w-5" />}
+          title="Weekly savings"
+          subtitle={
+            savings.status === "PAID_CURRENT_WEEK"
+              ? "Current week paid"
+              : `${savings.unpaidPeriods ?? 0} past meeting(s) unpaid`
+          }
+          amount={money(savings.actual)}
+          accent="primary"
+        />
+        <MemberFundRow
+          icon={<Landmark className="h-5 w-5" />}
+          title="Share capital"
+          subtitle="Used for loan eligibility"
+          amount={money(share.actual)}
+          accent="secondary"
+        />
+        <MemberFundRow
+          icon={<Shield className="h-5 w-5" />}
+          title="Welfare kitty"
+          subtitle={
+            welfare.arrears > 0
+              ? `${money(welfare.arrears)} in arrears`
+              : "Up to date"
+          }
+          amount={money(welfare.actual)}
+          accent="neutral"
+        />
+      </div>
+    </MemberSectionCard>
   );
 }
 
@@ -147,9 +193,10 @@ export function DashboardMeetingsPreview({
   );
 
   return (
-    <section className="rounded-lg border border-ink-100 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-3 border-b border-ink-100 px-4 py-3 sm:px-5">
-        <h2 className="text-sm font-extrabold text-ink-950">Upcoming meetings</h2>
+    <MemberSectionCard
+      title="Upcoming meetings"
+      subtitle="Stay on top of welfare sessions and loan windows"
+      action={
         <Link
           to="/member/meetings"
           className="inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:underline"
@@ -157,13 +204,14 @@ export function DashboardMeetingsPreview({
           View all
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
-      </div>
+      }
+    >
       {upcoming.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-ink-500 sm:px-5">
+        <p className="py-4 text-center text-sm text-ink-500">
           No upcoming meetings scheduled.
         </p>
       ) : (
-        <ul className="divide-y divide-ink-100">
+        <ul className="divide-y divide-ink-100 rounded-xl border border-ink-100">
           {upcoming.map((meeting) => {
             const loanOpen = meeting.loanWindows?.some(
               (w) => w.status === "OPEN",
@@ -172,7 +220,7 @@ export function DashboardMeetingsPreview({
               <li key={meeting.id}>
                 <Link
                   to={`/member/meetings/${meeting.id}`}
-                  className="flex flex-col gap-1 px-4 py-3 transition hover:bg-ink-50 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                  className="flex flex-col gap-1 px-4 py-3 transition hover:bg-ink-50 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-extrabold text-ink-900">
@@ -185,11 +233,11 @@ export function DashboardMeetingsPreview({
                     </p>
                   </div>
                   <span className="shrink-0">
-                  <Badge tone={loanOpen ? "success" : "neutral"}>
-                    {loanOpen
-                      ? "Loan window open"
-                      : normalizeStatus(meeting.status)}
-                  </Badge>
+                    <Badge tone={loanOpen ? "success" : "neutral"}>
+                      {loanOpen
+                        ? "Loan window open"
+                        : normalizeStatus(meeting.status)}
+                    </Badge>
                   </span>
                 </Link>
               </li>
@@ -197,6 +245,81 @@ export function DashboardMeetingsPreview({
           })}
         </ul>
       )}
-    </section>
+    </MemberSectionCard>
+  );
+}
+
+export function DashboardOverviewLayout({
+  summary,
+  arrears,
+  alerts,
+  activeLoan,
+  loanStatement,
+  eligibility,
+  meetings,
+}: {
+  summary: MemberDashboardSummary;
+  arrears: MemberArrearsSummary;
+  alerts: Array<{ id: string; title: string; tone: "success" | "warning" | "danger" | "info" | "neutral" }>;
+  activeLoan: Loan | null;
+  loanStatement: LoanStatement | null;
+  eligibility: LoanEligibility | null;
+  meetings: DashboardMeeting[];
+}) {
+  const goodStanding =
+    summary.status === "ACTIVE" && summary.registrationFeePaid;
+
+  return (
+    <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
+      <DashboardSlimHeader summary={summary} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={summary.status === "ACTIVE" ? "success" : "warning"}>
+          {normalizeStatus(summary.status)}
+        </Badge>
+        <Badge tone={summary.registrationFeePaid ? "success" : "warning"}>
+          Registration {summary.registrationFeePaid ? "paid" : "pending"}
+        </Badge>
+        {goodStanding ? (
+          <span className="text-xs font-semibold text-primary-700">
+            Member in good standing
+          </span>
+        ) : null}
+      </div>
+
+      <MemberAlertChips alerts={alerts} />
+
+      <DashboardPortfolioHero summary={summary} arrears={arrears} />
+      <MemberQuickActions />
+
+      <div className="grid gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <MemberContributionsTrendChart />
+        </div>
+        <div className="lg:col-span-2">
+          <DashboardBalanceGrid arrears={arrears} />
+        </div>
+      </div>
+
+      <DashboardLoanSection
+        loan={activeLoan}
+        statement={loanStatement}
+        eligibility={eligibility}
+      />
+
+      <DashboardMeetingsPreview meetings={meetings} />
+
+      {alerts.some((a) => a.tone === "warning" || a.tone === "danger") ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-amber-900">
+            You have items that need attention.
+          </p>
+          <Link to="/member/contributions" className="mt-2 inline-block sm:mt-0">
+            <Button variant="outline" size="sm">
+              Review contributions
+            </Button>
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }

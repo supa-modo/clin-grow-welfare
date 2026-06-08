@@ -1,4 +1,4 @@
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiDownload, FiRefreshCw } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Feedback';
@@ -20,6 +20,8 @@ type Props = {
   error?: string | null;
   emptyMessage?: string;
   onRefresh?: () => void;
+  onDownloadReceipt?: (id: string) => void;
+  embedded?: boolean;
 };
 
 function formatPaymentMode(method?: string | null) {
@@ -45,10 +47,16 @@ export function CashTransactionHistory({
   error = null,
   emptyMessage = 'No transactions yet.',
   onRefresh,
+  onDownloadReceipt,
+  embedded = false,
 }: Props) {
+  const shellClass = embedded
+    ? ''
+    : 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6';
+
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className={shellClass}>
         <div className="flex items-center justify-center gap-3 py-10 text-sm font-semibold text-slate-600">
           <Spinner />
           Loading history...
@@ -59,7 +67,7 @@ export function CashTransactionHistory({
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+      <div className={embedded ? '' : 'rounded-2xl border border-red-200 bg-red-50 p-6'}>
         <p className="text-sm font-semibold text-red-700">{error}</p>
         {onRefresh ? (
           <Button size="sm" variant="secondary" className="mt-3" onClick={onRefresh}>
@@ -71,20 +79,22 @@ export function CashTransactionHistory({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-        {onRefresh ? (
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800"
-          >
-            <FiRefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-        ) : null}
-      </div>
+    <div className={shellClass}>
+      {title || onRefresh ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          {title ? <h3 className="text-lg font-bold text-slate-900">{title}</h3> : <span />}
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800"
+            >
+              <FiRefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <div className="py-10 text-center">
@@ -99,6 +109,11 @@ export function CashTransactionHistory({
                 <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</th>
                 <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Payment mode</th>
                 <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                {onDownloadReceipt ? (
+                  <th className="px-2 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Receipt
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -123,6 +138,18 @@ export function CashTransactionHistory({
                       <span className="text-xs text-slate-400">—</span>
                     )}
                   </td>
+                  {onDownloadReceipt ? (
+                    <td className="px-2 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onDownloadReceipt(row.id)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-800"
+                      >
+                        <FiDownload className="h-3.5 w-3.5" />
+                        PDF
+                      </button>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

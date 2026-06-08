@@ -61,6 +61,14 @@ export const contributionApi = {
     return data as { arrears: MemberArrears };
   },
 
+  async myWeeklySavingsTrend(months: 3 | 6 | 9 = 6) {
+    const { data } = await api.get<{
+      months: number;
+      points: Array<{ date: string; label: string; amount: number }>;
+    }>('/member-portal/contributions/weekly-savings-trend', { params: { months } });
+    return data;
+  },
+
   async downloadMyReceipt(id: string) {
     const response = await api.get(`/member-portal/contributions/${id}/receipt`, { responseType: 'blob' });
     const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
