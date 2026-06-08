@@ -76,8 +76,7 @@ export function MemberContributionsPage() {
     if (!arrears) return 0;
     return (
       Number(arrears.weeklySavings.actual ?? 0) +
-      Number(arrears.shareCapital.actual ?? 0) +
-      Number(arrears.welfareKitty.actual ?? 0)
+      Number(arrears.shareCapital.actual ?? 0)
     );
   }, [arrears]);
 
@@ -104,30 +103,15 @@ export function MemberContributionsPage() {
 
   const yearSubtitle = financialYear
     ? `Active year ${financialYear.name} (${new Date(financialYear.startDate).toLocaleDateString()} – ${new Date(financialYear.endDate).toLocaleDateString()})`
-    : "Contribution history and receipts";
+    : "Savings and capital history";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
       <MemberWelcomeHeader
-        greeting="Contributions"
+        greeting=""
         name="My savings & capital"
         membershipNumber={yearSubtitle}
         statusLabel="Track balances and payment history"
-      />
-
-      <MemberHeroCard
-        label="Total contributions balance"
-        value={money(portfolioTotal)}
-        hint={
-          arrears
-            ? `${money(arrears.weeklySavings.currentWeekPaid ?? 0)} paid this week`
-            : undefined
-        }
-        trendLabel={
-          arrears?.weeklySavings.status === "PAID_CURRENT_WEEK"
-            ? "Current week paid"
-            : `${arrears?.weeklySavings.unpaidPeriods ?? 0} unpaid meeting(s)`
-        }
       />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -156,7 +140,10 @@ export function MemberContributionsPage() {
       </section>
 
       {arrears && totalArrears > 0 ? (
-        <MemberSectionCard title="Outstanding arrears" subtitle="Amounts requiring attention">
+        <MemberSectionCard
+          title="Outstanding arrears"
+          subtitle="Amounts requiring attention"
+        >
           <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
             <FiAlertCircle className="shrink-0" />
             Welfare kitty arrears: {money(totalArrears)}

@@ -559,18 +559,7 @@ export function MembersPage() {
         }
       />
 
-      <MemberVerificationQueue
-        canReview={canUpdate}
-        onOpenMember={(id) => {
-          const row = members.find((m) => m.id === id);
-          if (row) setSelectedMember(row);
-          else
-            void memberApi
-              .get(id)
-              .then(setSelectedMember)
-              .catch(() => undefined);
-        }}
-      />
+      
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
         {isInitialLoad
@@ -623,6 +612,22 @@ export function MembersPage() {
           {error}
         </div>
       ) : null}
+
+<div className="mb-2">
+
+
+<MemberVerificationQueue
+        canReview={canUpdate}
+        onOpenMember={(id) => {
+          const row = members.find((m) => m.id === id);
+          if (row) setSelectedMember(row);
+          else
+            void memberApi
+              .get(id)
+              .then(setSelectedMember)
+              .catch(() => undefined);
+        }}
+      /> </div>
 
       <AdminPageMain>
         <DataTable

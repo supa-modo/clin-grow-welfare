@@ -1,11 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import {
-  FiCalendar,
-  FiCreditCard,
-  FiFileText,
-} from "react-icons/fi";
+import { FiCalendar, FiCreditCard, FiFileText } from "react-icons/fi";
 
 export type TrendMonths = 3 | 6 | 9;
 
@@ -36,19 +32,21 @@ export function MemberWelcomeHeader({
     <header className="flex items-start justify-between gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-500">{greeting}</p>
-        <h1 className="mt-0.5 font-google text-2xl font-extrabold tracking-tight text-ink-950 sm:text-3xl">
+        <h1 className="mt-0.5 font-google text-xl md:text-2xl font-extrabold tracking-tight text-ink-950 lg:text-[1.7rem]">
           {name}
         </h1>
-        <p className="mt-1 text-xs font-semibold text-ink-500">
+        <p className="mt-1 text-xs md:text-[0.8rem] lg:text-sm font- text-ink-500">
           {membershipNumber} · {statusLabel}
         </p>
       </div>
-      <div
-        aria-hidden
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-secondary-600 text-sm font-extrabold text-white shadow-md"
-      >
-        {getInitials(avatarName ?? name)}
-      </div>
+      {avatarName ? (
+        <div
+          aria-hidden
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary-500 to-secondary-600 text-sm font-extrabold text-white shadow-md"
+        >
+          {getInitials(avatarName ?? name)}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -73,9 +71,7 @@ export function MemberHeroCard({
       <p className="mt-2 font-google text-3xl font-extrabold tracking-tight text-ink-950 sm:text-4xl">
         {value}
       </p>
-      {hint ? (
-        <p className="mt-2 text-sm text-ink-600">{hint}</p>
-      ) : null}
+      {hint ? <p className="mt-2 text-sm text-ink-600">{hint}</p> : null}
       {trendLabel ? (
         <p className="mt-3 inline-flex rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-primary-700 ring-1 ring-primary-100">
           {trendLabel}
@@ -240,7 +236,11 @@ export function MemberFundRow({
 export function MemberAlertChips({
   alerts,
 }: {
-  alerts: Array<{ id: string; title: string; tone: "success" | "warning" | "danger" | "info" | "neutral" }>;
+  alerts: Array<{
+    id: string;
+    title: string;
+    tone: "success" | "warning" | "danger" | "info" | "neutral";
+  }>;
 }) {
   if (alerts.length === 0) return null;
 
@@ -251,11 +251,16 @@ export function MemberAlertChips({
           key={alert.id}
           className={clsx(
             "inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold",
-            alert.tone === "danger" && "bg-red-50 text-red-800 ring-1 ring-red-100",
-            alert.tone === "warning" && "bg-amber-50 text-amber-900 ring-1 ring-amber-100",
-            alert.tone === "success" && "bg-primary-50 text-primary-800 ring-1 ring-primary-100",
-            alert.tone === "info" && "bg-secondary-50 text-secondary-800 ring-1 ring-secondary-100",
-            alert.tone === "neutral" && "bg-ink-50 text-ink-700 ring-1 ring-ink-100",
+            alert.tone === "danger" &&
+              "bg-red-50 text-red-800 ring-1 ring-red-100",
+            alert.tone === "warning" &&
+              "bg-amber-50 text-amber-900 ring-1 ring-amber-100",
+            alert.tone === "success" &&
+              "bg-primary-50 text-primary-800 ring-1 ring-primary-100",
+            alert.tone === "info" &&
+              "bg-secondary-50 text-secondary-800 ring-1 ring-secondary-100",
+            alert.tone === "neutral" &&
+              "bg-ink-50 text-ink-700 ring-1 ring-ink-100",
           )}
         >
           {alert.title}

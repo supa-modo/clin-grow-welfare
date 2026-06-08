@@ -63,8 +63,7 @@ export function DashboardPortfolioHero({
 }) {
   const portfolioTotal =
     Number(summary.financialSummary.shareCapital ?? 0) +
-    Number(summary.financialSummary.weeklySavings ?? 0) +
-    Number(summary.financialSummary.welfareKitty ?? 0);
+    Number(summary.financialSummary.weeklySavings ?? 0);
 
   const savings = arrears.weeklySavings;
   const trendLabel =
@@ -76,7 +75,7 @@ export function DashboardPortfolioHero({
     <MemberHeroCard
       label="Portfolio balance"
       value={money(portfolioTotal)}
-      hint="Share capital, weekly savings, and welfare kitty combined"
+      hint="Share capital and weekly savings combined"
       trendLabel={trendLabel}
     />
   );
