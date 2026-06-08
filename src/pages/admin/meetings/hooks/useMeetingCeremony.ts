@@ -52,6 +52,7 @@ export function useMeetingCeremony() {
     meetingDate: '',
     venue: 'CREATES Meeting Room',
     agenda: 'Attendance, collections, loan window, welfare claims, resolutions',
+    notifyMembersByEmail: true,
   });
   const [attendanceDraft, setAttendanceDraft] = useState<Record<string, string>>({});
   const [collectionDraft, setCollectionDraft] = useState<Record<string, { type: string; amount: string; reference: string; paymentMethod?: string; loanId?: string; fineId?: string; periodDate?: string }>>({});
@@ -197,10 +198,16 @@ export function useMeetingCeremony() {
         meetingDate: new Date(scheduleForm.meetingDate).toISOString(),
         venue: scheduleForm.venue,
         agenda: scheduleForm.agenda,
+        notifyMembersByEmail: scheduleForm.notifyMembersByEmail,
       });
       setShowSchedule(false);
       await reload();
-      toastSuccess('Meeting scheduled', 'Members have been notified by email and in-app notification.');
+      toastSuccess(
+        'Meeting scheduled',
+        scheduleForm.notifyMembersByEmail
+          ? 'Members have been notified in-app. Email delivery follows the current system settings.'
+          : 'Members have been notified in the portal only.',
+      );
     } catch (err) {
       toastError('Could not schedule meeting', getApiError(err));
     } finally {

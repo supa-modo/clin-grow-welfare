@@ -106,7 +106,7 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
           <Spinner />
         </div>
       ) : loan && statement ? (
-        <div className="space-y-5 p-5">
+        <div className="space-y-5">
           <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
             <div>
               <span className="font-semibold text-ink-600">Member:</span>{' '}

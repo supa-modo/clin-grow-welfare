@@ -3,12 +3,14 @@ import Input from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 
 type ScheduleForm = {
   meetingType: string;
   meetingDate: string;
   venue: string;
   agenda: string;
+  notifyMembersByEmail: boolean;
 };
 
 type Props = {
@@ -44,7 +46,7 @@ export function MeetingScheduleModal({
             loadingText="Scheduling..."
             onClick={onSubmit}
           >
-            Schedule and notify
+            {form.notifyMembersByEmail ? "Schedule and notify" : "Schedule meeting"}
           </Button>
         </div>
       }
@@ -91,6 +93,24 @@ export function MeetingScheduleModal({
           className="w-full"
           rows={4}
         />
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-ink-100 bg-ink-50 px-4 py-3">
+          <div>
+            <p className="text-sm font-extrabold text-ink-900">
+              Email members
+            </p>
+            <p className="mt-1 text-xs font-medium text-ink-500">
+              Send the schedule notice by email in addition to in-app notifications.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={form.notifyMembersByEmail}
+            onChange={(checked) =>
+              onChange({ ...form, notifyMembersByEmail: checked })
+            }
+            variant="success"
+            title="Email members"
+          />
+        </div>
       </div>
     </Modal>
   );

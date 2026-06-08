@@ -21,6 +21,7 @@ export interface WelfareSetting {
   monthlyAbsentFineWithApology: number;
   monthlyAbsentFineWithoutApology: number;
   meetingEmailRemindersEnabled: boolean;
+  emailNotificationsEnabled: boolean;
 }
 
 export interface FinancialYear {

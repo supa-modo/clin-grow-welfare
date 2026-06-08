@@ -237,7 +237,7 @@ export function UserRolesPage() {
         size="lg"
       >
         {editing ? (
-          <div className="space-y-5 p-5">
+          <div className="space-y-5">
             <div className="rounded-lg border border-ink-100 bg-ink-50 p-4">
               <p className="font-bold text-ink-900">{editing.member?.name ?? editing.name}</p>
               <p className="text-sm text-ink-600">{editing.email ?? "No email"}</p>

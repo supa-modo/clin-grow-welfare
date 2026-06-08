@@ -237,7 +237,7 @@ export function RolesPermissionsPage() {
         size="xl"
       >
         {editingRole || isCreating ? (
-          <div className="space-y-5 p-5">
+          <div className="space-y-5">
             {isCreating ? (
               <div className="grid gap-3 rounded-lg border border-ink-100 bg-ink-50 p-4 md:grid-cols-2">
                 <label className="block">

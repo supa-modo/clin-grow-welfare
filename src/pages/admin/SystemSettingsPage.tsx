@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { NotificationModal } from "@/components/ui/NotificationModal";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
 import { ledgerApi } from "@/services/ledgerApi";
@@ -22,6 +23,13 @@ const groups: Array<{
   description: string;
   fields: Array<[keyof SettingsForm, string, string]>;
 }> = [
+  {
+    title: "Communications",
+    description: "Controls system-wide email delivery for operational notices and member messages.",
+    fields: [
+      ["emailNotificationsEnabled", "Master email notifications", "checkbox"],
+    ],
+  },
   {
     title: "Financial year",
     description: "Controls the open operating period and AGM/end-year dates.",
@@ -183,16 +191,16 @@ export function SystemSettingsPage() {
                 {group.fields.map(([field, label, type]) => {
                   if (type === "checkbox") {
                     return (
-                      <label key={String(field)} className="flex items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50 px-3 py-2 text-xs font-semibold text-ink-700">
-                        <span>{label}</span>
-                        <input
-                          type="checkbox"
+                      <div key={String(field)} className="flex items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50 px-3 py-2">
+                        <span className="text-xs font-semibold text-ink-700">{label}</span>
+                        <ToggleSwitch
                           checked={Boolean(form[field] ?? true)}
                           disabled={loading || !financialYear || !canEdit}
-                          onChange={(event) => setField(field, String(event.target.checked), type)}
-                          className="h-4 w-4 rounded border-ink-300 text-brand-700 focus:ring-brand-600"
+                          onChange={(checked) => setField(field, String(checked), type)}
+                          variant={field === "emailNotificationsEnabled" ? "primary" : "success"}
+                          title={label}
                         />
-                      </label>
+                      </div>
                     );
                   }
                   return (
