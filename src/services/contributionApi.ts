@@ -4,7 +4,18 @@ import type { Contribution, ContributionBatch, MemberArrears } from '@/types/con
 export const contributionApi = {
   async list(params?: { page?: number; pageSize?: number; search?: string; status?: string; memberId?: string; type?: string; fundId?: string; from?: string; to?: string }) {
     const { data } = await api.get('/contributions', { params });
-    return data as { data: Contribution[]; meta: any };
+    return data as {
+      data: Contribution[];
+      meta: any;
+      summary: {
+        total: number;
+        posted: number;
+        totalPosted: number;
+        reversed: number;
+        reversedAmount: number;
+        netPosted: number;
+      };
+    };
   },
 
   async get(id: string) {

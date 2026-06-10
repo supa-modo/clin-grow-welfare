@@ -91,7 +91,10 @@ export function DashboardBalanceGrid({
   const welfare = arrears.welfareKitty;
 
   return (
-    <MemberSectionCard title="My funds" subtitle="Balances across your welfare accounts">
+    <MemberSectionCard
+      title="My funds"
+      subtitle="Balances across your welfare accounts"
+    >
       <div className="space-y-2">
         <MemberFundRow
           icon={<PiggyBank className="h-5 w-5" />}
@@ -157,6 +160,15 @@ export function DashboardLoanSection({
     statement?.outstanding ?? loan.outstandingPrincipal ?? 0,
   );
   const progress = percent(repaid, totalDue);
+  const dueDate = loan.nextInterestDate;
+  const scheduleHint =
+    loan.status === "IN_ROLLOVER"
+      ? "Loan is in rollover. A further 10% monthly interest applies on the outstanding balance until fully repaid."
+      : loan.status === "OVERDUE" || loan.status === "DEFAULTED"
+        ? "Loan is overdue. Constitution penalties may apply after the maximum rollover period."
+        : dueDate
+          ? "Full repayment is due before the next monthly interest charge."
+          : undefined;
 
   return (
     <LoanRepaymentBlock
@@ -166,7 +178,9 @@ export function DashboardLoanSection({
       progress={progress}
       repaid={money(repaid)}
       totalDue={money(totalDue)}
-      nextRepaymentDate={loan.nextInterestDate}
+      dueDateLabel={dueDate ? "Repayment due" : undefined}
+      dueDateValue={dueDate}
+      scheduleHint={scheduleHint}
       formatDate={formatDate}
     />
   );
@@ -185,7 +199,8 @@ export function DashboardMeetingsPreview({
         .filter((m) => new Date(m.meetingDate).getTime() >= nowMs)
         .sort(
           (a, b) =>
-            new Date(a.meetingDate).getTime() - new Date(b.meetingDate).getTime(),
+            new Date(a.meetingDate).getTime() -
+            new Date(b.meetingDate).getTime(),
         )
         .slice(0, 3),
     [meetings, nowMs],
@@ -259,7 +274,11 @@ export function DashboardOverviewLayout({
 }: {
   summary: MemberDashboardSummary;
   arrears: MemberArrearsSummary;
-  alerts: Array<{ id: string; title: string; tone: "success" | "warning" | "danger" | "info" | "neutral" }>;
+  alerts: Array<{
+    id: string;
+    title: string;
+    tone: "success" | "warning" | "danger" | "info" | "neutral";
+  }>;
   activeLoan: Loan | null;
   loanStatement: LoanStatement | null;
   eligibility: LoanEligibility | null;
@@ -271,19 +290,6 @@ export function DashboardOverviewLayout({
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
       <DashboardSlimHeader summary={summary} />
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={summary.status === "ACTIVE" ? "success" : "warning"}>
-          {normalizeStatus(summary.status)}
-        </Badge>
-        <Badge tone={summary.registrationFeePaid ? "success" : "warning"}>
-          Registration {summary.registrationFeePaid ? "paid" : "pending"}
-        </Badge>
-        {goodStanding ? (
-          <span className="text-xs font-semibold text-primary-700">
-            Member in good standing
-          </span>
-        ) : null}
-      </div>
 
       <MemberAlertChips alerts={alerts} />
 
@@ -291,10 +297,10 @@ export function DashboardOverviewLayout({
       <MemberQuickActions />
 
       <div className="grid gap-5 lg:grid-cols-5">
-        <div className="lg:col-span-3">
+        <div className="order-2 lg:order-1 lg:col-span-3">
           <MemberContributionsTrendChart />
         </div>
-        <div className="lg:col-span-2">
+        <div className="order-1 lg:order-2 lg:col-span-2">
           <DashboardBalanceGrid arrears={arrears} />
         </div>
       </div>
@@ -312,7 +318,10 @@ export function DashboardOverviewLayout({
           <p className="text-sm font-semibold text-amber-900">
             You have items that need attention.
           </p>
-          <Link to="/member/contributions" className="mt-2 inline-block sm:mt-0">
+          <Link
+            to="/member/contributions"
+            className="mt-2 inline-block sm:mt-0"
+          >
             <Button variant="outline" size="sm">
               Review contributions
             </Button>

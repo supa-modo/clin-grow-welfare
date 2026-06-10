@@ -1,6 +1,40 @@
-import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep } from './types';
+import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep, RosterMember } from './types';
 
 const STEP_ORDER: MeetingStep[] = ['attendance', 'fines', 'collections', 'repayments', 'summary', 'loans', 'close'];
+
+const loanWindowStatuses = new Set(['LOAN_WINDOW_OPEN', 'RESOLUTIONS_OPEN', 'CLOSING_REVIEW', 'ONGOING']);
+
+export function isEarlyCeremonyLocked(meeting?: MeetingRecord | null) {
+  return Boolean(meeting && loanWindowStatuses.has(meeting.status));
+}
+
+export function clampCeremonyStep(stored: MeetingStep | null, server: MeetingStep | null): MeetingStep {
+  if (!stored) return server ?? 'attendance';
+  if (!server) return stored;
+  const serverIdx = stepIndex(server);
+  const storedIdx = stepIndex(stored);
+  if (serverIdx < 0) return stored;
+  if (storedIdx < 0) return server;
+  return STEP_ORDER[Math.min(serverIdx, storedIdx)] ?? 'attendance';
+}
+
+type AttendanceMemberRow = Pick<RosterMember, 'attendance' | 'apology'>;
+
+/** Default attendance status for a roster row, honoring saved attendance, draft, and apologies. */
+export function resolveAttendanceStatus(
+  row: AttendanceMemberRow,
+  draft?: string,
+): string {
+  if (draft) return draft;
+  if (row.attendance?.attendanceStatus) return row.attendance.attendanceStatus;
+  if (row.apology) {
+    if (row.apology.status === 'REJECTED') return 'ABSENT_WITHOUT_APOLOGY';
+    if (row.apology.status === 'SUBMITTED' || row.apology.status === 'ACCEPTED') {
+      return 'ABSENT_WITH_APOLOGY';
+    }
+  }
+  return 'PRESENT_ON_TIME';
+}
 
 export function finePreview(status: string, settings?: MeetingRoster['settings']) {
   if (status === 'PRESENT_LATE' || status === 'LATE' || status === 'LEFT_EARLY') return Number(settings?.lateFine ?? 100);
@@ -41,6 +75,10 @@ export function isMeetingStarted(meeting?: MeetingRecord | null) {
   return Boolean(meeting && startedMeetingStatuses.has(meeting.status));
 }
 
+export function isCollectionsFinalized(meeting?: MeetingRecord | null) {
+  return Boolean(meeting?.collectionsFinalizedAt);
+}
+
 /** True when officials may leave the loans step or close the meeting (no open loan window). */
 export function canLeaveLoansStep(meeting?: MeetingRecord | null) {
   return !hasOpenLoanWindow(meeting);
@@ -74,15 +112,18 @@ export function advanceBlockReason(
         && ['SCHEDULED', 'NOTICE_SENT', 'ATTENDANCE_RECORDING'].includes(meeting.status)) {
         return 'Complete attendance and open collections.';
       }
+      if (!isCollectionsFinalized(meeting)) return 'Finalize collections before moving to repayments.';
       return null;
     case 'repayments':
       if (['SCHEDULED', 'NOTICE_SENT', 'ATTENDANCE_RECORDING'].includes(meeting.status)) return 'Complete earlier ceremony steps first.';
+      if (!isCollectionsFinalized(meeting)) return 'Finalize collections before moving to repayments.';
       return null;
     case 'summary':
       if (['SCHEDULED', 'NOTICE_SENT'].includes(meeting.status)) return 'Start the meeting before summary.';
+      if (!isCollectionsFinalized(meeting)) return 'Finalize collections before moving to summary.';
       return null;
     case 'loans':
-      if (hasOpenLoanWindow(meeting)) return 'Close the loan window before leaving the loans step.';
+      if (hasOpenLoanWindow(meeting)) return 'Close the loan window before leaving the loan window step.';
       return null;
     case 'close':
       if (hasOpenLoanWindow(meeting)) return 'Close the loan window before closing the meeting.';
@@ -111,9 +152,18 @@ export function canGoToStep(
   if (target === 'attendance') return true;
   if (target === 'fines') return canAdvanceStep('attendance', meeting, roster, pool);
   if (target === 'collections') return canAdvanceStep('attendance', meeting, roster, pool) && canAdvanceStep('fines', meeting, roster, pool);
-  if (target === 'repayments') return canGoToStep('collections', meeting, roster, pool) && canAdvanceStep('collections', meeting, roster, pool);
-  if (target === 'summary') return canGoToStep('repayments', meeting, roster, pool) && canAdvanceStep('repayments', meeting, roster, pool);
-  if (target === 'loans') return canGoToStep('summary', meeting, roster, pool) && canAdvanceStep('summary', meeting, roster, pool);
+  if (target === 'repayments') {
+    return canGoToStep('collections', meeting, roster, pool)
+      && isCollectionsFinalized(meeting);
+  }
+  if (target === 'summary') {
+    return canGoToStep('repayments', meeting, roster, pool)
+      && isCollectionsFinalized(meeting);
+  }
+  if (target === 'loans') {
+    return canGoToStep('summary', meeting, roster, pool)
+      && isCollectionsFinalized(meeting);
+  }
   if (target === 'close') return canGoToStep('loans', meeting, roster, pool) && canLeaveLoansStep(meeting);
   return false;
 }

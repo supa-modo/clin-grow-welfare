@@ -198,13 +198,13 @@ export function UserRolesPage() {
   ];
 
   return (
-    <AdminPageLayout className="min-h-0 overflow-hidden">
+    <AdminPageLayout className="pb-8">
       <PageHeader
         title="User roles"
         subtitle="Promote members to official roles and review system access."
         action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load(search)} disabled={loading}>Refresh</Button>}
       />
-      <AdminPageMain className="overflow-y-auto pb-6">
+      <AdminPageMain>
         {!canManageRoles ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             You can view users but cannot change roles without <strong>users.manageRoles</strong>. Sign out and sign in again if permissions were recently updated.

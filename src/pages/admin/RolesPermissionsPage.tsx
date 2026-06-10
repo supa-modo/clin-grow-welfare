@@ -198,7 +198,7 @@ export function RolesPermissionsPage() {
   ];
 
   return (
-    <AdminPageLayout className="min-h-0 overflow-hidden">
+    <AdminPageLayout className="pb-8">
       <PageHeader
         title="Roles and permissions"
         subtitle="Review role access and edit the permissions assigned to each official role."
@@ -209,7 +209,7 @@ export function RolesPermissionsPage() {
           </div>
         )}
       />
-      <AdminPageMain className="overflow-y-auto pb-6">
+      <AdminPageMain>
         {!canManagePermissions ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             You can view roles but cannot change permissions without <strong>roles.managePermissions</strong>.

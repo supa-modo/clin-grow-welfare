@@ -147,7 +147,7 @@ export function ReportsPage() {
   const agedLoanValue = aging.reduce((sum: number, loan: { outstanding?: number; outstandingBalance?: number }) => sum + Number(loan.outstanding ?? loan.outstandingBalance ?? 0), 0);
 
   return (
-    <AdminPageLayout>
+    <AdminPageLayout className="pb-8">
       <PageHeader
         title="Reports"
         subtitle="Executive reporting, audit evidence, finance registers, and committee packs."
@@ -261,8 +261,7 @@ export function ReportsPage() {
             </Button>
           )}
           showAutoNumber
-          fillContainer
-          containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
+          containerClassName="rounded-[1.3rem] border-gray-500/40 shadow-sm"
           emptyTitle="No reports found"
           emptyMessage="Adjust filters to find the report you need."
         />

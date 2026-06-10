@@ -43,6 +43,14 @@ function statusTone(
   return "neutral";
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-KE", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function CashTransactionHistory({
   title,
   rows,
@@ -55,12 +63,12 @@ export function CashTransactionHistory({
 }: Props) {
   const shellClass = embedded
     ? ""
-    : "rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm lg:p-6";
+    : "rounded-2xl border border-ink-100 bg-white p-4 shadow-sm md:p-5 lg:p-6";
 
   if (loading) {
     return (
       <div className={shellClass}>
-        <div className="flex items-center justify-center gap-3 py-10 text-sm font-semibold text-slate-600">
+        <div className="flex items-center justify-center gap-3 py-10 text-sm font-semibold text-ink-600">
           <Spinner />
           Loading history...
         </div>
@@ -96,13 +104,13 @@ export function CashTransactionHistory({
       {title || onRefresh ? (
         <div className="mb-4 flex flex-wrap items-center gap-2">
           {title ? (
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-bold text-ink-900">{title}</h3>
           ) : null}
           {onRefresh ? (
             <button
               type="button"
               onClick={onRefresh}
-              className="inline-flex items-center gap-1 text-xs lg:text-sm underline underline-offset-4 font-semibold text-brand-700 hover:text-brand-800"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 underline underline-offset-4 hover:text-brand-800 lg:text-sm"
             >
               <FiRefreshCw className="h-4 w-4" />
               Refresh
@@ -113,66 +121,113 @@ export function CashTransactionHistory({
 
       {rows.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-sm font-semibold text-slate-600">{emptyMessage}</p>
+          <p className="text-sm font-semibold text-ink-600">{emptyMessage}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Date
-                </th>
-                <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Amount
-                </th>
-                <th className="hidden lg:block px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Payment mode
-                </th>
-                <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-slate-100 last:border-0"
-                >
-                  <td className="px-2 py-3 text-sm text-slate-800">
-                    {new Date(row.date).toLocaleDateString("en-KE", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                    {row.subtitle ? (
-                      <p className="text-xs text-slate-500">{row.subtitle}</p>
-                    ) : null}
-                  </td>
-                  <td className="px-2 py-3 text-sm font-semibold text-slate-900">
-                    KSh {Number(row.amount).toLocaleString()}
-                  </td>
-                  <td className="hidden lg:block px-2 py-3 text-sm text-slate-700">
-                    {formatPaymentMode(row.paymentMethod)}
-                  </td>
-                  <td className="px-2 py-3">
-                    {row.status ? (
-                      <Badge tone={statusTone(row.status)}>
-                        {row.status.replace(/_/g, " ").toLowerCase()}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-slate-400">—</span>
-                    )}
-                  </td>
+        <>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-ink-100">
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+                    Date
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+                    Amount
+                  </th>
+                  <th className="hidden px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 lg:table-cell">
+                    Payment mode
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-3 text-right text-xs font-semibold text-slate-500">
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-ink-50 last:border-0"
+                  >
+                    <td className="px-2 py-3 text-sm text-ink-800">
+                      {formatDate(row.date)}
+                      {row.subtitle ? (
+                        <p className="text-xs text-ink-500">{row.subtitle}</p>
+                      ) : null}
+                    </td>
+                    <td className="px-2 py-3 text-sm font-semibold text-ink-900">
+                      KSh {Number(row.amount).toLocaleString()}
+                    </td>
+                    <td className="hidden px-2 py-3 text-sm text-ink-700 lg:table-cell">
+                      {formatPaymentMode(row.paymentMethod)}
+                    </td>
+                    <td className="px-2 py-3">
+                      {row.status ? (
+                        <Badge tone={statusTone(row.status)}>
+                          {row.status.replace(/_/g, " ").toLowerCase()}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-ink-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {rows.map((row) => (
+              <article
+                key={row.id}
+                className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-ink-500">
+                      {formatDate(row.date)}
+                    </p>
+                    {row.subtitle ? (
+                      <p className="mt-0.5 truncate text-sm font-bold text-ink-800">
+                        {row.subtitle}
+                      </p>
+                    ) : null}
+                  </div>
+                  {row.status ? (
+                    <Badge tone={statusTone(row.status)}>
+                      {row.status.replace(/_/g, " ").toLowerCase()}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex items-end justify-between gap-2">
+                  <p className="font-google text-xl font-extrabold text-ink-950">
+                    KSh {Number(row.amount).toLocaleString()}
+                  </p>
+                  {onDownloadReceipt ? (
+                    <button
+                      type="button"
+                      onClick={() => onDownloadReceipt(row.id)}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink-100 text-brand-700"
+                      aria-label="Download receipt"
+                    >
+                      <FiDownload className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+                {row.paymentMethod ? (
+                  <p className="mt-2 text-xs text-ink-500">
+                    {formatPaymentMode(row.paymentMethod)}
+                    {row.reference ? ` · ${row.reference}` : ""}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+
+          <p className="mt-3 text-right text-xs font-semibold text-ink-500">
             {rows.length} transaction{rows.length === 1 ? "" : "s"}
           </p>
-        </div>
+        </>
       )}
     </div>
   );

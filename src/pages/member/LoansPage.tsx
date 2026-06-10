@@ -9,13 +9,9 @@ import {
 } from "@/components/member/CashTransactionHistory";
 import { Spinner, EmptyState } from "@/components/ui/Feedback";
 import { Badge } from "@/components/ui/Badge";
+import { findActiveLoan, money } from "@/components/member/MemberCards";
 import {
-  ActiveLoanProgress,
-  findActiveLoan,
-  money,
-} from "@/components/member/MemberCards";
-import {
-  FinanceMetric,
+  LoanRepaymentBlock,
   MobileRecordCard,
 } from "@/components/member/MemberFinancePrimitives";
 import {
@@ -26,6 +22,7 @@ import {
 import { loanApi } from "@/services/loanApi";
 import { useUiStore } from "@/store/uiStore";
 import type { Loan, LoanEligibility, LoanStatement } from "@/types/loan";
+import { TbChevronRight } from "react-icons/tb";
 
 const STATUS_TONE: Record<
   string,
@@ -43,6 +40,20 @@ const STATUS_TONE: Record<
   IN_ROLLOVER: "warning",
   AGREEMENT_PENDING: "warning",
 };
+
+function formatDate(value?: string) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-KE", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function repaymentProgress(repaid: number, totalDue: number) {
+  if (totalDue <= 0) return 0;
+  return Math.round((repaid / totalDue) * 100);
+}
 
 function getApiError(e: unknown): string {
   if (
@@ -253,22 +264,41 @@ export function MemberLoansPage() {
     },
   ];
 
-  const activeOutstanding = useMemo(() => {
-    if (!activeLoan) return 0;
-    return Number(
-      activeStatement?.outstanding ?? activeLoan.outstandingPrincipal ?? 0,
+  const activeLoanSummary = useMemo(() => {
+    if (!activeLoan || !activeStatement) return null;
+    const disbursed = Number(
+      activeLoan.approvedAmount ??
+        activeLoan.requestedAmount ??
+        activeStatement.disbursed ??
+        0,
     );
+    const totalDue =
+      Number(activeStatement.disbursed ?? disbursed) +
+      Number(activeStatement.totalInterest ?? 0) +
+      Number(activeStatement.totalPenalties ?? 0);
+    const repaid = Number(activeStatement.totalRepaid ?? 0);
+    const outstanding = Number(
+      activeStatement.outstanding ?? activeLoan.outstandingPrincipal ?? 0,
+    );
+    return {
+      outstanding,
+      totalDue,
+      repaid,
+      progress: repaymentProgress(repaid, totalDue),
+    };
   }, [activeLoan, activeStatement]);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <MemberWelcomeHeader
-          greeting="Loans"
+          greeting=""
           name="Borrowing & repayments"
           membershipNumber="Track eligibility, active loans, and history"
           statusLabel={
-            eligibility?.hasActiveLoan ? "Active loan on account" : "No active loan"
+            eligibility?.hasActiveLoan
+              ? "Active loan on account"
+              : "No active loan"
           }
         />
         {eligibility && !eligibility.hasActiveLoan ? (
@@ -282,45 +312,34 @@ export function MemberLoansPage() {
         ) : null}
       </div>
 
-      {activeLoan ? (
-        <MemberHeroCard
-          label="Active loan outstanding"
-          value={money(activeOutstanding)}
-          hint={`Loan ${activeLoan.loanNumber} · ${activeLoan.status.replace(/_/g, " ")}`}
+      {!loading && activeLoan && activeLoanSummary ? (
+        <LoanRepaymentBlock
+          loanNumber={activeLoan.loanNumber}
+          status={activeLoan.status}
+          outstanding={money(activeLoanSummary.outstanding)}
+          progress={activeLoanSummary.progress}
+          repaid={money(activeLoanSummary.repaid)}
+          totalDue={money(activeLoanSummary.totalDue)}
+          dueDateLabel={
+            activeLoan.nextInterestDate ? "Repayment due" : undefined
+          }
+          dueDateValue={activeLoan.nextInterestDate}
+          scheduleHint={
+            activeLoan.status === "IN_ROLLOVER"
+              ? "Monthly compound interest continues on the outstanding balance."
+              : activeLoan.nextInterestDate
+                ? "Repay in full before the next interest date to avoid additional charges."
+                : undefined
+          }
+          formatDate={formatDate}
+          onViewDetails={() => void openDetail(activeLoan)}
         />
-      ) : eligibility ? (
+      ) : !loading && eligibility && !eligibility.hasActiveLoan ? (
         <MemberHeroCard
           label="Maximum eligible to borrow"
           value={money(eligibility.maxEligible)}
-          hint={`${eligibility.multiplier}× base · shares + savings`}
+          hint={`${eligibility.multiplier}× base · ${money(eligibility.baseAmount)} contribution base`}
           trendLabel="Apply when a meeting loan window is open"
-        />
-      ) : null}
-
-      {eligibility ? (
-        <section className="grid gap-3 sm:grid-cols-2">
-          <FinanceMetric
-            label="Max eligible"
-            value={money(eligibility.maxEligible)}
-            hint={`${eligibility.multiplier}× your contribution base`}
-            accent="primary"
-          />
-          <FinanceMetric
-            label="Base amount"
-            value={money(eligibility.baseAmount)}
-            hint="Share capital + weekly savings"
-            accent="secondary"
-          />
-        </section>
-      ) : null}
-
-      {!loading ? (
-        <ActiveLoanProgress
-          loan={activeLoan}
-          statement={activeStatement}
-          onViewDetails={
-            activeLoan ? () => void openDetail(activeLoan) : undefined
-          }
         />
       ) : null}
 
@@ -332,10 +351,10 @@ export function MemberLoansPage() {
         </div>
       ) : null}
 
-      <MemberSectionCard
-        title="Loan history"
-        subtitle="All applications and repayments on your account"
-      >
+      <div>
+        <h1 className="pl-2 mb-2 text-sm lg:text-[0.9rem] font-semibold text-secondary-700">
+          Loan Applications History
+        </h1>
         {loading ? (
           <div className="flex justify-center py-12">
             <Spinner />
@@ -349,19 +368,20 @@ export function MemberLoansPage() {
           <>
             <div className="hidden md:block">
               <DataTable
+                showAutoNumber
                 columns={columns}
                 rows={loans}
                 getRowKey={(l) => l.id}
                 onRowClick={(l) => void openDetail(l)}
               />
             </div>
-            <div className="space-y-3 md:hidden">
+            <div className=" md:hidden">
               {loans.map((l) => (
                 <MobileRecordCard key={l.id}>
                   <button
                     type="button"
                     onClick={() => void openDetail(l)}
-                    className="w-full text-left"
+                    className="w-full text-left relative"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-mono text-xs font-bold text-brand-700">
@@ -378,13 +398,36 @@ export function MemberLoansPage() {
                       {l.interestRate}% pm ·{" "}
                       {new Date(l.applicationDate).toLocaleDateString()}
                     </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="absolute bottom-2 right-2"
+                      icon={<TbChevronRight size={14} />}
+                      onClick={() => void openDetail(l)}
+                    ></Button>
                   </button>
+                  {/* <div className="mt-1.5 flex flex-wrap gap-2 border-t border-ink-100 pt-3">
+                    
+                   
+                    {l.status === "AGREEMENT_PENDING" ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={<FiDownload size={12} />}
+                        onClick={() =>
+                          loanApi.downloadMyAgreement(l.id, l.loanNumber)
+                        }
+                      >
+                        Agreement
+                      </Button>
+                    ) : null}
+                  </div> */}
                 </MobileRecordCard>
               ))}
             </div>
           </>
         )}
-      </MemberSectionCard>
+      </div>
 
       <Modal
         open={showApply}
@@ -454,7 +497,7 @@ export function MemberLoansPage() {
           size="lg"
         >
           <div className="space-y-4 p-5">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <span className="font-semibold text-slate-600">Status:</span>{" "}
                 <Badge tone={STATUS_TONE[showDetail.loan.status] ?? "neutral"}>

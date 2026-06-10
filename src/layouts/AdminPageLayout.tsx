@@ -1,18 +1,28 @@
 import clsx from "clsx";
 import type { ReactNode } from "react";
 
-/** Root shell for dashboard admin list pages — fills main and contains scroll. */
+type LayoutProps = {
+  children: ReactNode;
+  className?: string;
+  /**
+   * Use on table-heavy pages with DataTable `fillContainer` so the table
+   * scrolls inside the viewport. Default pages grow naturally and scroll via
+   * the dashboard main container.
+   */
+  fillHeight?: boolean;
+};
+
+/** Root shell for dashboard admin pages. */
 export function AdminPageLayout({
   children,
   className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+  fillHeight = false,
+}: LayoutProps) {
   return (
     <div
       className={clsx(
-        "flex min-h-full flex-1 flex-col",
+        "flex w-full flex-col",
+        fillHeight && "min-h-0 flex-1",
         className,
       )}
     >
@@ -45,17 +55,19 @@ export function AdminPageStatsGrid({
   );
 }
 
-/** Full-width scrollable main area (single table or full-width content). */
+/** Main content area below headers/stats. */
 export function AdminPageMain({
   children,
   className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+  fillHeight = false,
+}: LayoutProps) {
   return (
     <div
-      className={clsx("flex min-h-0 flex-1 flex-col", className)}
+      className={clsx(
+        "flex w-full flex-col",
+        fillHeight && "min-h-0 flex-1",
+        className,
+      )}
     >
       {children}
     </div>

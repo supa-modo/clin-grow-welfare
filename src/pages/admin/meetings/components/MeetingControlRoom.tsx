@@ -17,6 +17,7 @@ import type { MeetingStep } from "../types";
 import {
   canCloseMeeting,
   canGoToStep,
+  isEarlyCeremonyLocked,
   isMeetingStarted,
   nextStep,
 } from "../utils";
@@ -60,6 +61,7 @@ export function MeetingControlRoom({
     busy,
     step,
     setStep,
+    setCeremonyStepWithSync,
     roster,
     pool,
     selectedMeeting,
@@ -92,6 +94,7 @@ export function MeetingControlRoom({
     collectionsOverride,
     setCollectionsOverride,
     loadCollectionsReadiness,
+    finalizeCollections,
     updateCollectionWaiver,
     reviewApology,
     notifyFine,
@@ -130,10 +133,8 @@ export function MeetingControlRoom({
     nextStep("attendance") ??
     "fines";
   const stageLocked =
-    Boolean(m.loanStageReachedAt) &&
-    ["attendance", "fines", "collections", "repayments", "summary"].includes(
-      step,
-    );
+    isEarlyCeremonyLocked(m) &&
+    ["attendance", "fines", "collections", "repayments", "summary"].includes(step);
 
   return (
     <Card className="flex min-h-0 flex-col overflow-hidden p-0">
@@ -197,12 +198,12 @@ export function MeetingControlRoom({
           tabs={guardedTabs}
           value={step}
           onChange={setGuardedStep}
-          className="mt-5"
+          className="mt-3"
         />
       </div>
 
       <div
-        className="mt-5 min-h-0 flex-1 overflow-y-auto px-5 pb-2"
+        className="pt-4 min-h-0 flex-1 overflow-y-auto px-5 pb-2"
         data-meeting-step-scroll
         data-route-scroll-container
       >
@@ -259,6 +260,7 @@ export function MeetingControlRoom({
             onPost={(memberId, type, amount, periodDate) =>
               void collect(m, memberId, { type, amount, periodDate })
             }
+            onFinalize={() => finalizeCollections(m.id)}
           />
         ) : null}
         {step === "repayments" ? (
@@ -334,7 +336,8 @@ export function MeetingControlRoom({
 
       <StepFooter
         step={step}
-        setStep={setGuardedStep}
+        setStep={setCeremonyStepWithSync}
+        canSetStep={(next) => canGoToStep(next, m, roster, pool)}
         meeting={m}
         roster={roster}
         pool={pool}

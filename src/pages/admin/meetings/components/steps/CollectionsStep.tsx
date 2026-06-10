@@ -53,6 +53,7 @@ type Props = {
   onRefreshReadiness: () => void;
   onWaiver: (memberId: string, patch: { weeklyWaived?: boolean; welfareWaived?: boolean }) => void;
   onPost: (memberId: string, type: string, amount: number, periodDate?: string) => void;
+  onFinalize: () => void;
 };
 
 const PAYMENT_METHODS = ['CASH', 'BANK', 'MPESA', 'TRANSFER', 'OTHER'] as const;
@@ -69,13 +70,18 @@ export function CollectionsStep({
   onRefreshReadiness,
   onWaiver,
   onPost,
+  onFinalize,
 }: Props) {
   const today = useMemo(() => new Date(), []);
   const [search, setSearch] = useState('');
   const [showWaivers, setShowWaivers] = useState(false);
   const [selectedWaiverMemberId, setSelectedWaiverMemberId] = useState('');
   const location = useLocation();
-  const blocked = !!busy || meeting.status === 'CLOSED';
+  const finalized = Boolean(meeting.collectionsFinalizedAt);
+  const blocked = !!busy || meeting.status === 'CLOSED' || finalized;
+  const canFinalize = !finalized
+    && meeting.status !== 'CLOSED'
+    && Boolean(readiness?.ready || constitutionalOverride);
   const monthly = roster?.settings?.monthlyWelfareContribution ?? 250;
   const defaultWeekDate = todayIso();
   const defaultWelfareMonthDate = monthStartIso(today);
@@ -287,8 +293,25 @@ export function CollectionsStep({
             </Badge>
             <Button size="sm" variant="secondary" disabled={!!busy} onClick={onRefreshReadiness}>Refresh</Button>
             <Button size="sm" variant="secondary" disabled={!!busy || !waiverOptions.length} onClick={() => setShowWaivers(true)}>Manage waivers</Button>
+            {!finalized ? (
+              <Button
+                size="sm"
+                variant="secondary2"
+                disabled={!!busy || !canFinalize}
+                isLoading={busy === 'collections-finalize'}
+                loadingText="Finalizing..."
+                onClick={onFinalize}
+              >
+                Finalize collections
+              </Button>
+            ) : null}
           </div>
         </div>
+        {finalized ? (
+          <p className="mt-3 text-xs font-semibold text-brand-700">
+            Collections finalized {new Date(meeting.collectionsFinalizedAt!).toLocaleString()}. Post repayments on the Repayments step.
+          </p>
+        ) : null}
         <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink-700">
           <ToggleSwitch checked={constitutionalOverride} onChange={onOverrideChange} variant="warning" title="Official override" />
           Official override (documented exception)
@@ -309,6 +332,7 @@ export function CollectionsStep({
         searchPlaceholder="Search member"
         emptyTitle="No members"
         emptyMessage="Roster has no members for this meeting."
+        showAutoNumber
       />
 
       <Modal
@@ -316,9 +340,9 @@ export function CollectionsStep({
         title="Collection waivers"
         subtitle="Search a member and mark the readiness exception approved by officials."
         onClose={() => setShowWaivers(false)}
-        size="md"
+        size="lg"
       >
-        <div className="space-y-4 p-5">
+        <div className="space-y-4">
           <SearchableDropdown
             label="Member"
             options={waiverOptions}

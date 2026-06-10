@@ -65,6 +65,14 @@ export type Member = {
   beneficiaryPhone: string;
   beneficiaryRelationship: string;
   nonComplianceReasons?: string | null;
+  balances?: {
+    shareCapital: number;
+    weeklySavings: number;
+    welfareKitty: number;
+    loanEligibilityBase: number;
+    activeLoanBalance: number;
+    finesBalance: number;
+  };
   beneficiaries?: Beneficiary[];
   dependants?: MemberDependant[];
   createdAt: string;

@@ -142,7 +142,7 @@ export function VouchersPage() {
   }, [rows]);
 
   return (
-    <AdminPageLayout className="overflow-hidden">
+    <AdminPageLayout fillHeight>
       <PageHeader
         title="Payment vouchers"
         subtitle="Treasurer and Chairperson signatures required before loan disbursement."
@@ -160,7 +160,7 @@ export function VouchersPage() {
         <StatCard icon={TbWallet} iconColor="#334155" label="Voucher value" value={money(stats.totalAmount)} subtitle="Loaded voucher total" />
       </AdminPageStatsGrid>
 
-      <AdminPageMain>
+      <AdminPageMain fillHeight>
         <DataTable
           rows={filteredRows}
           columns={columns}

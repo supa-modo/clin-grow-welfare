@@ -25,6 +25,13 @@ const rememberedIdentifier =
 const shouldRememberIdentifier =
   localStorage.getItem("clingrow.rememberIdentifier") === "true";
 
+function prefilledLoginIdentifier(searchParams: URLSearchParams) {
+  const fromQuery =
+    searchParams.get("email") ?? searchParams.get("identifier") ?? "";
+  if (fromQuery) return fromQuery;
+  return shouldRememberIdentifier ? rememberedIdentifier : "";
+}
+
 const loginSchema = z.object({
   identifier: z.string().trim().min(1, "Email or phone number is required"),
   password: z.string().min(1, "Password is required"),
@@ -59,6 +66,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get("session") === "expired";
+  const initialIdentifier = prefilledLoginIdentifier(searchParams);
 
   const {
     formState: { errors, isSubmitting },
@@ -68,7 +76,7 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
     mode: "onTouched",
     defaultValues: {
-      identifier: shouldRememberIdentifier ? rememberedIdentifier : "",
+      identifier: initialIdentifier,
       password: "",
     },
   });

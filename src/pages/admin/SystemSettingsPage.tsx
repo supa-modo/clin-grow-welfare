@@ -156,13 +156,13 @@ export function SystemSettingsPage() {
   };
 
   return (
-    <AdminPageLayout className="min-h-0">
+    <AdminPageLayout className="pb-8">
       <PageHeader
         title="System settings"
         subtitle="Live welfare configuration used by contributions, meetings, fines, loans, and year-end workflows."
         action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load()} disabled={loading}>Refresh</Button>}
       />
-      <AdminPageMain className="overflow-y-auto pb-6">
+      <AdminPageMain>
         <div className="mb-4 rounded-lg border border-ink-100 bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

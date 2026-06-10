@@ -29,7 +29,7 @@ export function MemberLayout() {
     <div className="min-h-screen w-full overflow-x-clip bg-ink-50 text-ink-900">
       <MemberTopBar />
       <main
-        className="mx-auto min-h-[calc(100vh-5rem)] w-full max-w-7xl overflow-x-clip px-2 pb-24 pt-20 sm:px-3 md:pb-10 lg:pb-10"
+        className="mx-auto min-h-[calc(100vh-5rem)] w-full max-w-7xl overflow-x-clip px-4 pb-24 pt-20 sm:px-5 md:pb-10 lg:pb-10"
       >
         <Outlet />
       </main>

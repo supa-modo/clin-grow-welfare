@@ -114,13 +114,24 @@ export function MemberContributionsPage() {
         statusLabel="Track balances and payment history"
       />
 
+      <MemberHeroCard
+        label="Portfolio balance"
+        value={money(portfolioTotal)}
+        hint="Share capital and weekly savings combined"
+        trendLabel={
+          arrears
+            ? `${money(arrears.weeklySavings.currentWeekPaid ?? 0)} paid this week`
+            : undefined
+        }
+      />
+
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FinanceMetric
           label="Weekly savings balance"
           value={money(arrears?.weeklySavings.actual ?? 0)}
           hint={
             arrears
-              ? `${money(arrears.weeklySavings.currentWeekPaid ?? 0)} paid this week · ${arrears.weeklySavings.unpaidPeriods ?? 0} past meeting(s) unpaid`
+              ? `${money(arrears.weeklySavings.currentWeekPaid ?? 0)} this week · ${arrears.weeklySavings.unpaidPeriods ?? 0} unpaid`
               : "—"
           }
           accent="primary"
@@ -131,7 +142,7 @@ export function MemberContributionsPage() {
           value={money(arrears?.shareCapital.actual ?? 0)}
           hint={
             arrears
-              ? `${money(arrears.shareCapital.actual)} of ${money(arrears.shareCapital.maximumAllowed ?? arrears.shareCapital.expected)} maximum · ${arrears.shareCapital.status === "WINDOW_OPEN" ? "payment window open" : "payment window closed"}`
+              ? `${money(arrears.shareCapital.actual)} of ${money(arrears.shareCapital.maximumAllowed ?? arrears.shareCapital.expected)} maximum | ${arrears.shareCapital.status === "WINDOW_OPEN" ? "window open" : "window closed"}`
               : "—"
           }
           accent="secondary"
@@ -140,10 +151,7 @@ export function MemberContributionsPage() {
       </section>
 
       {arrears && totalArrears > 0 ? (
-        <MemberSectionCard
-          title="Outstanding arrears"
-          subtitle="Amounts requiring attention"
-        >
+        <div className="px-2">
           <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
             <FiAlertCircle className="shrink-0" />
             Welfare kitty arrears: {money(totalArrears)}
@@ -168,7 +176,7 @@ export function MemberContributionsPage() {
                 </li>
               ))}
           </ul>
-        </MemberSectionCard>
+        </div>
       ) : null}
 
       <MemberSectionCard

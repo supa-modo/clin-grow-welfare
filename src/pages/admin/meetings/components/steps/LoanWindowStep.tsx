@@ -12,11 +12,11 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import { api } from "@/services/api";
 import { loanApi } from "@/services/loanApi";
 import { LoanDisbursementPanel } from "@/components/loans/LoanDisbursementPanel";
 import { useAuthStore } from "@/store/auth";
 import { money, tone } from "@/pages/admin/shared/adminFormatters";
+import { isCollectionsFinalized } from "../../utils";
 import type {
   LoanPool,
   MeetingRecord,
@@ -90,31 +90,54 @@ export function LoanWindowStep({
   const [eligibleOptions, setEligibleOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [eligibilityLoaded, setEligibilityLoaded] = useState(false);
+  const collectionsFinalized = isCollectionsFinalized(meeting);
 
   useEffect(() => {
-    if (!showReserveModal || !roster?.members.length) return;
+    if (!showReserveModal || !roster?.members.length) {
+      setEligibleOptions([]);
+      setEligibilityLoading(false);
+      setEligibilityLoaded(false);
+      return;
+    }
     let cancelled = false;
+    setEligibilityLoading(true);
+    setEligibilityLoaded(false);
+    setEligibleOptions([]);
     void (async () => {
-      const opts: Array<{ value: string; label: string }> = [];
-      for (const row of roster.members) {
-        try {
-          const res = await api.get(`/loans/eligibility/${row.member.id}`);
-          if (Number(res.data.maxEligible ?? 0) > 0) {
-            opts.push({
-              value: row.member.id,
-              label: `${row.member.membershipNumber} - ${row.member.name} (max ${money(Number(res.data.maxEligible))})`,
-            });
+      const results = await Promise.all(
+        roster.members.map(async (row) => {
+          try {
+            const eligibility = await loanApi.getEligibility(row.member.id);
+            return { row, eligibility };
+          } catch {
+            return null;
           }
-        } catch {
-          /* skip ineligible */
-        }
-      }
-      if (!cancelled) setEligibleOptions(opts);
+        }),
+      );
+      if (cancelled) return;
+      const opts = results
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+        .filter(({ eligibility }) => !eligibility.hasActiveLoan && eligibility.maxEligible > 0)
+        .map(({ row, eligibility }) => ({
+          value: row.member.id,
+          label: `${row.member.membershipNumber} - ${row.member.name} (max ${money(eligibility.maxEligible)})`,
+        }));
+      setEligibleOptions(opts);
+      setEligibilityLoading(false);
+      setEligibilityLoaded(true);
     })();
     return () => {
       cancelled = true;
     };
   }, [showReserveModal, roster]);
+
+  const memberPlaceholder = eligibilityLoading
+    ? "Loading eligibility…"
+    : eligibilityLoaded && eligibleOptions.length === 0
+      ? "No eligible members for this meeting"
+      : "Select eligible member";
 
   return (
     <div className="space-y-4">
@@ -142,7 +165,7 @@ export function LoanWindowStep({
             size="sm"
               variant="secondary"
               icon={<FiPlay />}
-              disabled={blocked}
+              disabled={blocked || !collectionsFinalized}
               isLoading={busy === "loan-window/open"}
               loadingText="Opening..."
               onClick={onOpenWindow}
@@ -176,6 +199,11 @@ export function LoanWindowStep({
           ) : null}
         </div>
       </div>
+      {!collectionsFinalized ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          Finalize collections on the Collections step before opening the loan window.
+        </p>
+      ) : null}
       <div className="grid gap-3">
         {reservations.map((reservation) => {
           const loan = reservation.loan;
@@ -406,11 +434,8 @@ export function LoanWindowStep({
             options={eligibleOptions}
             value={reserveForm.memberId}
             onChange={(memberId) => setReserveForm((f) => ({ ...f, memberId }))}
-            placeholder={
-              eligibleOptions.length
-                ? "Select eligible member"
-                : "Loading eligibility…"
-            }
+            placeholder={memberPlaceholder}
+            disabled={eligibilityLoading}
           />
           <Input
             label="Amount"

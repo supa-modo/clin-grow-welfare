@@ -42,6 +42,14 @@ export const memberApi = {
     const { data } = await api.post(`/members/${id}/status`, { status, reason });
     return data.member as Member;
   },
+  async setConstitutionAcknowledgement(id: string, accepted: boolean) {
+    const { data } = await api.post(`/members/${id}/constitution-acknowledgement`, { accepted });
+    return data.member as Member;
+  },
+  async setAllConstitutionAcknowledgements(accepted: boolean) {
+    const { data } = await api.post('/members/constitution-acknowledgements', { accepted });
+    return data as { count: number };
+  },
   async compliance(id: string) {
     const { data } = await api.get(`/members/${id}/compliance`);
     return data.summary;

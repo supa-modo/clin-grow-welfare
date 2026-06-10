@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { DataTable, type Column } from '@/components/ui/DataTable';
-import { LoanDetailModal } from '@/components/loans/LoanDetailModal';
-import { money } from '@/pages/admin/shared/adminFormatters';
-import type { MeetingRecord, MeetingRoster } from '../../types';
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import { LoanDetailModal } from "@/components/loans/LoanDetailModal";
+import { money } from "@/pages/admin/shared/adminFormatters";
+import type { MeetingRecord, MeetingRoster } from "../../types";
+import { TbMoneybagMoveBack } from "react-icons/tb";
 
 type RepaymentRow = {
   key: string;
@@ -17,13 +18,16 @@ type RepaymentRow = {
   status: string;
 };
 
-type CollectionDraft = Record<string, {
-  type: string;
-  amount: string;
-  reference: string;
-  paymentMethod?: string;
-  loanId?: string;
-}>;
+type CollectionDraft = Record<
+  string,
+  {
+    type: string;
+    amount: string;
+    reference: string;
+    paymentMethod?: string;
+    loanId?: string;
+  }
+>;
 
 type Props = {
   meeting: MeetingRecord;
@@ -34,12 +38,19 @@ type Props = {
   onPost: (memberId: string, loanId: string, amount: number) => void;
 };
 
-const PAYMENT_METHODS = ['CASH', 'BANK', 'MPESA', 'TRANSFER', 'OTHER'] as const;
+const PAYMENT_METHODS = ["CASH", "BANK", "MPESA", "TRANSFER", "OTHER"] as const;
 
-export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setCollectionDraft, onPost }: Props) {
-  const [search, setSearch] = useState('');
+export function RepaymentsStep({
+  meeting,
+  roster,
+  busy,
+  collectionDraft,
+  setCollectionDraft,
+  onPost,
+}: Props) {
+  const [search, setSearch] = useState("");
   const [detailLoanId, setDetailLoanId] = useState<string | null>(null);
-  const blocked = !!busy || meeting.status === 'CLOSED';
+  const blocked = !!busy || meeting.status === "CLOSED";
 
   const rows = useMemo<RepaymentRow[]>(() => {
     return (roster?.members ?? []).flatMap((row) =>
@@ -51,11 +62,11 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
         loanId: loan.id,
         loanNumber: loan.loanNumber ?? loan.id.slice(0, 8),
         outstanding: Number(
-          (loan as { totalOutstanding?: number }).totalOutstanding
-            ?? loan.outstandingPrincipal
-            ?? 0,
+          (loan as { totalOutstanding?: number }).totalOutstanding ??
+            loan.outstandingPrincipal ??
+            0,
         ),
-        status: (loan as { status?: string }).status ?? 'ACTIVE',
+        status: (loan as { status?: string }).status ?? "ACTIVE",
       })),
     );
   }, [meeting.id, roster]);
@@ -64,14 +75,16 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.memberName, r.membershipNumber, r.loanNumber].some((v) => v.toLowerCase().includes(q)),
+      [r.memberName, r.membershipNumber, r.loanNumber].some((v) =>
+        v.toLowerCase().includes(q),
+      ),
     );
   }, [rows, search]);
 
   const columns: Column<RepaymentRow>[] = [
     {
-      key: 'loan',
-      header: 'Loan',
+      key: "loan",
+      header: "Loan",
       render: (r) => (
         <button
           type="button"
@@ -79,31 +92,40 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
           onClick={() => setDetailLoanId(r.loanId)}
         >
           <p className="font-semibold text-brand-700">{r.loanNumber}</p>
-          <p className="text-xs text-ink-500">{r.memberName} · {r.membershipNumber}</p>
+          <p className="text-xs text-ink-500">
+            {r.memberName} · {r.membershipNumber}
+          </p>
         </button>
       ),
     },
     {
-      key: 'outstanding',
-      header: 'Outstanding',
+      key: "outstanding",
+      header: "Outstanding",
       render: (r) => money(r.outstanding),
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       render: (r) => (
-        <Badge tone={['OVERDUE', 'DEFAULTED'].includes(r.status) ? 'danger' : 'success'}>{r.status}</Badge>
+        <Badge
+          size="sm"
+          tone={
+            ["OVERDUE", "DEFAULTED"].includes(r.status) ? "danger" : "success"
+          }
+        >
+          {r.status.toLowerCase().replace(/_/g, " ")}
+        </Badge>
       ),
     },
     {
-      key: 'amount',
-      header: 'Amount',
+      key: "amount",
+      header: "Amount",
       render: (r) => {
         const draft = collectionDraft[r.key] ?? {
-          type: 'LOAN_REPAYMENT',
+          type: "LOAN_REPAYMENT",
           amount: String(r.outstanding),
-          reference: '',
-          paymentMethod: 'CASH',
+          reference: "",
+          paymentMethod: "CASH",
           loanId: r.loanId,
         };
         const amount = Number(draft.amount || 0);
@@ -112,12 +134,20 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <input
-                className={`w-28 rounded-lg border px-2 py-1 text-sm ${overLimit ? 'border-red-400' : 'border-ink-200'}`}
+                className={`w-28 rounded-lg border px-2 py-1 text-sm ${overLimit ? "border-red-400" : "border-ink-200"}`}
                 value={draft.amount}
                 onChange={(e) =>
                   setCollectionDraft((s) => ({
                     ...s,
-                    [r.key]: { ...(s[r.key] ?? { type: 'LOAN_REPAYMENT', reference: '', paymentMethod: 'CASH', loanId: r.loanId }), amount: e.target.value },
+                    [r.key]: {
+                      ...(s[r.key] ?? {
+                        type: "LOAN_REPAYMENT",
+                        reference: "",
+                        paymentMethod: "CASH",
+                        loanId: r.loanId,
+                      }),
+                      amount: e.target.value,
+                    },
                   }))
                 }
               />
@@ -127,43 +157,65 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
                 onClick={() =>
                   setCollectionDraft((s) => ({
                     ...s,
-                    [r.key]: { ...(s[r.key] ?? { type: 'LOAN_REPAYMENT', reference: '', paymentMethod: 'CASH', loanId: r.loanId }), amount: String(r.outstanding) },
+                    [r.key]: {
+                      ...(s[r.key] ?? {
+                        type: "LOAN_REPAYMENT",
+                        reference: "",
+                        paymentMethod: "CASH",
+                        loanId: r.loanId,
+                      }),
+                      amount: String(r.outstanding),
+                    },
                   }))
                 }
               >
                 Full
               </Button>
             </div>
-            {overLimit ? <p className="text-xs font-semibold text-red-700">Exceeds outstanding</p> : null}
+            {overLimit ? (
+              <p className="text-xs font-semibold text-red-700">
+                Exceeds outstanding
+              </p>
+            ) : null}
           </div>
         );
       },
     },
     {
-      key: 'payment',
-      header: 'Payment',
+      key: "payment",
+      header: "Payment",
       render: (r) => {
         const draft = collectionDraft[r.key] ?? {
-          type: 'LOAN_REPAYMENT',
+          type: "LOAN_REPAYMENT",
           amount: String(r.outstanding),
-          reference: '',
-          paymentMethod: 'CASH',
+          reference: "",
+          paymentMethod: "CASH",
           loanId: r.loanId,
         };
         return (
           <div className="flex flex-col gap-1">
             <select
               className="rounded-lg border border-ink-200 px-2 py-1 text-xs"
-              value={draft.paymentMethod ?? 'CASH'}
+              value={draft.paymentMethod ?? "CASH"}
               onChange={(e) =>
                 setCollectionDraft((s) => ({
                   ...s,
-                  [r.key]: { ...(s[r.key] ?? { type: 'LOAN_REPAYMENT', amount: String(r.outstanding), reference: '', loanId: r.loanId }), paymentMethod: e.target.value },
+                  [r.key]: {
+                    ...(s[r.key] ?? {
+                      type: "LOAN_REPAYMENT",
+                      amount: String(r.outstanding),
+                      reference: "",
+                      loanId: r.loanId,
+                    }),
+                    paymentMethod: e.target.value,
+                  },
                 }))
               }
             >
               {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
             <input
@@ -173,7 +225,15 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
               onChange={(e) =>
                 setCollectionDraft((s) => ({
                   ...s,
-                  [r.key]: { ...(s[r.key] ?? { type: 'LOAN_REPAYMENT', amount: String(r.outstanding), paymentMethod: 'CASH', loanId: r.loanId }), reference: e.target.value },
+                  [r.key]: {
+                    ...(s[r.key] ?? {
+                      type: "LOAN_REPAYMENT",
+                      amount: String(r.outstanding),
+                      paymentMethod: "CASH",
+                      loanId: r.loanId,
+                    }),
+                    reference: e.target.value,
+                  },
                 }))
               }
             />
@@ -182,15 +242,22 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
       },
     },
     {
-      key: 'post',
-      header: '',
+      key: "post",
+      header: "",
       render: (r) => {
-        const draft = collectionDraft[r.key] ?? { type: 'LOAN_REPAYMENT', amount: String(r.outstanding), reference: '', paymentMethod: 'CASH', loanId: r.loanId };
+        const draft = collectionDraft[r.key] ?? {
+          type: "LOAN_REPAYMENT",
+          amount: String(r.outstanding),
+          reference: "",
+          paymentMethod: "CASH",
+          loanId: r.loanId,
+        };
         const amount = Number(draft.amount || 0);
         const overLimit = amount > r.outstanding;
         return (
           <Button
-            size="sm"
+            size="xs"
+            icon={<TbMoneybagMoveBack size={14} />}
             disabled={blocked || amount <= 0 || overLimit}
             isLoading={busy === `collect-${meeting.id}`}
             onClick={() => onPost(r.memberId, r.loanId, amount)}
@@ -213,7 +280,9 @@ export function RepaymentsStep({ meeting, roster, busy, collectionDraft, setColl
         columns={columns}
         rows={filtered}
         getRowKey={(r) => r.loanId}
-        getRowClassName={(r) => (['OVERDUE', 'DEFAULTED'].includes(r.status) ? 'bg-red-50' : '')}
+        getRowClassName={(r) =>
+          ["OVERDUE", "DEFAULTED"].includes(r.status) ? "bg-red-50" : ""
+        }
         search
         searchValue={search}
         onSearchChange={setSearch}

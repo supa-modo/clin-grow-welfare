@@ -4,6 +4,7 @@ import {
   TbCircleDashed,
   TbEdit,
   TbEye,
+  TbFileCheck,
   TbUserCancel,
   TbUserCheck,
 } from "react-icons/tb";
@@ -94,6 +95,8 @@ type ConfirmationAction =
       reason?: string;
     }
   | { kind: "registration"; member: Member; paid: boolean }
+  | { kind: "constitution"; member: Member; accepted: boolean }
+  | { kind: "constitutionAll"; accepted: boolean }
   | { kind: "resetPassword"; member: Member; tempPassword?: string };
 
 function has(permission: string, permissions: string[], systemAdmin = false) {
@@ -112,6 +115,10 @@ function getApiError(error: unknown) {
     );
   }
   return "Member action failed.";
+}
+
+function money(value?: number | string | null) {
+  return `KES ${Number(value ?? 0).toLocaleString()}`;
 }
 
 function MembersStatCardSkeleton() {
@@ -186,6 +193,7 @@ export function MembersPage() {
   const canCreate = has("officialsPortal.members.create", permissions, systemAdmin);
   const canUpdate = has("officialsPortal.members.update", permissions, systemAdmin);
   const canApprove = has("officialsPortal.members.approve", permissions, systemAdmin);
+  const canManageConstitution = systemAdmin;
   const canResetPassword = has(
     "officialsPortal.members.resetPassword",
     permissions,
@@ -312,6 +320,35 @@ export function MembersPage() {
           ...compactMember(action.member),
           registrationFeePaid: action.paid,
         });
+      } else if (action.kind === "constitution") {
+        member = await memberApi.setConstitutionAcknowledgement(
+          action.member.id,
+          action.accepted,
+        );
+        toastSuccess(
+          "Constitution updated",
+          action.accepted
+            ? `${member.name} is marked as acknowledged.`
+            : `${member.name} will need to acknowledge the constitution again.`,
+        );
+        setConfirmation(null);
+        await load(filters);
+        setBusy(false);
+        return;
+      } else if (action.kind === "constitutionAll") {
+        const result = await memberApi.setAllConstitutionAcknowledgements(
+          action.accepted,
+        );
+        toastSuccess(
+          "Constitution acknowledgements updated",
+          action.accepted
+            ? `${result.count} members were marked as acknowledged.`
+            : `${result.count} members will need to acknowledge the constitution again.`,
+        );
+        setConfirmation(null);
+        await load(filters);
+        setBusy(false);
+        return;
       } else if (action.kind === "resetPassword") {
         const result = await memberApi.resetPassword(action.member.id);
         toastSuccess(
@@ -413,13 +450,26 @@ export function MembersPage() {
       ),
     },
     {
-      id: "beneficiary",
-      header: "Beneficiary",
+      id: "constitution",
+      header: "Constitution",
       cell: (member) => (
-        <div className="min-w-40">
-          <p className="font-medium text-gray-900">{member.beneficiaryName}</p>
-          <p className="text-xs text-gray-500">
-            {member.beneficiaryRelationship}
+        <Badge tone={member.constitutionAcceptedAt ? "success" : "warning"}>
+          {member.constitutionAcceptedAt ? "Acknowledged" : "Not Acknowledged"}
+        </Badge>
+      ),
+    },
+    {
+      id: "welfare",
+      header: "Welfare",
+      cell: (member) => (
+        <div className="min-w-36 text-xs font-semibold leading-5 text-gray-700">
+          <p>
+            <span className="text-gray-500">Share - </span>
+            {money(member.balances?.shareCapital)}
+          </p>
+          <p>
+            <span className="text-gray-500">Savings - </span>
+            {money(member.balances?.weeklySavings)}
           </p>
         </div>
       ),
@@ -482,6 +532,20 @@ export function MembersPage() {
             onClick: () => setConfirmation({ kind: "approve", member }),
           });
         }
+        if (canManageConstitution) {
+          const accepted = Boolean(member.constitutionAcceptedAt);
+          items.push({
+            key: "constitution",
+            label: accepted ? "Require reacknowledgement" : "Mark acknowledged",
+            icon: <TbFileCheck className="h-4 w-4" />,
+            onClick: () =>
+              setConfirmation({
+                kind: "constitution",
+                member,
+                accepted: !accepted,
+              }),
+          });
+        }
         return (
           <div onClick={(event) => event.stopPropagation()}>
             <RowActionsMenu
@@ -521,6 +585,32 @@ export function MembersPage() {
               confirmText: "Reset password",
               type: "confirm" as const,
             }
+          : confirmation.kind === "constitution"
+            ? {
+                title: confirmation.accepted
+                  ? "Mark constitution acknowledged?"
+                  : "Require constitution reacknowledgement?",
+                message: confirmation.accepted
+                  ? `${confirmation.member.name} will be marked as having acknowledged the current constitution.`
+                  : `${confirmation.member.name} will be blocked from member-portal pages until they acknowledge the constitution again.`,
+                confirmText: confirmation.accepted
+                  ? "Mark Acknowledged"
+                  : "Require Reacknowledgement",
+                type: "confirm" as const,
+              }
+            : confirmation.kind === "constitutionAll"
+              ? {
+                  title: confirmation.accepted
+                    ? "Mark all members acknowledged?"
+                    : "Require all members to reacknowledge?",
+                  message: confirmation.accepted
+                    ? "Every member will be marked as having acknowledged the current constitution."
+                    : "Every member will need to acknowledge the constitution again before using the member portal.",
+                  confirmText: confirmation.accepted
+                    ? "Mark All Acknowledged"
+                    : "Reset All Acknowledgements",
+                  type: confirmation.accepted ? ("confirm" as const) : ("delete" as const),
+                }
           : {
               title: confirmation.title,
               message: confirmation.message,
@@ -535,10 +625,10 @@ export function MembersPage() {
   const isInitialLoad = loading && members.length === 0;
 
   return (
-    <AdminPageLayout>
+    <AdminPageLayout fillHeight>
       <PageHeader
         title="Members Registry"
-        subtitle="Manage welfare members, approvals, registration payments, beneficiaries, and account status."
+        subtitle="Manage welfare members, approvals, registration payments, constitution acknowledgement, and account status."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <RefreshIconButton
@@ -549,6 +639,30 @@ export function MembersPage() {
               <FiDownload className="h-4 w-4" />
               Export
             </Button>
+            {canManageConstitution ? (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setConfirmation({ kind: "constitutionAll", accepted: true })
+                  }
+                >
+                  <TbFileCheck className="h-4 w-4" />
+                  Mark All Acknowledged
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setConfirmation({ kind: "constitutionAll", accepted: false })
+                  }
+                >
+                  <TbFileCheck className="h-4 w-4" />
+                  Reset Acknowledgements
+                </Button>
+              </>
+            ) : null}
             {canCreate ? (
               <Button variant="primary" size="sm" onClick={openCreate}>
                 <FiUserPlus className="h-4 w-4" />
@@ -629,7 +743,7 @@ export function MembersPage() {
         }}
       /> </div>
 
-      <AdminPageMain>
+      <AdminPageMain fillHeight>
         <DataTable
           columns={columns}
           rows={filteredMembers}

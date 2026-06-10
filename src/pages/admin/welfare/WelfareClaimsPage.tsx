@@ -137,7 +137,7 @@ export function WelfarePage() {
   ];
 
   return (
-    <AdminPageLayout>
+    <AdminPageLayout fillHeight>
       <PageHeader
         title="Welfare Claims"
         subtitle="Committee-controlled welfare support with constitutional benefit limits and welfare-fund-only payment."
@@ -163,7 +163,7 @@ export function WelfarePage() {
 
       <StateBlock loading={loading && !data} error={error} />
 
-      <AdminPageMain>
+      <AdminPageMain fillHeight>
         <DataTable
           columns={columns}
           rows={filteredClaims}

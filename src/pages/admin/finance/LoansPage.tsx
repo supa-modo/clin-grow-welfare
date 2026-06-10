@@ -247,7 +247,7 @@ export function LoansPage() {
   }, [loans, meta]);
 
   return (
-    <AdminPageLayout>
+    <AdminPageLayout fillHeight>
       <PageHeader
         title="Loan Portfolio"
         subtitle="Manage loan applications, disbursements, and repayments"
@@ -270,7 +270,7 @@ export function LoansPage() {
       </AdminPageStatsGrid>
 
       {tab === 'portfolio' && (
-        <AdminPageMain>
+        <AdminPageMain fillHeight>
           <DataTable
             columns={columns}
             rows={loans}

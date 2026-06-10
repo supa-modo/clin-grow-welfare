@@ -7,7 +7,7 @@ import { getApiError } from '@/pages/admin/shared/adminFormatters';
 import { mapDisburseError } from '@/components/loans/LoanDisbursementPanel';
 import { useLoad } from '@/pages/admin/shared/adminUi';
 import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep } from '../types';
-import { collectionTotalsFromMeeting } from '../utils';
+import { clampCeremonyStep, collectionTotalsFromMeeting, resolveAttendanceStatus } from '../utils';
 
 const CEREMONY_STORAGE_KEY = 'clingrow.ceremony.v1';
 const meetingSteps: MeetingStep[] = ['attendance', 'fines', 'collections', 'repayments', 'summary', 'loans', 'close'];
@@ -105,19 +105,31 @@ export function useMeetingCeremony() {
 
   useEffect(() => {
     if (!selectedMeeting?.id) return;
-    const serverStep = meetingSteps.includes(selectedMeeting.ceremonyStep as MeetingStep) ? selectedMeeting.ceremonyStep as MeetingStep : null;
-    setStep(readStoredStep(selectedMeeting.id) ?? serverStep ?? 'attendance');
-  }, [selectedMeeting?.id]);
+    const serverStep = meetingSteps.includes(selectedMeeting.ceremonyStep as MeetingStep)
+      ? selectedMeeting.ceremonyStep as MeetingStep
+      : null;
+    const storedStep = readStoredStep(selectedMeeting.id);
+    setStep(clampCeremonyStep(storedStep, serverStep));
+  }, [selectedMeeting?.ceremonyStep, selectedMeeting?.id]);
 
   useEffect(() => {
     if (!selectedMeeting?.id) return;
     window.localStorage.setItem(CEREMONY_STORAGE_KEY, JSON.stringify({ meetingId: selectedMeeting.id, step }));
     const container = document.querySelector<HTMLElement>('[data-meeting-step-scroll]');
     container?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    if (selectedMeeting.status !== 'CLOSED' && selectedMeeting.ceremonyStep !== step) {
-      void api.patch(`/meetings/${selectedMeeting.id}/ceremony-step`, { step }).catch(() => undefined);
+  }, [selectedMeeting?.id, step]);
+
+  const syncCeremonyStepToServer = useCallback(async (meetingId: string, next: MeetingStep) => {
+    if (selectedMeeting?.status === 'CLOSED') return;
+    await api.patch(`/meetings/${meetingId}/ceremony-step`, { step: next });
+  }, [selectedMeeting?.status]);
+
+  const setCeremonyStepWithSync = useCallback((next: MeetingStep) => {
+    setStep(next);
+    if (selectedMeeting?.id) {
+      void syncCeremonyStepToServer(selectedMeeting.id, next).catch(() => undefined);
     }
-  }, [selectedMeeting?.ceremonyStep, selectedMeeting?.id, selectedMeeting?.status, step]);
+  }, [selectedMeeting?.id, syncCeremonyStepToServer]);
 
   const loadPool = useCallback(async (meetingId: string) => {
     try {
@@ -174,10 +186,12 @@ export function useMeetingCeremony() {
   });
 
   useEffect(() => {
-    if (step !== 'collections' || !selectedMeeting?.id || selectedMeeting.status === 'CLOSED') return;
+    if (!selectedMeeting?.id || selectedMeeting.status === 'CLOSED') return;
+    if (step !== 'collections' && step !== 'repayments') return;
     if (selectedMeeting.status === 'COLLECTIONS_OPEN') return;
+    if (step === 'repayments' && !selectedMeeting.collectionsFinalizedAt) return;
     void api.post(`/meetings/${selectedMeeting.id}/collections/open`).then(() => reload()).catch(() => undefined);
-  }, [step, selectedMeeting?.id, selectedMeeting?.status]);
+  }, [step, selectedMeeting?.collectionsFinalizedAt, selectedMeeting?.id, selectedMeeting?.status]);
 
   useEffect(() => {
     if (step !== 'close' || !selectedMeeting?.id) return;
@@ -264,7 +278,10 @@ export function useMeetingCeremony() {
   };
 
   const markAttendance = async (meetingId: string, memberId: string) => {
-    const attendanceStatus = attendanceDraft[memberId] || 'PRESENT_ON_TIME';
+    const rosterRow = roster?.members.find((row) => row.member.id === memberId);
+    const attendanceStatus = rosterRow
+      ? resolveAttendanceStatus(rosterRow, attendanceDraft[memberId])
+      : attendanceDraft[memberId] || 'PRESENT_ON_TIME';
     setBusy(`attendance-${memberId}`);
     try {
       await api.post(`/meetings/${meetingId}/attendance`, { memberId, attendanceStatus });
@@ -284,7 +301,7 @@ export function useMeetingCeremony() {
     setBusy('attendance-bulk');
     try {
       for (const row of roster.members) {
-        const attendanceStatus = attendanceDraft[row.member.id] ?? row.attendance?.attendanceStatus ?? 'PRESENT_ON_TIME';
+        const attendanceStatus = resolveAttendanceStatus(row, attendanceDraft[row.member.id]);
         await api.post(`/meetings/${meetingId}/attendance`, { memberId: row.member.id, attendanceStatus });
         setSavedAttendanceIds((s) => ({ ...s, [row.member.id]: true }));
       }
@@ -314,6 +331,31 @@ export function useMeetingCeremony() {
           toastSuccess('Attendance finalized', 'Attendance is locked. Continue to fines when ready.');
         } catch (err) {
           toastError('Finalize failed', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
+  };
+
+  const finalizeCollections = (meetingId: string) => {
+    confirmAction({
+      key: 'collections-finalize',
+      title: 'Finalize collections?',
+      message: 'Contribution collections will be locked. Repayments and the loan window unlock after finalization.',
+      confirmText: 'Finalize collections',
+      run: async () => {
+        setBusy('collections-finalize');
+        try {
+          await api.post(`/meetings/${meetingId}/collections/finalize`, {
+            override: collectionsOverride,
+          });
+          await reload();
+          await loadRoster(meetingId);
+          setCeremonyStepWithSync('repayments');
+          toastSuccess('Collections finalized', 'Continue with loan repayments on the next step.');
+        } catch (err) {
+          toastError('Finalize collections failed', getApiError(err));
         } finally {
           setBusy('');
         }
@@ -659,6 +701,7 @@ export function useMeetingCeremony() {
     setShowSchedule,
     step,
     setStep,
+    setCeremonyStepWithSync,
     selectedId,
     setSelectedId,
     roster,
@@ -698,6 +741,7 @@ export function useMeetingCeremony() {
     collectionsOverride,
     setCollectionsOverride,
     loadCollectionsReadiness,
+    finalizeCollections,
     updateCollectionWaiver,
     reviewApology,
     notifyFine,

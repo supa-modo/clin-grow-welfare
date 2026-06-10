@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { FiPlus, FiUpload, FiRefreshCw, FiDownload, FiAlertCircle } from 'react-icons/fi';
-import { TbReceipt, TbScale, TbTrendingDown, TbWallet } from 'react-icons/tb';
+import { FiPlus, FiUpload, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
+import { TbScale, TbTrendingDown, TbWallet } from 'react-icons/tb';
 import { AdminPageLayout, AdminPageMain, AdminPageStatsGrid } from '@/layouts/AdminPageLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -41,6 +41,14 @@ export function ContributionsPage() {
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
   const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [summary, setSummary] = useState<{
+    total: number;
+    posted: number;
+    totalPosted: number;
+    reversed: number;
+    reversedAmount: number;
+    netPosted: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>(null);
@@ -61,7 +69,7 @@ export function ContributionsPage() {
   const load = () => {
     setLoading(true);
     contributionApi.list({ page, search: search || undefined, status: statusFilter || undefined, type: typeFilter || undefined })
-      .then(({ data, meta }) => { setContributions(data); setMeta(meta); })
+      .then(({ data, meta, summary }) => { setContributions(data); setMeta(meta); setSummary(summary); })
       .finally(() => setLoading(false));
   };
 
@@ -89,7 +97,7 @@ export function ContributionsPage() {
       setShowNew(false);
       setForm({ memberId: '', contributionType: 'SHARE_CAPITAL', amount: '', periodDate: new Date().toISOString().slice(0, 10), paymentMethod: 'CASH', paymentReference: '' });
       load();
-      toastSuccess('Contribution posted', 'Receipt has been recorded.');
+      toastSuccess('Contribution posted', 'Contribution has been recorded.');
     } catch (e: unknown) {
       const message = e && typeof e === 'object' && 'response' in e && e.response && typeof e.response === 'object' && 'data' in e.response && e.response.data && typeof e.response.data === 'object' && 'error' in e.response.data ? String(e.response.data.error) : 'Failed to post contribution';
       toastError('Post failed', message);
@@ -133,7 +141,6 @@ export function ContributionsPage() {
   };
 
   const columns: Column<Contribution>[] = [
-    { key: 'receiptNo', header: 'Receipt No', render: (c) => <span className="font-mono text-xs">{c.receiptNo ?? '—'}</span> },
     { key: 'member', header: 'Member', render: (c) => <span className="font-medium">{c.member?.name ?? c.memberId}</span> },
     { key: 'type', header: 'Type', render: (c) => <Badge tone="neutral">{TYPE_LABELS[c.contributionType] ?? c.contributionType}</Badge> },
     { key: 'meeting', header: 'Meeting', render: (c) => (c.meeting?.meetingNumber ? <Badge tone="success">{c.meeting.meetingNumber}</Badge> : <span className="text-ink-400">—</span>) },
@@ -143,7 +150,6 @@ export function ContributionsPage() {
     {
       key: 'actions', header: '', render: (c) => (
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" icon={<FiDownload size={13} />} onClick={(e) => { e.stopPropagation(); contributionApi.downloadReceipt(c.id); }}>Receipt</Button>
           {c.status === 'POSTED' && (
             <Button size="sm" variant="ghost" icon={<FiRefreshCw size={13} />} onClick={(e) => { e.stopPropagation(); setShowReverse(c); }} className="text-red-600 hover:bg-red-50">Reverse</Button>
           )}
@@ -153,20 +159,17 @@ export function ContributionsPage() {
   ];
 
   const stats = useMemo(() => {
-    const posted = contributions.filter((contribution) => contribution.status === 'POSTED');
-    const reversed = contributions.filter((contribution) => contribution.status === 'REVERSED');
-    const totalPosted = posted.reduce((sum, contribution) => sum + Number(contribution.amount), 0);
-    const reversedAmount = reversed.reduce((sum, contribution) => sum + Number(contribution.amount), 0);
     return {
-      total: meta?.total ?? contributions.length,
-      totalPosted,
-      reversed: reversed.length,
-      reversedAmount,
+      total: summary?.total ?? meta?.total ?? contributions.length,
+      totalPosted: summary?.totalPosted ?? 0,
+      reversed: summary?.reversed ?? 0,
+      reversedAmount: summary?.reversedAmount ?? 0,
+      netPosted: summary?.netPosted ?? 0,
     };
-  }, [contributions, meta]);
+  }, [contributions.length, meta, summary]);
 
   return (
-    <AdminPageLayout>
+    <AdminPageLayout fillHeight>
       <PageHeader
         title="Contributions"
         subtitle="Record and manage member contributions"
@@ -179,13 +182,13 @@ export function ContributionsPage() {
       />
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={TbReceipt} iconColor="#1f7a76" label="Receipts" value={stats.total} subtitle="Matching records" />
-        <StatCard icon={TbWallet} iconColor="#16a34a" label="Posted value" value={money(stats.totalPosted)} subtitle="Current page total" />
+        <StatCard icon={TbWallet} iconColor="#1f7a76" label="Records" value={stats.total} subtitle="Matching records" />
+        <StatCard icon={TbWallet} iconColor="#16a34a" label="Posted value" value={money(stats.totalPosted)} subtitle="All matching posted contributions" />
         <StatCard icon={TbTrendingDown} iconColor="#dc2626" label="Reversals" value={stats.reversed} subtitle={money(stats.reversedAmount)} />
-        <StatCard icon={TbScale} iconColor="#d97706" label="Net posted" value={money(stats.totalPosted - stats.reversedAmount)} subtitle="After reversals shown" />
+        <StatCard icon={TbScale} iconColor="#d97706" label="Net posted" value={money(stats.netPosted)} subtitle="All matching records" />
       </AdminPageStatsGrid>
 
-      <AdminPageMain>
+      <AdminPageMain fillHeight>
         <DataTable
           columns={columns}
           rows={contributions}
@@ -193,7 +196,7 @@ export function ContributionsPage() {
           search
           searchValue={search}
           onSearchChange={(value) => { setSearch(value); setPage(1); }}
-          searchPlaceholder="Search member or receipt"
+          searchPlaceholder="Search member or contribution"
           filter
           filterValue={filterValue}
           onFilterChange={setFilterValue}

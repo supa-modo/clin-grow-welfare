@@ -6,7 +6,7 @@ import SlideOver from "@/components/ui/SlideOver";
 import Select from "@/components/ui/Select";
 import { money, tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingRecord, MeetingRoster } from "../../types";
-import { finePreview } from "../../utils";
+import { finePreview, resolveAttendanceStatus } from "../../utils";
 import { FaSave } from "react-icons/fa";
 import { TbEdit } from "react-icons/tb";
 
@@ -73,10 +73,10 @@ export function AttendanceStep({
 
   const rows = useMemo<AttendanceRow[]>(() => {
     return (roster?.members ?? []).map((row) => {
-      const status =
-        attendanceDraft[row.member.id] ??
-        row.attendance?.attendanceStatus ??
-        "PRESENT_ON_TIME";
+      const status = resolveAttendanceStatus(
+        row,
+        attendanceDraft[row.member.id],
+      );
       const isMarked = Boolean(
         savedAttendanceIds[row.member.id] ?? row.attendance?.attendanceStatus,
       );
@@ -299,7 +299,7 @@ export function AttendanceStep({
         onClose={onCloseFinalize}
         title="Finalize attendance"
         subtitle="Confirm all members are marked before locking attendance."
-        widthClass="max-w-lg"
+        widthClass="max-w-3xl"
         footer={
           <div className="flex justify-end gap-2 border-t border-ink-100 px-5 py-3">
             <Button variant="secondary" onClick={onCloseFinalize}>
@@ -315,14 +315,28 @@ export function AttendanceStep({
           </div>
         }
       >
-        <div className="space-y-2 p-5">
+        <div className="space-y-2">
+          {/* autonumber the list of members */}
+          {finalizePreview.map((row, index) => (
+            <div
+              key={row.id}
+              className="flex items-center justify-between border-b border-gray-300 px-3 py-2 text-sm"
+            >
+              <span className="font-semibold text-gray-500">
+                {index + 1}. {row.label}
+              </span>
+              <span className="text-gray-700">
+                {row.status.replace(/_/g, " ")} · {money(row.finePreview)}
+              </span>
+            </div>
+          ))}
           {finalizePreview.map((row) => (
             <div
               key={row.id}
-              className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm"
+              className="flex items-center justify-between border-b border-gray-300 px-3 py-2 text-sm"
             >
               <span className="font-semibold">{row.label}</span>
-              <span className="text-ink-600">
+              <span className="text-gray-600">
                 {row.status.replace(/_/g, " ")} · {money(row.finePreview)}
               </span>
             </div>
