@@ -255,11 +255,28 @@ export function useMeetingCeremony() {
     });
   };
 
-  const closeLoanWindow = (loanWindowId: string) => {
+  const countInFlightLoans = (meeting?: MeetingRecord | null) => {
+    const inFlightStatuses = new Set([
+      'SUBMITTED',
+      'PENDING_MEETING_APPROVAL',
+      'UNDER_REVIEW',
+      'AGREEMENT_PENDING',
+      'READY_FOR_DISBURSEMENT',
+    ]);
+    return (meeting?.loanWindows ?? []).flatMap((window) => window.reservations ?? []).filter(
+      (reservation) => reservation.status === 'RESERVED' && reservation.loan && inFlightStatuses.has(reservation.loan.status),
+    ).length;
+  };
+
+  const closeLoanWindow = (loanWindowId: string, meeting?: MeetingRecord | null) => {
+    const inFlight = countInFlightLoans(meeting);
     confirmAction({
       key: 'close-loan-window',
+      type: 'delete',
       title: 'Close loan window?',
-      message: 'No new loan reservations or applications can be made in this meeting after closing.',
+      message: inFlight > 0
+        ? `${inFlight} loan application(s) are still in progress. Closing stops new reservations; existing applications can still be completed. Use admin override if you must force-close with blockers.`
+        : 'No new loan reservations or applications can be made in this meeting after closing.',
       confirmText: 'Close window',
       run: async () => {
         setBusy('close-loan-window');
@@ -270,6 +287,61 @@ export function useMeetingCeremony() {
           toastSuccess('Loan window closed', 'No new meeting loan applications can be reserved.');
         } catch (err) {
           toastError('Could not close loan window', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
+  };
+
+  const reopenLoanWindow = (loanWindowId: string) => {
+    confirmAction({
+      key: `reopen-loan-window-${loanWindowId}`,
+      title: 'Reopen loan window?',
+      message: 'Members and officials can reserve new loans again in this meeting. Document the reason in the audit trail.',
+      confirmText: 'Reopen window',
+      run: async () => {
+        setBusy('reopen-loan-window');
+        try {
+          await api.post(`/meetings/loan-window/${loanWindowId}/reopen`, {
+            reason: 'Official admin override to reopen loan window',
+          });
+          await reload();
+          await loadRoster();
+          toastSuccess('Loan window reopened', 'New reservations are allowed again.');
+        } catch (err) {
+          toastError('Could not reopen loan window', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
+  };
+
+  const adminReopenMeeting = (
+    meetingId: string,
+    input: {
+      targetStatus: 'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW';
+      unfinalizeAttendance?: boolean;
+      unfinalizeCollections?: boolean;
+      reason: string;
+    },
+  ) => {
+    confirmAction({
+      key: `admin-reopen-${meetingId}`,
+      type: 'delete',
+      title: 'Reopen closed meeting?',
+      message: 'This unlocks the meeting for corrections. The close report is kept for audit; re-close to regenerate the summary.',
+      confirmText: 'Reopen meeting',
+      run: async () => {
+        setBusy('admin-reopen-meeting');
+        try {
+          await api.post(`/meetings/${meetingId}/admin-reopen`, input);
+          await reload();
+          await loadRoster(meetingId);
+          toastSuccess('Meeting reopened', 'You can now correct attendance, collections, or loan records.');
+        } catch (err) {
+          toastError('Could not reopen meeting', getApiError(err));
         } finally {
           setBusy('');
         }
@@ -655,6 +727,28 @@ export function useMeetingCeremony() {
     });
   };
 
+  const sendSummaryToMembers = (meetingId: string) => {
+    confirmAction({
+      key: 'send-summary',
+      title: 'Send meeting summary to all active members?',
+      message: 'The official meeting summary PDF will be emailed to every active member with an email address on file.',
+      confirmText: 'Send summary',
+      run: async () => {
+        setBusy('send-summary');
+        try {
+          const res = await api.post(`/meetings/${meetingId}/send-summary`);
+          await reload();
+          const sent = Number(res.data.sentCount ?? 0);
+          toastSuccess('Summary sent', `Meeting summary emailed to ${sent} member(s).`);
+        } catch (err) {
+          toastError('Send failed', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
+  };
+
   const closeMeeting = (meetingId: string) => {
     confirmAction({
       key: 'close-meeting',
@@ -730,6 +824,8 @@ export function useMeetingCeremony() {
     sendNotice,
     generateFines,
     closeLoanWindow,
+    reopenLoanWindow,
+    adminReopenMeeting,
     markAttendance,
     saveAllAttendance,
     finalizeAttendance,
@@ -752,6 +848,7 @@ export function useMeetingCeremony() {
     runLoanAction,
     saveMinutes,
     publishMinutes,
+    sendSummaryToMembers,
     closeMeeting,
     deleteMeeting,
     uploadMinutesDocument,

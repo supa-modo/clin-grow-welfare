@@ -58,6 +58,8 @@ export const loanApi = {
           hasTreasurer: boolean;
           hasSecond: boolean;
           management: boolean;
+          missingRoles?: string[];
+          requiredRoles?: string[];
         } | null;
       } | null;
     };

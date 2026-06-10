@@ -4,6 +4,7 @@ import { FiCheckCircle, FiDownload, FiFileText, FiSend, FiUpload } from 'react-i
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { downloadReport, money } from '@/pages/admin/shared/adminFormatters';
+import { useAuthStore } from '@/store/auth';
 import type { MeetingRecord } from '../../types';
 
 type MeetingReportSummary = {
@@ -19,6 +20,7 @@ type MeetingReportSummary = {
   collectionTotals?: Record<string, number>;
   loanablePool?: { totalLoanablePool?: number; reservedAmount?: number; remainingAmount?: number };
   loanApplications?: number;
+  loanApplicationsCount?: number;
   resolutions?: number;
 };
 
@@ -32,6 +34,13 @@ type Props = {
   onSaveMinutes: () => void;
   onPublish: () => void;
   onUploadMinutes: (file: File) => void;
+  onSendSummary: () => void;
+  onAdminReopen?: (input: {
+    targetStatus: 'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW';
+    unfinalizeAttendance?: boolean;
+    unfinalizeCollections?: boolean;
+    reason: string;
+  }) => void;
   canClose: boolean;
 };
 
@@ -50,9 +59,17 @@ export function CloseStep({
   onSaveMinutes,
   onPublish,
   onUploadMinutes,
+  onSendSummary,
+  onAdminReopen,
   canClose,
 }: Props) {
+  const permissions = useAuthStore((s) => s.user?.permissions ?? []);
+  const canAdminOverride = permissions.includes('officialsPortal.meetings.adminOverride');
   const fileRef = useRef<HTMLInputElement>(null);
+  const [adminTarget, setAdminTarget] = useState<'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW'>('COLLECTIONS_OPEN');
+  const [unfinalizeAttendance, setUnfinalizeAttendance] = useState(false);
+  const [unfinalizeCollections, setUnfinalizeCollections] = useState(true);
+  const [adminReason, setAdminReason] = useState('');
   const [readiness, setReadiness] = useState<{
     ready: boolean;
     quorumMet?: boolean;
@@ -69,6 +86,7 @@ export function CloseStep({
   const blocked = !!busy || meeting.status === 'CLOSED' || !serverReady;
   const summary = asSummary(meetingReport);
   const quorumWarning = readiness && readiness.quorumMet === false;
+  const isClosed = meeting.status === 'CLOSED';
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -117,45 +135,105 @@ export function CloseStep({
               {summary.loanablePool ? (
                 <div className="rounded-lg bg-ink-50 p-3 text-sm sm:col-span-2">
                   <p className="text-xs font-semibold uppercase text-ink-500">Loan pool</p>
-                  <p className="mt-1 font-bold">{money(Number(summary.loanablePool.totalLoanablePool ?? 0))} loanable · {summary.loanApplications ?? 0} applications</p>
+                  <p className="mt-1 font-bold">{money(Number(summary.loanablePool.totalLoanablePool ?? 0))} loanable · {summary.loanApplicationsCount ?? summary.loanApplications ?? 0} applications</p>
                 </div>
               ) : null}
             </div>
           </Card>
         ) : null}
         <Card className="p-4">
-          <p className="font-bold text-ink-900">Minutes</p>
+          <p className="font-bold text-ink-900">Minutes (optional)</p>
+          <p className="mt-1 text-sm text-ink-600">Upload approved minutes as Word or PDF, or add optional secretary notes below. Minutes are not required to close the meeting.</p>
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUploadMinutes(file);
+            e.target.value = '';
+          }} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" icon={<FiUpload />} disabled={!!busy} onClick={() => fileRef.current?.click()}>Upload document</Button>
+            {meeting.minutesFileName ? <span className="self-center text-xs text-ink-500">On file: {meeting.minutesFileName}</span> : null}
+          </div>
           <textarea
-            className="mt-3 min-h-[150px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
+            className="mt-3 min-h-[120px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
             value={minutesDraft[meeting.id] ?? meeting.minutes ?? ''}
             onChange={(e) => setMinutesDraft((s) => ({ ...s, [meeting.id]: e.target.value }))}
-            placeholder="Paste approved minutes or secretary notes here"
+            placeholder="Optional secretary notes (not required for close)"
           />
           <div className="mt-3 flex flex-wrap justify-end gap-2">
-            <Button size="sm" variant="secondary" icon={<FiFileText />} disabled={!!busy} onClick={onSaveMinutes}>Save minutes</Button>
-            <Button size="sm" variant="secondary2" icon={<FiSend />} disabled={!!busy || meeting.status !== 'CLOSED'} onClick={onPublish}>Publish minutes</Button>
-            {meeting.status === 'CLOSED' ? (
-              <>
-                <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,application/pdf" className="hidden" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) onUploadMinutes(file);
-                  e.target.value = '';
-                }} />
-                <Button size="sm" variant="secondary" icon={<FiUpload />} disabled={!!busy} onClick={() => fileRef.current?.click()}>Upload document</Button>
-              </>
-            ) : null}
-            {meeting.minutesFileName ? <p className="w-full text-right text-xs text-ink-500">On file: {meeting.minutesFileName}</p> : null}
+            <Button size="sm" variant="secondary" icon={<FiFileText />} disabled={!!busy} onClick={onSaveMinutes}>Save notes</Button>
+            <Button size="sm" variant="secondary2" icon={<FiSend />} disabled={!!busy || !isClosed} onClick={onPublish}>Publish minutes</Button>
           </div>
         </Card>
+        {isClosed && canAdminOverride && onAdminReopen ? (
+          <Card className="border-amber-200 bg-amber-50/40 p-4">
+            <p className="font-bold text-ink-900">Admin override — reopen meeting</p>
+            <p className="mt-1 text-sm text-ink-600">
+              Correct seeded data or fix totals after close. The original close report is kept; re-close to regenerate the summary.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-ink-600 sm:col-span-2">
+                Reopen to step
+                <select
+                  className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
+                  value={adminTarget}
+                  onChange={(e) => setAdminTarget(e.target.value as typeof adminTarget)}
+                >
+                  <option value="ATTENDANCE_RECORDING">Attendance</option>
+                  <option value="COLLECTIONS_OPEN">Collections</option>
+                  <option value="LOAN_WINDOW_OPEN">Loan window</option>
+                  <option value="CLOSING_REVIEW">Close review</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+                <input type="checkbox" checked={unfinalizeAttendance} onChange={(e) => setUnfinalizeAttendance(e.target.checked)} />
+                Unfinalize attendance
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+                <input type="checkbox" checked={unfinalizeCollections} onChange={(e) => setUnfinalizeCollections(e.target.checked)} />
+                Unfinalize collections
+              </label>
+              <label className="text-xs font-semibold text-ink-600 sm:col-span-2">
+                Reason (required)
+                <textarea
+                  className="mt-1 min-h-[72px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
+                  value={adminReason}
+                  onChange={(e) => setAdminReason(e.target.value)}
+                  placeholder="e.g. Correct workbook import totals for share capital"
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="secondary"
+                disabled={!!busy || adminReason.trim().length < 5}
+                onClick={() => onAdminReopen({
+                  targetStatus: adminTarget,
+                  unfinalizeAttendance,
+                  unfinalizeCollections,
+                  reason: adminReason.trim(),
+                })}
+              >
+                Reopen meeting
+              </Button>
+            </div>
+          </Card>
+        ) : null}
       </div>
       <Card className="p-4">
         <p className="font-bold text-ink-900">Reports</p>
-        <p className="mt-1 text-sm text-ink-600">Closing generates the meeting report with collections, loan pool, attendance, and resolutions.</p>
+        <p className="mt-1 text-sm text-ink-600">Closing generates the official meeting summary with attendance, collections, repayments, and loan applications.</p>
         <div className="mt-3 grid gap-2">
           <Button icon={<FiCheckCircle />} disabled={blocked} onClick={onCloseMeeting}>Close meeting</Button>
-          <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-close', 'pdf', { meetingId: meeting.id })}>Meeting close PDF</Button>
           <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-summary', 'pdf', { meetingId: meeting.id })}>Meeting summary PDF</Button>
           <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-collections', 'pdf', { meetingId: meeting.id })}>Collections PDF</Button>
+          {isClosed ? (
+            <Button variant="secondary2" icon={<FiSend />} disabled={!!busy} onClick={onSendSummary}>
+              {meeting.summaryEmailedAt ? 'Resend to members' : 'Send to members'}
+            </Button>
+          ) : null}
+          {meeting.summaryEmailedAt ? (
+            <p className="text-xs text-ink-500">Summary emailed {new Date(meeting.summaryEmailedAt).toLocaleString('en-KE')}</p>
+          ) : null}
         </div>
       </Card>
     </div>

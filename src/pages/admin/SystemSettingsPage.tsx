@@ -11,6 +11,15 @@ import { useAuthStore } from "@/store/auth";
 import { ledgerApi } from "@/services/ledgerApi";
 import type { FinancialYear, WelfareSetting } from "@/types/ledger";
 
+type VoucherSignatoryRole = NonNullable<WelfareSetting["voucherRequiredSignatoryRoles"]>[number];
+
+const VOUCHER_ROLE_OPTIONS: Array<{ value: VoucherSignatoryRole; label: string }> = [
+  { value: "CHAIRPERSON", label: "Chairperson" },
+  { value: "TREASURER", label: "Treasurer" },
+  { value: "SECRETARY", label: "Secretary" },
+  { value: "NOMINATED_SIGNATORY", label: "Nominated Signatory" },
+];
+
 type SettingsForm = Partial<WelfareSetting> & {
   startDate?: string;
   endDate?: string;
@@ -129,8 +138,27 @@ export function SystemSettingsPage() {
     }));
   };
 
+  const toggleVoucherRole = (
+    field: "voucherManagementApproverRoles" | "voucherRequiredSignatoryRoles",
+    role: VoucherSignatoryRole,
+  ) => {
+    setForm((current) => {
+      const existing = (current[field] ?? []) as VoucherSignatoryRole[];
+      const next = existing.includes(role)
+        ? existing.filter((entry) => entry !== role)
+        : [...existing, role];
+      return { ...current, [field]: next };
+    });
+  };
+
   const save = async () => {
     if (!financialYear || !canEdit) return;
+    const mgmtRoles = form.voucherManagementApproverRoles ?? ["CHAIRPERSON"];
+    const signRoles = form.voucherRequiredSignatoryRoles ?? ["TREASURER", "CHAIRPERSON"];
+    if (!mgmtRoles.length || !signRoles.length) {
+      toastError("Select at least one management approver and one required signatory.");
+      return;
+    }
     setSaving(true);
     try {
       const {
@@ -179,6 +207,49 @@ export function SystemSettingsPage() {
             </div>
           </div>
         </div>
+
+        <section className="mb-4 rounded-lg border border-ink-100 bg-white p-4 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-sm font-extrabold text-ink-900">Payment vouchers</h2>
+            <p className="mt-1 text-xs text-ink-500">
+              Configure which officer roles must management-approve and sign disbursement vouchers. All selected signature roles must sign.
+            </p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Management approvers</p>
+              <div className="mt-2 grid gap-2">
+                {VOUCHER_ROLE_OPTIONS.map((option) => (
+                  <label key={`mgmt-${option.value}`} className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+                    <input
+                      type="checkbox"
+                      disabled={loading || !financialYear || !canEdit}
+                      checked={(form.voucherManagementApproverRoles ?? ["CHAIRPERSON"]).includes(option.value)}
+                      onChange={() => toggleVoucherRole("voucherManagementApproverRoles", option.value)}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Required signatories</p>
+              <div className="mt-2 grid gap-2">
+                {VOUCHER_ROLE_OPTIONS.map((option) => (
+                  <label key={`sign-${option.value}`} className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+                    <input
+                      type="checkbox"
+                      disabled={loading || !financialYear || !canEdit}
+                      checked={(form.voucherRequiredSignatoryRoles ?? ["TREASURER", "CHAIRPERSON"]).includes(option.value)}
+                      onChange={() => toggleVoucherRole("voucherRequiredSignatoryRoles", option.value)}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
         <div className="grid gap-4 xl:grid-cols-2">
           {groups.map((group) => (

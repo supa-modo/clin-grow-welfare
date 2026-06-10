@@ -89,6 +89,10 @@ export function LoanDisbursementPanel({
     }
   };
 
+  const missingRoleLabels = (status?.voucher?.readiness?.missingRoles as string[] | undefined)?.map((role) =>
+    role.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()),
+  ) ?? [];
+
   const disburseBlockedReason = !loan.memberAcknowledgedAt
     ? 'Member must acknowledge the agreement.'
     : !loan.treasurerVerifiedAt
@@ -98,11 +102,9 @@ export function LoanDisbursementPanel({
         : status?.voucher && !status.voucher.readiness?.ready
           ? !status.voucher.readiness.management
             ? 'Voucher needs management approval.'
-            : !status.voucher.readiness.hasTreasurer
-              ? 'Treasurer must sign the disbursement voucher.'
-              : !status.voucher.readiness.hasSecond
-                ? 'Chairperson or Nominated Signatory must sign the voucher.'
-                : 'Voucher is not payment-ready.'
+            : missingRoleLabels.length
+              ? `Missing voucher signature(s): ${missingRoleLabels.join(', ')}.`
+              : 'Voucher is not payment-ready.'
           : null;
 
   if (!['AGREEMENT_PENDING', 'READY_FOR_DISBURSEMENT'].includes(loan.status)) return null;
@@ -130,7 +132,7 @@ export function LoanDisbursementPanel({
               Approve voucher
             </Button>
           ) : null}
-          {canSign && status.voucher.readiness?.management && (!status.voucher.readiness.hasTreasurer || !status.voucher.readiness.hasSecond) ? (
+          {canSign && status.voucher.readiness?.management && (status.voucher.readiness.missingRoles?.length ?? 0) > 0 ? (
             <Button size="sm" variant="secondary2" disabled={!!voucherBusy || busy} isLoading={voucherBusy === 'sign'} onClick={() => void runVoucher('Signed', () => voucherApi.sign(status.voucher!.id))}>
               Sign voucher
             </Button>

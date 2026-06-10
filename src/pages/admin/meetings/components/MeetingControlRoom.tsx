@@ -101,12 +101,15 @@ export function MeetingControlRoom({
     collect,
     openLoanWindow,
     closeLoanWindow,
+    reopenLoanWindow,
+    adminReopenMeeting,
     updateReservation,
     releaseReservation,
     officialReserve,
     runLoanAction,
     saveMinutes,
     publishMinutes,
+    sendSummaryToMembers,
     uploadMinutesDocument,
     loadPool,
     reload,
@@ -308,7 +311,8 @@ export function MeetingControlRoom({
             reserveForm={reserveForm}
             setReserveForm={setReserveForm}
             onOpenWindow={() => void openLoanWindow(m.id)}
-            onCloseWindow={(id) => void closeLoanWindow(id)}
+            onCloseWindow={(id) => void closeLoanWindow(id, m)}
+            onReopenWindow={(id) => void reopenLoanWindow(id)}
             onUpdateReservation={(r) => void updateReservation(r)}
             onReleaseReservation={(r) => void releaseReservation(r)}
             onOfficialReserve={() => void officialReserve()}
@@ -329,6 +333,8 @@ export function MeetingControlRoom({
             onSaveMinutes={() => void saveMinutes(m)}
             onPublish={() => void publishMinutes(m.id)}
             onUploadMinutes={(file) => void uploadMinutesDocument(m.id, file)}
+            onSendSummary={() => void sendSummaryToMembers(m.id)}
+            onAdminReopen={(input) => void adminReopenMeeting(m.id, input)}
             canClose={canClose}
           />
         ) : null}

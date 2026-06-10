@@ -45,6 +45,7 @@ type Props = {
   >;
   onOpenWindow: () => void;
   onCloseWindow: (id: string) => void;
+  onReopenWindow?: (id: string) => void;
   onUpdateReservation: (r: LoanReservation) => void;
   onReleaseReservation: (r: LoanReservation) => void;
   onOfficialReserve: () => void;
@@ -70,6 +71,7 @@ export function LoanWindowStep({
   setReserveForm,
   onOpenWindow,
   onCloseWindow,
+  onReopenWindow,
   onUpdateReservation,
   onReleaseReservation,
   onOfficialReserve,
@@ -80,6 +82,7 @@ export function LoanWindowStep({
   const canDisburse = permissions.includes("officialsPortal.loans.disburse");
   const canApproveLoan = permissions.includes("officialsPortal.loans.approve");
   const canVerify = permissions.includes("officialsPortal.loans.disburse");
+  const canAdminOverride = permissions.includes("officialsPortal.meetings.adminOverride");
   const blocked = !!busy || meeting.status === "CLOSED";
   const windowOpen =
     activeLoanWindow &&
@@ -133,6 +136,20 @@ export function LoanWindowStep({
     };
   }, [showReserveModal, roster]);
 
+  const windowClosed =
+    activeLoanWindow &&
+    (activeLoanWindow as { status: string }).status === "CLOSED";
+
+  const pipelineLabels = ["Reserved", "Verified", "Approved", "Agreement", "Voucher", "Disbursed"];
+  const pipelineIndex = (status: string) => {
+    if (status === "SUBMITTED") return 0;
+    if (["PENDING_MEETING_APPROVAL", "UNDER_REVIEW"].includes(status)) return 1;
+    if (status === "AGREEMENT_PENDING") return 2;
+    if (status === "READY_FOR_DISBURSEMENT") return 4;
+    if (["ACTIVE", "PARTIALLY_PAID", "IN_ROLLOVER", "OVERDUE"].includes(status)) return 5;
+    return -1;
+  };
+
   const memberPlaceholder = eligibilityLoading
     ? "Loading eligibility…"
     : eligibilityLoaded && eligibleOptions.length === 0
@@ -160,7 +177,7 @@ export function LoanWindowStep({
           >
             Refresh pool
           </Button>
-          {!windowOpen ? (
+          {!windowOpen && !windowClosed ? (
             <Button
             size="sm"
               variant="secondary"
@@ -171,6 +188,17 @@ export function LoanWindowStep({
               onClick={onOpenWindow}
             >
               Open window
+            </Button>
+          ) : null}
+          {windowClosed && canAdminOverride && onReopenWindow ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<FiPlay />}
+              disabled={blocked}
+              onClick={() => onReopenWindow((activeLoanWindow as { id: string }).id)}
+            >
+              Reopen window
             </Button>
           ) : null}
           {windowOpen ? (
@@ -234,6 +262,28 @@ export function LoanWindowStep({
                     {loan?.loanNumber ?? "Pending loan"} - requested{" "}
                     {money(loan?.requestedAmount ?? reservation.amount)}
                   </p>
+                  {loan && pipelineIndex(loan.status) >= 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {pipelineLabels.map((label, index) => {
+                        const current = pipelineIndex(loan.status);
+                        const done = index < current;
+                        const active = index === current;
+                        return (
+                          <Badge
+                            key={label}
+                            tone={done ? "success" : active ? "warning" : "neutral"}
+                          >
+                            {label}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {loan?.status === "SUBMITTED" ? (
+                    <p className="mt-2 text-xs font-semibold text-amber-800">
+                      Verify required before chairperson can approve.
+                    </p>
+                  ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <input
                       className="w-36 rounded-lg border border-ink-200 px-3 py-2 text-sm"
