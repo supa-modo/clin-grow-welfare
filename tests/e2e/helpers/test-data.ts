@@ -25,5 +25,5 @@ export const expectedLanding: Record<RoleKey, string> = {
   member: '/member',
   eligibleMember: '/member',
   ineligibleMember: '/member',
-  dualRole: '/officials',
+  dualRole: '/member',
 };

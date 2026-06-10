@@ -13,13 +13,13 @@ test.describe('auth, portals, and workspaces', () => {
 
   test('dual-role official can switch between Officials and Member workspaces', async ({ page }) => {
     await uiLogin(page, 'dualRole');
-    await expect(page).toHaveURL(/\/officials/);
-    await page.getByRole('button', { name: /Olivia Official/i }).click();
-    await page.getByRole('menuitem', { name: /Member Portal/i }).click();
     await expect(page).toHaveURL(/\/member/);
     await page.getByRole('button', { name: /Olivia Official/i }).click();
     await page.getByRole('menuitem', { name: /Officials Portal/i }).click();
     await expect(page).toHaveURL(/\/officials/);
+    await page.getByRole('button', { name: /Olivia Official/i }).click();
+    await page.getByRole('menuitem', { name: /Member Portal/i }).click();
+    await expect(page).toHaveURL(/\/member/);
   });
 
   test('member is blocked from Admin and Officials portals', async ({ page }) => {

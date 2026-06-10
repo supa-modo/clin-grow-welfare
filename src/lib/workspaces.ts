@@ -54,10 +54,10 @@ export function availableWorkspaces(user: AuthUser | null) {
 
 export function defaultRouteForUser(user: AuthUser | null) {
   if (!user) return '/login';
-  if (isSystemAdmin(user)) return '/dashboard';
-  if (isOfficial(user)) return '/officials';
   if (user.memberId && !user.memberConstitutionAccepted) return '/member/constitution';
   if (user.memberId) return '/member';
+  if (isSystemAdmin(user)) return '/dashboard';
+  if (isOfficial(user)) return '/officials';
   return '/forbidden';
 }
 
