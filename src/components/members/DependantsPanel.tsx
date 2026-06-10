@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiCheckCircle, FiDownload, FiEdit3, FiFileText, FiPlus, FiShield, FiUploadCloud } from 'react-icons/fi';
+import {
+  FiCheckCircle,
+  FiDownload,
+  FiEdit3,
+  FiFileText,
+  FiPlus,
+  FiShield,
+} from 'react-icons/fi';
+import clsx from 'clsx';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, Spinner } from '@/components/ui/Feedback';
 import { FileUpload } from '@/components/ui/FileUpload';
@@ -13,6 +21,8 @@ type DependantsPanelProps = {
   memberId?: string;
   scope: 'member' | 'admin';
   canVerify?: boolean;
+  /** When true, omits outer card chrome for use inside another panel. */
+  embedded?: boolean;
 };
 
 const emptyForm: MemberDependantFormValues = {
@@ -25,13 +35,18 @@ const emptyForm: MemberDependantFormValues = {
 };
 
 function formatDate(value?: string | null) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function apiErrorMessage(error: unknown) {
   if (typeof error === 'object' && error && 'response' in error) {
-    const response = (error as { response?: { data?: { message?: string; error?: string } } }).response;
+    const response = (error as { response?: { data?: { message?: string; error?: string } } })
+      .response;
     return response?.data?.message ?? response?.data?.error ?? 'Dependant action failed';
   }
   return 'Dependant action failed';
@@ -48,7 +63,33 @@ function toForm(dependant: MemberDependant): MemberDependantFormValues {
   };
 }
 
-export function DependantsPanel({ memberId, scope, canVerify = false }: DependantsPanelProps) {
+function DocumentLink({
+  fileName,
+  onClick,
+}: {
+  fileName: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full min-w-0 items-center gap-2 rounded-lg bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-primary-50"
+      title={fileName}
+    >
+      <FiFileText className="h-4 w-4 shrink-0 text-primary-700" />
+      <span className="min-w-0 flex-1 break-words">{fileName}</span>
+      <FiDownload className="h-4 w-4 shrink-0 text-slate-500" />
+    </button>
+  );
+}
+
+export function DependantsPanel({
+  memberId,
+  scope,
+  canVerify = false,
+  embedded = false,
+}: DependantsPanelProps) {
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const [dependants, setDependants] = useState<MemberDependant[]>([]);
   const [form, setForm] = useState<MemberDependantFormValues>(emptyForm);
@@ -59,13 +100,15 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
   const [error, setError] = useState('');
 
   const canUseAdminApi = scope === 'admin' && Boolean(memberId);
-  const title = scope === 'admin' ? 'Dependants' : 'My Dependants';
+  const title = scope === 'admin' ? 'Dependants' : 'Dependants';
 
   const load = async () => {
     setLoading(true);
     setError('');
     try {
-      const rows = canUseAdminApi ? await memberApi.dependants(memberId!) : await memberPortalApi.dependants();
+      const rows = canUseAdminApi
+        ? await memberApi.dependants(memberId!)
+        : await memberPortalApi.dependants();
       setDependants(rows);
     } catch (err) {
       setError(apiErrorMessage(err));
@@ -78,7 +121,10 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
     void load();
   }, [memberId, scope]);
 
-  const isValid = useMemo(() => form.fullName.trim().length >= 2 && form.relationship.trim().length >= 2, [form]);
+  const isValid = useMemo(
+    () => form.fullName.trim().length >= 2 && form.relationship.trim().length >= 2,
+    [form],
+  );
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -92,9 +138,13 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
     setError('');
     try {
       if (editing) {
-        await (canUseAdminApi ? memberApi.updateDependant(memberId!, editing.id, form) : memberPortalApi.updateDependant(editing.id, form));
+        await (canUseAdminApi
+          ? memberApi.updateDependant(memberId!, editing.id, form)
+          : memberPortalApi.updateDependant(editing.id, form));
       } else {
-        await (canUseAdminApi ? memberApi.createDependant(memberId!, form) : memberPortalApi.createDependant(form));
+        await (canUseAdminApi
+          ? memberApi.createDependant(memberId!, form)
+          : memberPortalApi.createDependant(form));
       }
       resetForm();
       await load();
@@ -117,10 +167,15 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
     setBusy(`upload:${dependant.id}`);
     setError('');
     try {
-      await (canUseAdminApi ? memberApi.uploadDependantDocument(memberId!, dependant.id, file) : memberPortalApi.uploadDependantDocument(dependant.id, file));
+      await (canUseAdminApi
+        ? memberApi.uploadDependantDocument(memberId!, dependant.id, file)
+        : memberPortalApi.uploadDependantDocument(dependant.id, file));
       await load();
       if (scope === 'member') {
-        toastSuccess('Document uploaded', 'Officials will re-review this dependant before verification.');
+        toastSuccess(
+          'Document uploaded',
+          'Officials will re-review this dependant before verification.',
+        );
       }
     } catch (err) {
       setError(apiErrorMessage(err));
@@ -143,8 +198,14 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
     }
   };
 
-  const download = async (dependant: MemberDependant, documentId: string, fileName: string) => {
-    const endpoint = canUseAdminApi ? memberApi.dependantDocumentUrl(memberId!, dependant.id, documentId) : memberPortalApi.dependantDocumentUrl(dependant.id, documentId);
+  const download = async (
+    dependant: MemberDependant,
+    documentId: string,
+    fileName: string,
+  ) => {
+    const endpoint = canUseAdminApi
+      ? memberApi.dependantDocumentUrl(memberId!, dependant.id, documentId)
+      : memberPortalApi.dependantDocumentUrl(dependant.id, documentId);
     const response = await api.get(endpoint, { responseType: 'blob' });
     const url = URL.createObjectURL(response.data);
     const link = window.document.createElement('a');
@@ -155,94 +216,216 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
   };
 
   return (
-    <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700"><FiShield /></span>
-            <div>
-              <h2 className="text-base font-black text-ink-900">{title}</h2>
-              <p className="text-sm text-ink-500">Capture dependant details and attach proof documents.</p>
-            </div>
+    <section
+      className={clsx(
+        embedded
+          ? 'overflow-hidden'
+          : 'overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm',
+      )}
+    >
+      <div
+        className={clsx(
+          'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between',
+          embedded
+            ? 'border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 sm:px-5'
+            : 'border-b border-slate-100 bg-slate-50/80 px-4 py-4 sm:px-5',
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700">
+            <FiShield className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-extrabold text-slate-950">{title}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Capture dependant details and attach proof documents.
+            </p>
           </div>
         </div>
-        <Button type="button" size="sm" icon={<FiPlus />} onClick={() => { setForm(emptyForm); setEditing(null); setOpen((value) => !value); }}>
+        <Button
+          type="button"
+          size="sm"
+          className="w-full shrink-0 sm:w-auto"
+          icon={<FiPlus />}
+          onClick={() => {
+            setForm(emptyForm);
+            setEditing(null);
+            setOpen((value) => !value);
+          }}
+        >
           Add dependant
         </Button>
       </div>
 
-      {error ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div> : null}
-
-      {open ? (
-        <div className="mt-4 rounded-2xl border border-ink-100 bg-ink-50 p-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Full name" value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} required />
-            <Input label="Relationship" value={form.relationship} onChange={(event) => setForm({ ...form, relationship: event.target.value })} required />
-            <Input label="Date of birth" type="date" value={form.dateOfBirth} onChange={(event) => setForm({ ...form, dateOfBirth: event.target.value })} />
-            <Input label="ID / birth certificate number" value={form.idNumber} onChange={(event) => setForm({ ...form, idNumber: event.target.value })} />
-            <Input label="Phone" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-            <Input label="Notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+      <div className="p-4 sm:p-5">
+        {error ? (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {error}
           </div>
-          <div className="mt-4 flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
-            <Button type="button" onClick={save} disabled={!isValid || busy === 'save'} isLoading={busy === 'save'} loadingText="Saving...">
-              {editing ? 'Update dependant' : 'Save dependant'}
-            </Button>
-          </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="mt-4">
+        {open ? (
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input
+                label="Full name"
+                value={form.fullName}
+                onChange={(event) => setForm({ ...form, fullName: event.target.value })}
+                required
+              />
+              <Input
+                label="Relationship"
+                value={form.relationship}
+                onChange={(event) => setForm({ ...form, relationship: event.target.value })}
+                required
+              />
+              <Input
+                label="Date of birth"
+                type="date"
+                value={form.dateOfBirth}
+                onChange={(event) => setForm({ ...form, dateOfBirth: event.target.value })}
+              />
+              <Input
+                label="ID / birth certificate number"
+                value={form.idNumber}
+                onChange={(event) => setForm({ ...form, idNumber: event.target.value })}
+              />
+              <Input
+                label="Phone"
+                value={form.phone}
+                onChange={(event) => setForm({ ...form, phone: event.target.value })}
+              />
+              <Input
+                label="Notes"
+                value={form.notes}
+                onChange={(event) => setForm({ ...form, notes: event.target.value })}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={resetForm}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void save()}
+                disabled={!isValid || busy === 'save'}
+                isLoading={busy === 'save'}
+                loadingText="Saving..."
+              >
+                {editing ? 'Update dependant' : 'Save dependant'}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         {loading ? (
-          <div className="grid min-h-40 place-items-center"><div className="flex items-center gap-3 text-sm font-bold text-ink-600"><Spinner /> Loading dependants...</div></div>
+          <div className="grid min-h-32 place-items-center">
+            <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
+              <Spinner /> Loading dependants...
+            </div>
+          </div>
         ) : dependants.length ? (
           <div className="grid gap-4">
             {dependants.map((dependant) => (
-              <div key={dependant.id} className="rounded-2xl border border-ink-100 bg-white p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
+              <div
+                key={dependant.id}
+                className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+              >
+                <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-black text-ink-900">{dependant.fullName}</h3>
+                      <h3
+                        className="min-w-0 break-words text-sm font-extrabold text-slate-950"
+                        title={dependant.fullName}
+                      >
+                        {dependant.fullName}
+                      </h3>
                       {dependant.verifiedAt ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700"><FiCheckCircle /> Verified</span>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                          <FiCheckCircle className="h-3.5 w-3.5" /> Verified
+                        </span>
                       ) : (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">Pending verification</span>
+                        <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                          Pending verification
+                        </span>
                       )}
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-ink-500">{dependant.relationship}</p>
-                    <div className="mt-3 grid gap-2 text-xs text-ink-600 sm:grid-cols-3">
-                      <span>DOB: {formatDate(dependant.dateOfBirth)}</span>
-                      <span>ID: {dependant.idNumber || '-'}</span>
-                      <span>Phone: {dependant.phone || '-'}</span>
+                    <p className="mt-1 text-sm text-slate-500">{dependant.relationship}</p>
+                    <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-3">
+                      <span className="min-w-0 break-words">
+                        DOB: {formatDate(dependant.dateOfBirth)}
+                      </span>
+                      <span className="min-w-0 break-words">
+                        ID: {dependant.idNumber || '—'}
+                      </span>
+                      <span className="min-w-0 break-words sm:col-span-2 lg:col-span-1">
+                        Phone: {dependant.phone || '—'}
+                      </span>
                     </div>
-                    {dependant.notes ? <p className="mt-2 text-sm text-ink-500">{dependant.notes}</p> : null}
+                    {dependant.notes ? (
+                      <p className="mt-2 break-words text-sm text-slate-500">
+                        {dependant.notes}
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="secondary" size="sm" icon={<FiEdit3 />} onClick={() => { setEditing(dependant); setForm(toForm(dependant)); setOpen(true); }}>Edit</Button>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      icon={<FiEdit3 />}
+                      onClick={() => {
+                        setEditing(dependant);
+                        setForm(toForm(dependant));
+                        setOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
                     {canVerify ? (
-                      <Button type="button" size="sm" icon={<FiCheckCircle />} disabled={Boolean(dependant.verifiedAt) || !dependant.documents?.length || busy === `verify:${dependant.id}`} onClick={() => verify(dependant)}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        icon={<FiCheckCircle />}
+                        disabled={
+                          Boolean(dependant.verifiedAt) ||
+                          !dependant.documents?.length ||
+                          busy === `verify:${dependant.id}`
+                        }
+                        onClick={() => void verify(dependant)}
+                      >
                         Mark verified
                       </Button>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1.2fr]">
-                  <FileUpload accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" disabled={busy === `upload:${dependant.id}`} onFiles={(files) => upload(dependant, files)} />
-                  <div className="rounded-xl border border-ink-100 bg-ink-50 p-3">
-                    <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-ink-400">Proof documents</p>
+                <div className="grid gap-3 p-4 lg:grid-cols-2">
+                  <FileUpload
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                    disabled={busy === `upload:${dependant.id}`}
+                    onFiles={(files) => void upload(dependant, files)}
+                  />
+                  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Proof documents
+                    </p>
                     <div className="mt-2 space-y-2">
-                      {dependant.documents?.length ? dependant.documents.map((document) => (
-                        <button
-                          key={document.id}
-                          type="button"
-                          onClick={() => download(dependant, document.id, document.fileName)}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-ink-700 transition hover:bg-brand-50"
-                        >
-                          <span className="inline-flex min-w-0 items-center gap-2"><FiFileText className="shrink-0 text-brand-700" /><span className="truncate">{document.fileName}</span></span>
-                          <FiDownload className="shrink-0" />
-                        </button>
-                      )) : <p className="rounded-lg bg-white px-3 py-4 text-center text-sm font-semibold text-ink-500">No proof uploaded yet.</p>}
+                      {dependant.documents?.length ? (
+                        dependant.documents.map((document) => (
+                          <DocumentLink
+                            key={document.id}
+                            fileName={document.fileName}
+                            onClick={() =>
+                              void download(dependant, document.id, document.fileName)
+                            }
+                          />
+                        ))
+                      ) : (
+                        <p className="rounded-lg bg-white px-3 py-4 text-center text-sm text-slate-500">
+                          No proof uploaded yet.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -250,7 +433,10 @@ export function DependantsPanel({ memberId, scope, canVerify = false }: Dependan
             ))}
           </div>
         ) : (
-          <EmptyState title="No dependants captured" message="Add dependant details and upload proof documents for official verification." />
+          <EmptyState
+            title="No dependants captured"
+            message="Add dependant details and upload proof documents for official verification."
+          />
         )}
       </div>
     </section>

@@ -26,13 +26,13 @@ export function PageHeader({
       <div className="flex flex-col gap-3 border-b border-ink-100 pb-3 md:gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-col items-start gap-1.5 pl-0.5 md:gap-2 lg:flex-row lg:items-center lg:gap-4">
-            <h1 className="font-google text-[1rem] md:text-[1.2rem] font-extrabold leading-tight tracking-tight text-ink-900">
+            <h1 className="font-google text-[0.9rem] md:text-[1rem] font-extrabold leading-tight tracking-tight text-ink-900">
               {title}
             </h1>
             {effectiveSubtitle ? (
               <>
                 <div className="hidden h-5 w-px bg-gray-400 lg:block" />
-                <div className="max-w-3xl text-sm text-ink-500 lg:text-[0.9rem]">
+                <div className="max-w-3xl text-[0.8rem] text-ink-500 lg:text-sm">
                   {effectiveSubtitle}
                 </div>
               </>

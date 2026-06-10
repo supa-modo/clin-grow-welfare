@@ -43,7 +43,8 @@ import type {
   MemberFormValues,
   MembershipStatus,
 } from "@/types/member";
-import { PiUsersThreeDuotone } from "react-icons/pi";
+import { PiListChecksFill, PiUsersThreeDuotone } from "react-icons/pi";
+import { BiReset } from "react-icons/bi";
 
 const statusOptions: Array<{ value: MembershipStatus | ""; label: string }> = [
   { value: "", label: "All statuses" },
@@ -190,9 +191,21 @@ export function MembersPage() {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
 
-  const canCreate = has("officialsPortal.members.create", permissions, systemAdmin);
-  const canUpdate = has("officialsPortal.members.update", permissions, systemAdmin);
-  const canApprove = has("officialsPortal.members.approve", permissions, systemAdmin);
+  const canCreate = has(
+    "officialsPortal.members.create",
+    permissions,
+    systemAdmin,
+  );
+  const canUpdate = has(
+    "officialsPortal.members.update",
+    permissions,
+    systemAdmin,
+  );
+  const canApprove = has(
+    "officialsPortal.members.approve",
+    permissions,
+    systemAdmin,
+  );
   const canManageConstitution = systemAdmin;
   const canResetPassword = has(
     "officialsPortal.members.resetPassword",
@@ -609,60 +622,70 @@ export function MembersPage() {
                   confirmText: confirmation.accepted
                     ? "Mark All Acknowledged"
                     : "Reset All Acknowledgements",
-                  type: confirmation.accepted ? ("confirm" as const) : ("delete" as const),
+                  type: confirmation.accepted
+                    ? ("confirm" as const)
+                    : ("delete" as const),
                 }
-          : {
-              title: confirmation.title,
-              message: confirmation.message,
-              confirmText: confirmation.confirmText,
-              type:
-                confirmation.status === "EXPELLED"
-                  ? ("delete" as const)
-                  : ("confirm" as const),
-            }
+              : {
+                  title: confirmation.title,
+                  message: confirmation.message,
+                  confirmText: confirmation.confirmText,
+                  type:
+                    confirmation.status === "EXPELLED"
+                      ? ("delete" as const)
+                      : ("confirm" as const),
+                }
     : null;
 
   const isInitialLoad = loading && members.length === 0;
 
   return (
-    <AdminPageLayout fillHeight>
+    <AdminPageLayout >
       <PageHeader
         title="Members Registry"
-        subtitle="Manage welfare members, approvals, registration payments, constitution acknowledgement, and account status."
+        subtitle="Manage welfare members"
         action={
           <div className="flex flex-wrap items-center gap-2">
+            <RowActionsMenu
+              items={[
+                {
+                  key: "export",
+                  label: "Export Members",
+                  icon: <FiDownload className="h-4 w-4" />,
+                  onClick: exportMembers,
+                },
+                ...(canManageConstitution
+                  ? [
+                      {
+                        key: "markAllAcknowledged",
+                        label: "Mark All Acknowledged",
+                        icon: <PiListChecksFill className="h-4 w-4" />,
+                        onClick: () =>
+                          setConfirmation({
+                            kind: "constitutionAll",
+                            accepted: true,
+                          }),
+                      },
+                      {
+                        key: "resetAcknowledgements",
+                        label: "Reset Acknowledgements",
+                        icon: <BiReset className="h-4 w-4" />,
+                        onClick: () =>
+                          setConfirmation({
+                            kind: "constitutionAll",
+                            accepted: false,
+                          }),
+                      },
+                    ]
+                  : []),
+              ]}
+              ariaLabel="Actions for members"
+            />
             <RefreshIconButton
               loading={loading}
               onClick={() => void load(filters)}
             />
-            <Button variant="secondary" size="sm" onClick={exportMembers}>
-              <FiDownload className="h-4 w-4" />
-              Export
-            </Button>
-            {canManageConstitution ? (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() =>
-                    setConfirmation({ kind: "constitutionAll", accepted: true })
-                  }
-                >
-                  <TbFileCheck className="h-4 w-4" />
-                  Mark All Acknowledged
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() =>
-                    setConfirmation({ kind: "constitutionAll", accepted: false })
-                  }
-                >
-                  <TbFileCheck className="h-4 w-4" />
-                  Reset Acknowledgements
-                </Button>
-              </>
-            ) : null}
+
             {canCreate ? (
               <Button variant="primary" size="sm" onClick={openCreate}>
                 <FiUserPlus className="h-4 w-4" />
@@ -673,52 +696,50 @@ export function MembersPage() {
         }
       />
 
-      
-
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
-        {isInitialLoad
-          ? Array.from({ length: 5 }, (_, index) => (
-              <MembersStatCardSkeleton key={`member-stat-skeleton-${index}`} />
-            ))
-          : (
-            <>
-              <StatCard
-                icon={PiUsersThreeDuotone}
-                iconColor="#1f7a76"
-                label="Total Members"
-                value={counts.total}
-                subtitle="All registry records"
-              />
-              <StatCard
-                icon={TbUserCheck}
-                iconColor="#16a34a"
-                label="Active"
-                value={counts.active}
-                subtitle="In good standing"
-              />
-              <StatCard
-                icon={TbCircleDashed}
-                iconColor="#d97706"
-                label="Pending"
-                value={counts.pending}
-                subtitle="Awaiting approval"
-              />
-              <StatCard
-                icon={TbUserCancel}
-                iconColor="#dc2626"
-                label="Suspended"
-                value={counts.suspended}
-                subtitle="Temporarily blocked"
-              />
-              <StatCard
-                icon={TbUserCancel}
-                iconColor="#64748b"
-                label="Inactive"
-                value={counts.inactive}
-                subtitle="Withdrawn, expelled, deceased"
-              />
-            </>
-          )}
+        {isInitialLoad ? (
+          Array.from({ length: 5 }, (_, index) => (
+            <MembersStatCardSkeleton key={`member-stat-skeleton-${index}`} />
+          ))
+        ) : (
+          <>
+            <StatCard
+              icon={PiUsersThreeDuotone}
+              iconColor="#1f7a76"
+              label="Total Members"
+              value={counts.total}
+              subtitle="All registry records"
+            />
+            <StatCard
+              icon={TbUserCheck}
+              iconColor="#16a34a"
+              label="Active"
+              value={counts.active}
+              subtitle="In good standing"
+            />
+            <StatCard
+              icon={TbCircleDashed}
+              iconColor="#d97706"
+              label="Pending"
+              value={counts.pending}
+              subtitle="Awaiting approval"
+            />
+            <StatCard
+              icon={TbUserCancel}
+              iconColor="#dc2626"
+              label="Suspended"
+              value={counts.suspended}
+              subtitle="Temporarily blocked"
+            />
+            <StatCard
+              icon={TbUserCancel}
+              iconColor="#64748b"
+              label="Inactive"
+              value={counts.inactive}
+              subtitle="Withdrawn, expelled, deceased"
+            />
+          </>
+        )}
       </AdminPageStatsGrid>
 
       {error ? (
@@ -727,21 +748,20 @@ export function MembersPage() {
         </div>
       ) : null}
 
-<div className="mb-2">
-
-
-<MemberVerificationQueue
-        canReview={canUpdate}
-        onOpenMember={(id) => {
-          const row = members.find((m) => m.id === id);
-          if (row) setSelectedMember(row);
-          else
-            void memberApi
-              .get(id)
-              .then(setSelectedMember)
-              .catch(() => undefined);
-        }}
-      /> </div>
+      <div className="mb-2">
+        <MemberVerificationQueue
+          canReview={canUpdate}
+          onOpenMember={(id) => {
+            const row = members.find((m) => m.id === id);
+            if (row) setSelectedMember(row);
+            else
+              void memberApi
+                .get(id)
+                .then(setSelectedMember)
+                .catch(() => undefined);
+          }}
+        />{" "}
+      </div>
 
       <AdminPageMain fillHeight>
         <DataTable

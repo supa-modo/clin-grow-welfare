@@ -64,13 +64,13 @@ export function StatCard({
           className="flex h-11 w-11 shrink-0 items-center justify-center"
           style={{ color: iconColor }}
         >
-          <Cmp size={36} className="h-9 w-9" />
+          <Cmp size={34} className="h-8 w-8" />
         </div>
       );
     }
     return (
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center text-[28px] leading-none"
+        className="flex h-10 w-10 shrink-0 items-center justify-center text-[26px] leading-none"
         style={{ color: iconColor }}
       >
         {IconProp}
@@ -83,7 +83,7 @@ export function StatCard({
       onClick={handleClick}
       role={clickable ? "button" : undefined}
       className={clsx(
-        "group relative overflow-hidden rounded-[1.2rem] border bg-white px-4 py-2.5 text-slate-900",
+        "group relative overflow-hidden rounded-[1.2rem] border bg-white px-4 py-2 text-slate-900",
         "shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition-all duration-200 ease-out hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)]",
         clickable ? "cursor-pointer" : "cursor-default",
         borderColor,
@@ -102,14 +102,14 @@ export function StatCard({
         {renderIcon()}
 
         <div className="min-w-0 flex-1">
-          <p className="mb-0.5 truncate text-sm font-medium text-gray-700">
+          <p className="mb-0.5 truncate text-[0.8rem] font-medium text-gray-700">
             {title ?? label}
           </p>
-          <p className="truncate font-google text-2xl font-extrabold leading-tight tracking-tight text-slate-900">
+          <p className="truncate font-google text-xl font-extrabold leading-tight tracking-tight text-slate-900">
             {value}
           </p>
           {effectiveSubtitle ? (
-            <p className={clsx("mt-0.5 truncate text-[0.8rem]", subtitleColor)}>
+            <p className={clsx("mt-0.5 truncate text-[0.75rem]", subtitleColor)}>
               {effectiveSubtitle}
             </p>
           ) : null}
