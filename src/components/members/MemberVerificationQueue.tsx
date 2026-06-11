@@ -163,12 +163,12 @@ export function MemberVerificationQueue({ canReview, onOpenMember }: Props) {
         {dependants.slice(0, 8).map((dep) => (
           <div
             key={dep.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2"
+            className="flex flex-wrap items-end gap-2 border-b border-amber-600/50 bg-white px-3 py-2"
           >
             <div>
-              <p className="font-semibold text-ink-900">{dep.fullName}</p>
+              <p className="font-semibold text-ink-900 text-[0.75rem] lg:text-[0.85rem]">{dep.fullName}</p>
               <p className="text-xs text-ink-500">
-                {dep.member.membershipNumber} · {dep.member.name} ·{" "}
+                {dep.member.membershipNumber} | {dep.member.name} ·{" "}
                 {dep.documents?.length
                   ? `${dep.documents.length} doc(s)`
                   : "no documents"}

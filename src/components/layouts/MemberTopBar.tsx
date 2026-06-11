@@ -19,6 +19,7 @@ import { TbUsers } from "react-icons/tb";
 import { PiUserDuotone } from "react-icons/pi";
 import { api } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
+import { MemberAvatar } from "@/components/member/MemberAvatar";
 import {
   availableWorkspaces,
   workspaceLabels,
@@ -53,16 +54,6 @@ const bottomNavItems: MemberNavItem[] = [
   { label: "Loans", href: "/member/loans", icon: FiFileText },
   { label: "Meetings", href: "/member/meetings", icon: TbUsers },
 ];
-
-function getInitials(name?: string) {
-  if (!name) return "CG";
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 function isHrefActive(pathname: string, item: MemberNavItem) {
   if (item.end) return pathname === item.href;
@@ -246,19 +237,15 @@ export function MemberTopBar() {
               <button
                 type="button"
                 onClick={() => {
-                  //should open the profile page
                   navigate("/member/profile");
                   setNotificationsOpen(false);
                   setProfileOpen(false);
                 }}
-                className="relative flex h-9 w-full px-3 gap-2 items-center justify-center rounded-[0.7rem] border border-gray-200/80 bg-white text-ink-700 transition hover:bg-ink-50 md:h-10 md:w-10 lg:rounded-xl lg:border-gray-300"
-                aria-label="Profile menu"
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-gray-200/80 bg-white text-ink-700 transition hover:bg-ink-50"
+                aria-label="Open profile"
                 aria-expanded={profileOpen}
               >
-                <PiUserDuotone className="h-4 w-4" />
-                <span className="max-w-28 truncate text-[0.82rem] font-bold text-gray-600">
-                  {user?.name?.split(" ")[0] ?? "Member"}
-                </span>
+                <MemberAvatar user={user} className="h-8 w-8 bg-primary-50" />
               </button>
             </div>
 
@@ -273,9 +260,7 @@ export function MemberTopBar() {
                 aria-label="Profile menu"
                 aria-expanded={profileOpen}
               >
-                <span className="grid h-8 w-8 place-items-center rounded-[0.6rem] bg-brand-600 text-xs font-bold text-white">
-                  {getInitials(user?.name)}
-                </span>
+                <MemberAvatar user={user} className="h-8 w-8 bg-primary-50" />
                 <span className="max-w-28 truncate text-[0.82rem] font-bold text-primary-800">
                   {user?.name?.split(" ")[0] ?? "Member"}
                 </span>
@@ -285,12 +270,17 @@ export function MemberTopBar() {
               {profileOpen ? (
                 <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.18)]">
                   <div className="border-b border-ink-100 px-4 py-3">
-                    <p className="truncate text-sm font-bold text-gray-900">
-                      {user?.name ?? "Member"}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-gray-500">
-                      {user?.email ?? user?.phone ?? "Member workspace"}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <MemberAvatar user={user} className="h-11 w-11 bg-primary-50" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-gray-900">
+                          {user?.name ?? "Member"}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                          {user?.email ?? user?.phone ?? "Member workspace"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <Link
                     to="/member/profile"

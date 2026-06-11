@@ -52,6 +52,7 @@ export type Member = {
   dateActive?: string | null;
   dateOfBirth?: string | null;
   staffStatus?: string | null;
+  profileImageUpdatedAt?: string | null;
   constitutionAcceptedAt?: string | null;
   constitutionAcceptedBy?: string | null;
   introducedByMemberId?: string | null;

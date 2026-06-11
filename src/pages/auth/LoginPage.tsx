@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FiArrowRight } from "react-icons/fi";
 import { TbMailFilled } from "react-icons/tb";
 import { PiPasswordDuotone, PiSignInDuotone } from "react-icons/pi";
 
@@ -12,18 +13,29 @@ import { useAuthStore } from "@/store/auth";
 import { Button } from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Checkbox from "@/components/ui/Checkbox";
+import { RadioGroup, type RadioOption } from "@/components/ui/Radio";
 import {
   AuthPageShell,
   AuthErrorBanner,
   AuthLogoHeader,
 } from "@/components/auth/AuthPageShell";
 import { defaultAuthHighlights } from "@/components/auth/authHighlights";
-import { defaultRouteForUser, type AuthUser } from "@/lib/workspaces";
+import {
+  canAccessWorkspace,
+  defaultRouteForUser,
+  routeForWorkspace,
+  workspaceLabels,
+  type AuthUser,
+  type WorkspaceKey,
+} from "@/lib/workspaces";
 
 const rememberedIdentifier =
   localStorage.getItem("clingrow.rememberedIdentifier") ?? "";
 const shouldRememberIdentifier =
   localStorage.getItem("clingrow.rememberIdentifier") === "true";
+const rememberedWorkspace =
+  (localStorage.getItem("clingrow.intendedWorkspace") as WorkspaceKey | null) ??
+  "member";
 
 function prefilledLoginIdentifier(searchParams: URLSearchParams) {
   const fromQuery =
@@ -39,6 +51,12 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const workspaceOptions: ReadonlyArray<RadioOption<WorkspaceKey>> = [
+  { value: "member", label: "Member Portal" },
+  { value: "officials", label: "Officials Portal" },
+  // { value: "admin", label: "Admin Portal" },
+];
+
 function apiErrorMessage(error: unknown) {
   if (typeof error === "object" && error && "response" in error) {
     const response = (
@@ -53,12 +71,19 @@ function apiErrorMessage(error: unknown) {
   return "Login failed. Please try again or contact support";
 }
 
+function preferredWorkspaceForUser(user: AuthUser): WorkspaceKey {
+  // if (canAccessWorkspace(user, "admin")) return "admin";
+  if (canAccessWorkspace(user, "officials")) return "officials";
+  return "member";
+}
+
 export function LoginPage() {
   const [apiError, setApiError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberIdentifier, setRememberIdentifier] = useState(
     shouldRememberIdentifier,
   );
+  const [workspace, setWorkspace] = useState<WorkspaceKey>(rememberedWorkspace);
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const status = useAuthStore((s) => s.status);
@@ -105,9 +130,24 @@ export function LoginPage() {
         localStorage.removeItem("clingrow.rememberedIdentifier");
       }
 
-      localStorage.removeItem("clingrow.intendedWorkspace");
+      const workspaceAllowed = canAccessWorkspace(signedInUser, workspace);
+      const fallbackDestination = defaultRouteForUser(signedInUser);
+      const destination = workspaceAllowed
+        ? routeForWorkspace(signedInUser, workspace)
+        : fallbackDestination;
+
+      localStorage.setItem(
+        "clingrow.intendedWorkspace",
+        workspaceAllowed ? workspace : preferredWorkspaceForUser(signedInUser),
+      );
+
       setAuth(data.token, signedInUser);
-      navigate(defaultRouteForUser(signedInUser), { replace: true });
+      navigate(
+        destination && destination !== "/login"
+          ? destination
+          : fallbackDestination,
+        { replace: true },
+      );
     } catch (error) {
       setApiError(apiErrorMessage(error));
     }
@@ -134,7 +174,19 @@ export function LoginPage() {
         <AuthErrorBanner message="Your session has expired. Please sign in again." />
       ) : null}
 
-      <form onSubmit={submit} className="pt-2 flex flex-col gap-2" noValidate>
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-1 lg:px-4">
+        <RadioGroup<WorkspaceKey>
+          name="workspace"
+          value={workspace}
+          onChange={setWorkspace}
+          options={workspaceOptions}
+          ariaLabel="Sign in workspace"
+          size="md"
+          variant="white"
+        />
+      </div>
+
+      <form onSubmit={submit} className="pt-4 flex flex-col gap-2" noValidate>
         <div className="flex flex-col gap-4 px-1 lg:px-4">
           <Input
             label="Email or phone"
@@ -202,8 +254,15 @@ export function LoginPage() {
           data-testid="login-submit"
         >
           <div className="flex items-center font-google text-[0.7rem] md:text-[0.78rem] lg:text-[0.82rem] justify-center gap-2">
-            <PiSignInDuotone className="w-[1.1rem] h-[1.1rem] lg:w-5 lg:h-5" />
-            <span>Sign in to your account</span>
+            {isSubmitting ? (
+              <PiSignInDuotone className="w-[1.1rem] h-[1.1rem] lg:w-5 lg:h-5" />
+            ) : (
+              <>
+                <PiSignInDuotone className="w-[1.1rem] h-[1.1rem] lg:w-5 lg:h-5" />
+                <span>Sign in to {workspaceLabels[workspace]}</span>
+                <FiArrowRight className="h-4 w-4" aria-hidden="true" />
+              </>
+            )}
           </div>
         </Button>
 

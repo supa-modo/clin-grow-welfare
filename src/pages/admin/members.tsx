@@ -743,7 +743,7 @@ export function MembersPage() {
       </AdminPageStatsGrid>
 
       {error ? (
-        <div className="mb-3 shrink-0 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        <div className="mb-3 shrink-0 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[0.8rem] lg:text-[0.85rem] font-semibold text-red-700">
           {error}
         </div>
       ) : null}

@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const apiProxyTarget = (
     env.VITE_API_PROXY_TARGET
     ?? env.VITE_API_URL?.replace(/\/api\/?$/, '')
-    ?? 'http://localhost:5000'
+    ?? 'http://localhost:4000'
   ).replace(/\/$/, '');
 
   return {
@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/zod') || id.includes('node_modules/@hookform')) return 'forms';
             if (id.includes('node_modules/recharts')) return 'charts';
             if (id.includes('node_modules/framer-motion')) return 'motion';
+            if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs';
             return undefined;
           },
         },

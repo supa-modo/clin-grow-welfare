@@ -130,6 +130,12 @@ export const memberPortalApi = {
     const { data } = await api.patch('/member-portal/profile', values);
     return data.member as Member;
   },
+  async uploadAvatar(file: File) {
+    const form = new FormData();
+    form.append('avatar', file);
+    const { data } = await api.post('/member-portal/profile/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return data.member as Member;
+  },
   async beneficiaries() {
     const { data } = await api.get('/member-portal/beneficiaries');
     return data.beneficiaries;

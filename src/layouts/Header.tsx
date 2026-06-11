@@ -8,6 +8,7 @@ import {
   workspaceRoutes,
   type WorkspaceKey,
 } from "@/lib/workspaces";
+import { MemberAvatar } from "@/components/member/MemberAvatar";
 import { api } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
@@ -15,16 +16,6 @@ import {
   PortalNotificationMenu,
   type PortalNotificationItem,
 } from "@/components/notifications/PortalNotificationMenu";
-
-function getInitials(name?: string) {
-  if (!name) return "CG";
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 type HeaderProps = {
   workspaceLabel?: string;
@@ -157,9 +148,7 @@ export function Header({ workspaceLabel, roleLabel }: HeaderProps) {
             aria-haspopup="menu"
             aria-expanded={profileOpen}
           >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-800">
-              {getInitials(user?.name)}
-            </span>
+            <MemberAvatar user={user} className="h-8 w-8 bg-brand-50" />
             <span className="hidden min-w-0 sm:block">
               <span className="block max-w-40 truncate text-xs font-bold text-gray-900">
                 {user?.name ?? "User"}
@@ -177,12 +166,17 @@ export function Header({ workspaceLabel, roleLabel }: HeaderProps) {
               className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg"
             >
               <div className="border-b border-gray-100 px-4 py-3">
-                <p className="text-sm font-bold text-gray-900">
-                  {user?.name ?? "User"}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-gray-500">
-                  {user?.email ?? user?.phone ?? "Authenticated session"}
-                </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <MemberAvatar user={user} className="h-10 w-10 bg-brand-50" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-gray-900">
+                      {user?.name ?? "User"}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                      {user?.email ?? user?.phone ?? "Authenticated session"}
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="px-2 py-2">
                 {workspaces.map((workspace) => {

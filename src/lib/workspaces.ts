@@ -10,6 +10,7 @@ export type AuthUser = {
   phone?: string | null;
   memberConstitutionAccepted?: boolean;
   memberConstitutionAcceptedAt?: string | null;
+  memberProfileImageUpdatedAt?: string | null;
 };
 
 export const officialRoles = [
@@ -59,6 +60,14 @@ export function defaultRouteForUser(user: AuthUser | null) {
   if (isSystemAdmin(user)) return '/dashboard';
   if (isOfficial(user)) return '/officials';
   return '/forbidden';
+}
+
+export function routeForWorkspace(user: AuthUser | null, workspace: WorkspaceKey) {
+  if (workspace === 'member') {
+    if (user?.memberId && !user.memberConstitutionAccepted) return '/member/constitution';
+    return workspaceRoutes.member;
+  }
+  return workspaceRoutes[workspace];
 }
 
 const roleDisplayNames: Record<string, string> = {

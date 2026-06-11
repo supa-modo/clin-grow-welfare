@@ -8,7 +8,28 @@ export function clearStoredSession() {
   localStorage.removeItem(USER_KEY);
 }
 
-export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' });
+function resolveApiBaseUrl() {
+  const configured = import.meta.env.VITE_API_URL?.trim();
+  // In local dev, use the Vite `/api` proxy to stay same-origin and avoid CORS
+  // or download-manager extensions intercepting PDF arraybuffer requests.
+  if (import.meta.env.DEV && import.meta.env.VITE_API_DIRECT !== 'true') {
+    return '/api';
+  }
+  return configured || '/api';
+}
+
+const apiBaseUrl = resolveApiBaseUrl();
+
+export const api = axios.create({ baseURL: apiBaseUrl });
+
+/** Resolve a path against the configured API base (works in production when VITE_API_URL is absolute). */
+export function apiUrl(path: string) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (/^https?:\/\//i.test(apiBaseUrl)) {
+    return `${apiBaseUrl.replace(/\/$/, '')}${normalizedPath}`;
+  }
+  return `${apiBaseUrl.replace(/\/$/, '')}${normalizedPath}`;
+}
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
