@@ -72,14 +72,13 @@ export function NotificationsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col justify-between gap-3 rounded-2xl border border-ink-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+      <div className="flex flex-col justify-between gap-3 py-3  lg:flex-row lg:items-center">
         <div>
-          <p className="text-sm font-extrabold uppercase tracking-wide text-brand-700">Notifications</p>
-          <h1 className="text-2xl font-black text-ink-950">Notification center</h1>
+          <h1 className="text-lg lg:text-xl font-black text-ink-950">Notification center</h1>
           <p className="text-sm text-ink-500">Meeting, finance, approval, voucher, audit, and year-end updates scoped to your account.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={markAllRead} data-testid="notifications-mark-all-read">
+          <Button className="w-full lg:w-auto" size="sm" variant="secondary" onClick={markAllRead} data-testid="notifications-mark-all-read">
             <FiCheckCircle className="h-4 w-4" /> Mark all read
           </Button>
         </div>

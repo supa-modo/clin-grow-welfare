@@ -14,6 +14,7 @@ import { NotificationModal } from '@/components/ui/NotificationModal';
 import StatCard from '@/components/ui/StatCard';
 import { loanApi } from '@/services/loanApi';
 import type { Loan, LoanStatus } from '@/types/loan';
+import { formatLoanDate, loanDueDate } from '@/lib/loanDates';
 
 function money(n: number | string | undefined) { return `KES ${Number(n ?? 0).toLocaleString()}`; }
 
@@ -203,7 +204,23 @@ export function LoansPage() {
     },
     { key: 'rate', header: 'Rate', render: (l) => `${l.interestRate}% pm` },
     { key: 'status', header: 'Status', render: (l) => <Badge tone={STATUS_TONE[l.status] ?? 'neutral'}>{l.status.replace(/_/g, ' ')}</Badge> },
-    { key: 'date', header: 'Applied', render: (l) => new Date(l.applicationDate).toLocaleDateString() },
+    {
+      key: 'date',
+      header: 'Applied',
+      render: (l) => {
+        const dueDate = loanDueDate(l);
+        return (
+          <div className="min-w-0 leading-tight">
+            <p className="font-semibold text-ink-800">{formatLoanDate(l.applicationDate)}</p>
+            {dueDate ? (
+              <p className="mt-1 text-[0.72rem] font-semibold text-amber-700">
+                Due: {formatLoanDate(dueDate)}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
+    },
     {
       key: 'actions', header: '', render: (l) => (
         <div className="flex items-center gap-1 flex-wrap">

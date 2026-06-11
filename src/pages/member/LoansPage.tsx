@@ -23,6 +23,7 @@ import { loanApi } from "@/services/loanApi";
 import { useUiStore } from "@/store/uiStore";
 import type { Loan, LoanEligibility, LoanStatement } from "@/types/loan";
 import { TbChevronRight } from "react-icons/tb";
+import { formatLoanDate, loanDueDate } from "@/lib/loanDates";
 
 const STATUS_TONE: Record<
   string,
@@ -194,7 +195,21 @@ export function MemberLoansPage() {
     {
       key: "date",
       header: "Applied",
-      render: (l) => new Date(l.applicationDate).toLocaleDateString(),
+      render: (l) => {
+        const dueDate = loanDueDate(l);
+        return (
+          <div className="leading-tight">
+            <p className="font-semibold text-ink-800">
+              {formatLoanDate(l.applicationDate)}
+            </p>
+            {dueDate ? (
+              <p className="mt-1 text-[0.72rem] font-semibold text-amber-700">
+                Due: {formatLoanDate(dueDate)}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: "actions",
@@ -287,6 +302,7 @@ export function MemberLoansPage() {
       progress: repaymentProgress(repaid, totalDue),
     };
   }, [activeLoan, activeStatement]);
+  const activeLoanDueDate = activeLoan ? loanDueDate(activeLoan) : undefined;
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
@@ -320,14 +336,12 @@ export function MemberLoansPage() {
           progress={activeLoanSummary.progress}
           repaid={money(activeLoanSummary.repaid)}
           totalDue={money(activeLoanSummary.totalDue)}
-          dueDateLabel={
-            activeLoan.nextInterestDate ? "Repayment due" : undefined
-          }
-          dueDateValue={activeLoan.nextInterestDate}
+          dueDateLabel={activeLoanDueDate ? "Loan due" : undefined}
+          dueDateValue={activeLoanDueDate}
           scheduleHint={
             activeLoan.status === "IN_ROLLOVER"
               ? "Monthly compound interest continues on the outstanding balance."
-              : activeLoan.nextInterestDate
+              : activeLoanDueDate
                 ? "Repay in full before the next interest date to avoid additional charges."
                 : undefined
           }
@@ -396,8 +410,13 @@ export function MemberLoansPage() {
                     </p>
                     <p className="mt-1 text-xs text-ink-500">
                       {l.interestRate}% pm ·{" "}
-                      {new Date(l.applicationDate).toLocaleDateString()}
+                      Applied {formatLoanDate(l.applicationDate)}
                     </p>
+                    {loanDueDate(l) ? (
+                      <p className="mt-1 text-xs font-bold text-amber-700">
+                        Due: {formatLoanDate(loanDueDate(l))}
+                      </p>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -512,6 +531,12 @@ export function MemberLoansPage() {
                 <span className="font-semibold text-slate-600">Applied:</span>{" "}
                 {money(showDetail.loan.requestedAmount)}
               </div>
+              {loanDueDate(showDetail.loan) ? (
+                <div>
+                  <span className="font-semibold text-slate-600">Due:</span>{" "}
+                  {formatLoanDate(loanDueDate(showDetail.loan))}
+                </div>
+              ) : null}
               {showDetail.loan.approvedAmount ? (
                 <div>
                   <span className="font-semibold text-slate-600">
