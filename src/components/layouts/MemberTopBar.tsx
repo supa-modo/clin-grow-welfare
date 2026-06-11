@@ -241,11 +241,11 @@ export function MemberTopBar() {
                   setNotificationsOpen(false);
                   setProfileOpen(false);
                 }}
-                className="relative grid h-10 w-10 place-items-center rounded-full border border-gray-200/80 bg-white text-ink-700 transition hover:bg-ink-50"
+                className="relative grid h-10 w-10 place-items-center rounded-full text-ink-700 transition"
                 aria-label="Open profile"
                 aria-expanded={profileOpen}
               >
-                <MemberAvatar user={user} className="h-8 w-8 bg-primary-50" />
+                <MemberAvatar user={user} className="h-10 w-10 bg-primary-50" />
               </button>
             </div>
 

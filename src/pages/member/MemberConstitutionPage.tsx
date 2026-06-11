@@ -216,7 +216,7 @@ export function MemberConstitutionPage() {
           </div>
         </div>
         {loading ? (
-          <div className="grid min-h-[28rem] place-items-center">
+          <div className="grid min-h-112 place-items-center">
             <div className="flex items-center gap-3 text-[0.8rem] lg:text-sm text-gray-500">
               <Spinner /> Loading constitution...
             </div>

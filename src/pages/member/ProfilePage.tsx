@@ -12,7 +12,7 @@ import {
   FiUser,
   FiUsers,
 } from "react-icons/fi";
-import { PiUserDuotone } from "react-icons/pi";
+import { PiUserDuotone, PiUsersDuotone } from "react-icons/pi";
 import { api } from "@/services/api";
 import {
   memberPortalApi,
@@ -33,6 +33,8 @@ import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
 import type { Member } from "@/types/member";
 import type { AuthUser } from "@/lib/workspaces";
+import { TbCameraPlus, TbMailFilled, TbPhoneCall } from "react-icons/tb";
+import { MdOutlineFamilyRestroom } from "react-icons/md";
 
 type ProfileTab = "personal" | "family" | "documents";
 
@@ -107,12 +109,17 @@ function SectionBand({
   return (
     <section className="border-t border-slate-200 py-5 first:border-t-0 first:pt-0">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-base font-extrabold text-slate-950">{title}</h2>
+        <div className="min-w-0 flex items-center gap-3">
+          <h2 className="text-[0.9rem] lg:text-base font-extrabold text-gray-700">
+            {title}
+          </h2>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              {description}
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-px bg-slate-400" />
+              <p className="mt-1 max-w-2xl text-[0.83rem] lg:text-sm text-slate-500">
+                {description}
+              </p>
+            </div>
           ) : null}
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
@@ -171,8 +178,9 @@ export function MemberProfilePage() {
     newPassword: "",
   });
   const [savingPassword, setSavingPassword] = useState(false);
-  const [registrationFeeAmount, setRegistrationFeeAmount] =
-    useState<number | null>(null);
+  const [registrationFeeAmount, setRegistrationFeeAmount] = useState<
+    number | null
+  >(null);
   const [pendingBeneficiary, setPendingBeneficiary] =
     useState<BeneficiaryChangeRequest | null>(null);
   const [beneficiaryForm, setBeneficiaryForm] = useState({
@@ -248,21 +256,29 @@ export function MemberProfilePage() {
       .then(setPendingBeneficiary)
       .catch(() => setPendingBeneficiary(null));
     void api
-      .get<{ documents: Array<{ id: string; fileName: string; createdAt: string }> }>(
-        "/member-portal/documents",
-      )
+      .get<{
+        documents: Array<{ id: string; fileName: string; createdAt: string }>;
+      }>("/member-portal/documents")
       .then((res) => setPortalDocuments(res.data.documents ?? []))
       .catch(() => setPortalDocuments([]));
   }, [member?.id]);
 
   const tabs = useMemo<readonly SegmentedTab<ProfileTab>[]>(
     () => [
-      { value: "personal", label: "Profile", icon: <FiUser /> },
-      { value: "family", label: "Family", icon: <FiUsers /> },
+      {
+        value: "personal",
+        label: "Profile",
+        icon: <PiUserDuotone className="h-5 w-5" />,
+      },
+      {
+        value: "family",
+        label: "Family",
+        icon: <MdOutlineFamilyRestroom className="h-5 w-5" />,
+      },
       {
         value: "documents",
         label: "Documents",
-        icon: <FiFileText />,
+        icon: <FiFileText className="h-5 w-5" />,
         count: portalDocuments.length || undefined,
       },
     ],
@@ -281,7 +297,10 @@ export function MemberProfilePage() {
       setEditingContact(false);
       toastSuccess("Contact updated", "Your contact details were saved.");
     } catch (e: unknown) {
-      toastError("Update failed", apiErrorMessage(e, "Could not update contact details."));
+      toastError(
+        "Update failed",
+        apiErrorMessage(e, "Could not update contact details."),
+      );
     } finally {
       setSavingContact(false);
     }
@@ -300,7 +319,10 @@ export function MemberProfilePage() {
       syncAuthMember(updated);
       toastSuccess("Photo updated", "Your profile image has been changed.");
     } catch (e: unknown) {
-      toastError("Upload failed", apiErrorMessage(e, "Could not update your profile image."));
+      toastError(
+        "Upload failed",
+        apiErrorMessage(e, "Could not update your profile image."),
+      );
     } finally {
       setSavingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -319,9 +341,15 @@ export function MemberProfilePage() {
     try {
       await api.post("/auth/change-password", passwordForm);
       setPasswordForm({ currentPassword: "", newPassword: "" });
-      toastSuccess("Password changed", "Use your new password next time you sign in.");
+      toastSuccess(
+        "Password changed",
+        "Use your new password next time you sign in.",
+      );
     } catch (e: unknown) {
-      toastError("Password change failed", apiErrorMessage(e, "Could not change password."));
+      toastError(
+        "Password change failed",
+        apiErrorMessage(e, "Could not change password."),
+      );
     } finally {
       setSavingPassword(false);
     }
@@ -332,12 +360,16 @@ export function MemberProfilePage() {
       !beneficiaryForm.proposedName.trim() ||
       !beneficiaryForm.proposedRelationship.trim()
     ) {
-      toastError("Details required", "Enter beneficiary name and relationship.");
+      toastError(
+        "Details required",
+        "Enter beneficiary name and relationship.",
+      );
       return;
     }
     setSavingBeneficiary(true);
     try {
-      const res = await memberPortalApi.submitBeneficiaryChange(beneficiaryForm);
+      const res =
+        await memberPortalApi.submitBeneficiaryChange(beneficiaryForm);
       setPendingBeneficiary(res.request);
       setEditingBeneficiary(false);
       toastSuccess("Submitted for review", res.message);
@@ -377,10 +409,10 @@ export function MemberProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <div className="grid gap-6 border-b border-slate-200 bg-[#f8fafc] px-4 py-5 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
-          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="relative h-24 w-24 shrink-0">
+      <section className="overflow-hidden md:rounded-3xl md:border md:border-slate-200 md:bg-white">
+        <div className="w-full items-center text-center lg:text-left grid gap-3 md:gap-4 lg:gap-6 border-b border-gray-300 bg-[#f8fafc] px-4 py-5 md:px-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
+          <div className="flex min-w-0 flex-col gap-4 md:flex-row items-center md:items-end">
+            <div className=" relative h-24 w-24 shrink-0">
               <MemberAvatar
                 user={avatarUser}
                 name={member.name}
@@ -395,9 +427,9 @@ export function MemberProfilePage() {
                 aria-label="Change profile photo"
               >
                 {savingAvatar ? (
-                  <Spinner size="sm" />
+                  <Spinner variant="white" size="sm" />
                 ) : (
-                  <FiUploadCloud className="h-4 w-4" />
+                  <TbCameraPlus className="h-4 w-4" />
                 )}
               </button>
               <input
@@ -410,72 +442,103 @@ export function MemberProfilePage() {
             </div>
 
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={member.status === "ACTIVE" ? "success" : "warning"}>
-                  {member.status.replace(/_/g, " ")}
-                </Badge>
-                <Badge tone={member.registrationFeePaid ? "success" : "warning"}>
-                  Registration {member.registrationFeePaid ? "paid" : "pending"}
-                </Badge>
-              </div>
-              <h1 className="mt-3 wrap-break-word text-2xl font-extrabold text-slate-950 md:text-3xl">
+              <h1 className="mt-2 wrap-break-word text-xl font-extrabold text-gray-700 md:text-2xl">
                 {member.name}
               </h1>
               <p className="mt-1 text-sm font-semibold text-slate-500">
-                {member.membershipNumber} / Joined {formatDate(member.dateJoined)}
+                {member.membershipNumber} / Joined{" "}
+                {formatDate(member.dateJoined)}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-2 text-sm text-slate-600 lg:min-w-64 lg:text-right">
-            <p className="font-bold text-slate-950">{standing}</p>
+          <div className="w-full grid gap-1 lg:gap-2 text-sm text-slate-600 lg:min-w-64 lg:text-right">
             <p>Approved {formatDate(member.approvedAt)}</p>
             <p>{member.email ?? member.phone ?? "Member workspace"}</p>
+            <Button
+              variant="red"
+              size="sm"
+              className="w-full lg:w-auto text-[0.8rem] lg:text-sm"
+              onClick={() => {
+                logout();
+                window.location.href = "/login";
+              }}
+            >
+              <FiLogOut className="h-4 w-4" />
+              Sign out
+            </Button>
           </div>
         </div>
 
-        <div className="px-4 pt-4 sm:px-6 lg:px-8">
+        <div className="px-2 sm:px-3 pt-4 md:px-6 lg:px-8">
           <SegmentedTabs
+            compact
             variant="line"
             tabs={tabs}
             value={tab}
             onChange={(next) => {
-              setSearchParams(next === "personal" ? {} : { tab: next }, { replace: true });
+              setSearchParams(next === "personal" ? {} : { tab: next }, {
+                replace: true,
+              });
             }}
             aria-label="Profile sections"
           />
         </div>
 
-        <div className="px-4 py-5 sm:px-6 lg:px-8">
+        <div className="px-2 sm:px-3 py-5 md:px-6 lg:px-8">
           {tab === "personal" ? (
             <div className="grid gap-6">
               <SectionBand
                 title="Identity"
-                description="Membership details kept on the welfare register."
+                description="Your personal membership details."
               >
                 <div className="grid gap-x-8 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-y-0">
-                  <DetailLine label="Full name" value={member.name} icon={<FiUser />} />
-                  <DetailLine label="ID / Passport" value={member.idNumber} icon={<FiShield />} />
-                  <DetailLine label="Member number" value={member.membershipNumber} />
-                  <DetailLine label="Registration fee" value={
-                    <span className="inline-flex flex-wrap items-center gap-2">
-                      {registrationFeeAmount ? (
-                        <span>KES {registrationFeeAmount.toLocaleString()}</span>
-                      ) : null}
-                      <Badge tone={member.registrationFeePaid ? "success" : "warning"}>
-                        {member.registrationFeePaid ? "Paid" : "Pending"}
-                      </Badge>
-                    </span>
-                  } />
+                  <DetailLine
+                    label="Full name"
+                    value={member.name}
+                    icon={<FiUser />}
+                  />
+                  <DetailLine
+                    label="ID / Passport"
+                    value={member.idNumber}
+                    icon={<FiShield />}
+                  />
+                  <DetailLine
+                    label="Member number"
+                    value={member.membershipNumber}
+                  />
+                  <DetailLine
+                    label="Registration fee"
+                    value={
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        {registrationFeeAmount ? (
+                          <span>
+                            KES {registrationFeeAmount.toLocaleString()}
+                          </span>
+                        ) : null}
+                        <Badge
+                          tone={
+                            member.registrationFeePaid ? "success" : "warning"
+                          }
+                        >
+                          {member.registrationFeePaid ? "Paid" : "Pending"}
+                        </Badge>
+                      </span>
+                    }
+                  />
                 </div>
               </SectionBand>
 
               <SectionBand
                 title="Contact"
-                description="Your current phone and email for welfare communication."
+                description="Your registered phone and email address."
                 action={
                   !editingContact ? (
-                    <Button size="sm" variant="secondary" onClick={() => setEditingContact(true)}>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => setEditingContact(true)}
+                    >
                       Edit contact
                     </Button>
                   ) : null
@@ -488,7 +551,10 @@ export function MemberProfilePage() {
                         label="Phone"
                         value={contactForm.phone}
                         onChange={(e) =>
-                          setContactForm((f) => ({ ...f, phone: e.target.value }))
+                          setContactForm((f) => ({
+                            ...f,
+                            phone: e.target.value,
+                          }))
                         }
                       />
                       <Input
@@ -496,12 +562,16 @@ export function MemberProfilePage() {
                         type="email"
                         value={contactForm.email}
                         onChange={(e) =>
-                          setContactForm((f) => ({ ...f, email: e.target.value }))
+                          setContactForm((f) => ({
+                            ...f,
+                            email: e.target.value,
+                          }))
                         }
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button
+                        size="sm"
                         onClick={() => void saveContact()}
                         isLoading={savingContact}
                         loadingText="Saving..."
@@ -510,6 +580,7 @@ export function MemberProfilePage() {
                       </Button>
                       <Button
                         variant="secondary"
+                        size="sm"
                         onClick={() => {
                           setEditingContact(false);
                           setContactForm({
@@ -524,20 +595,34 @@ export function MemberProfilePage() {
                   </div>
                 ) : (
                   <div className="grid gap-x-8 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-y-0">
-                    <DetailLine label="Phone" value={member.phone} icon={<FiPhone />} />
-                    <DetailLine label="Email" value={member.email} icon={<FiMail />} />
+                    <DetailLine
+                      label="Phone"
+                      value={member.phone}
+                      icon={<TbPhoneCall className="h-5 w-5" />}
+                    />
+                    <DetailLine
+                      label="Email"
+                      value={member.email}
+                      icon={<TbMailFilled className="h-5 w-5" />}
+                    />
                   </div>
                 )}
               </SectionBand>
 
-              <SectionBand title="Security" description="Account access for this portal.">
+              <SectionBand
+                title="Security"
+                description="Account access for this portal."
+              >
                 <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
                   <Input
                     label="Current password"
                     type="password"
                     value={passwordForm.currentPassword}
                     onChange={(e) =>
-                      setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))
+                      setPasswordForm((f) => ({
+                        ...f,
+                        currentPassword: e.target.value,
+                      }))
                     }
                   />
                   <Input
@@ -545,7 +630,10 @@ export function MemberProfilePage() {
                     type="password"
                     value={passwordForm.newPassword}
                     onChange={(e) =>
-                      setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))
+                      setPasswordForm((f) => ({
+                        ...f,
+                        newPassword: e.target.value,
+                      }))
                     }
                   />
                   <Button
@@ -558,17 +646,6 @@ export function MemberProfilePage() {
                     Change password
                   </Button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    logout();
-                    window.location.href = "/login";
-                  }}
-                  className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-red-700 transition hover:text-red-600"
-                >
-                  <FiLogOut className="h-4 w-4" />
-                  Sign out
-                </button>
               </SectionBand>
             </div>
           ) : null}
@@ -580,7 +657,11 @@ export function MemberProfilePage() {
                 description="Any change is sent to officials for verification."
                 action={
                   !pendingBeneficiary && !editingBeneficiary ? (
-                    <Button size="sm" variant="secondary" onClick={() => setEditingBeneficiary(true)}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setEditingBeneficiary(true)}
+                    >
                       Request change
                     </Button>
                   ) : null
@@ -592,9 +673,20 @@ export function MemberProfilePage() {
                       Pending official verification
                     </p>
                     <div className="mt-3 grid gap-x-8 divide-y divide-amber-200 sm:grid-cols-2 sm:divide-y-0">
-                      <DetailLine label="Proposed name" value={pendingBeneficiary.proposedName} icon={<FiHeart />} />
-                      <DetailLine label="Relationship" value={pendingBeneficiary.proposedRelationship} />
-                      <DetailLine label="Phone" value={pendingBeneficiary.proposedPhone} icon={<FiPhone />} />
+                      <DetailLine
+                        label="Proposed name"
+                        value={pendingBeneficiary.proposedName}
+                        icon={<FiHeart />}
+                      />
+                      <DetailLine
+                        label="Relationship"
+                        value={pendingBeneficiary.proposedRelationship}
+                      />
+                      <DetailLine
+                        label="Phone"
+                        value={pendingBeneficiary.proposedPhone}
+                        icon={<FiPhone />}
+                      />
                     </div>
                   </div>
                 ) : null}
@@ -606,7 +698,10 @@ export function MemberProfilePage() {
                         label="Name"
                         value={beneficiaryForm.proposedName}
                         onChange={(e) =>
-                          setBeneficiaryForm((f) => ({ ...f, proposedName: e.target.value }))
+                          setBeneficiaryForm((f) => ({
+                            ...f,
+                            proposedName: e.target.value,
+                          }))
                         }
                       />
                       <Input
@@ -623,14 +718,20 @@ export function MemberProfilePage() {
                         label="Phone"
                         value={beneficiaryForm.proposedPhone}
                         onChange={(e) =>
-                          setBeneficiaryForm((f) => ({ ...f, proposedPhone: e.target.value }))
+                          setBeneficiaryForm((f) => ({
+                            ...f,
+                            proposedPhone: e.target.value,
+                          }))
                         }
                       />
                       <Input
                         label="ID number (optional)"
                         value={beneficiaryForm.proposedIdNumber}
                         onChange={(e) =>
-                          setBeneficiaryForm((f) => ({ ...f, proposedIdNumber: e.target.value }))
+                          setBeneficiaryForm((f) => ({
+                            ...f,
+                            proposedIdNumber: e.target.value,
+                          }))
                         }
                       />
                     </div>
@@ -638,7 +739,10 @@ export function MemberProfilePage() {
                       label="Note for officials"
                       value={beneficiaryForm.note}
                       onChange={(e) =>
-                        setBeneficiaryForm((f) => ({ ...f, note: e.target.value }))
+                        setBeneficiaryForm((f) => ({
+                          ...f,
+                          note: e.target.value,
+                        }))
                       }
                     />
                     <div className="flex flex-wrap gap-2">
@@ -649,17 +753,34 @@ export function MemberProfilePage() {
                       >
                         Submit for verification
                       </Button>
-                      <Button variant="secondary" onClick={() => setEditingBeneficiary(false)}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setEditingBeneficiary(false)}
+                      >
                         Cancel
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <div className="grid gap-x-8 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-y-0">
-                    <DetailLine label="Name" value={member.beneficiaryName} icon={<FiHeart />} />
-                    <DetailLine label="Relationship" value={member.beneficiaryRelationship} />
-                    <DetailLine label="Phone" value={member.beneficiaryPhone} icon={<FiPhone />} />
-                    <DetailLine label="Allocation" value="100% primary allocation" />
+                    <DetailLine
+                      label="Name"
+                      value={member.beneficiaryName}
+                      icon={<FiHeart />}
+                    />
+                    <DetailLine
+                      label="Relationship"
+                      value={member.beneficiaryRelationship}
+                    />
+                    <DetailLine
+                      label="Phone"
+                      value={member.beneficiaryPhone}
+                      icon={<FiPhone />}
+                    />
+                    <DetailLine
+                      label="Allocation"
+                      value="100% primary allocation"
+                    />
                   </div>
                 )}
               </SectionBand>
