@@ -55,7 +55,7 @@ export function MemberAvatar({
   return (
     <span
       className={clsx(
-        "grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-primary-600 bg-white text-primary-700 shadow-sm",
+        "grid shrink-0 place-items-center overflow-hidden rounded-full border border-primary-600 bg-white text-primary-700 shadow-sm",
         className,
       )}
       aria-label={name || user?.name || "Member"}

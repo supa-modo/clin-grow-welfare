@@ -202,7 +202,7 @@ export function ConstitutionPdfViewer({
     return (
       <div
         ref={containerRef}
-        className="h-[75vh] min-h-[28rem] overflow-hidden bg-white"
+        className="h-[75vh] min-h-112 overflow-hidden bg-white"
       >
         <iframe
           title={documentName}
@@ -216,7 +216,7 @@ export function ConstitutionPdfViewer({
   return (
     <div
       ref={containerRef}
-      className="relative h-[75vh] min-h-[28rem] overflow-y-auto bg-slate-100 p-4"
+      className="relative h-[75vh] min-h-112 overflow-y-auto bg-slate-100 p-4"
     >
       {loading ? (
         <div className="pointer-events-none absolute inset-x-0 top-4 z-10 mx-auto flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-extrabold text-ink-700 shadow-sm">

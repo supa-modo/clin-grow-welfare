@@ -84,9 +84,9 @@ export function SegmentedTabs<T extends string>({
     const content = (
       <span className="inline-flex max-w-full min-w-0 items-center justify-center gap-2">
         {tab.icon ? (
-          <span className="shrink-0 [&>svg]:h-5 [&>svg]:w-5">{tab.icon}</span>
+          <span className="shrink-0 [&>svg]:h-4 [&>svg]:w-4">{tab.icon}</span>
         ) : null}
-        <span className="truncate">{tab.label}</span>
+        <span className="truncate text-xs md:text-sm">{tab.label}</span>
         {countBadge}
       </span>
     );

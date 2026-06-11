@@ -79,15 +79,15 @@ function DetailLine({
   icon?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[1.75rem_1fr] gap-3 py-3">
+    <div className="grid grid-cols-[1.75rem_1fr] items-center gap-3 py-3">
       <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-        {icon ?? <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
       </span>
-      <div className="min-w-0">
-        <p className="text-[0.68rem] font-bold uppercase text-slate-500">
+      <div className="min-w-0 flex flex-row lg:flex-col gap-1">
+        <p className="text-[0.8rem] lg:text-[0.85rem] text-slate-500">
           {label}
         </p>
-        <div className="mt-0.5 wrap-break-word text-sm font-semibold text-slate-950">
+        <div className="wrap-break-word text-sm font-semibold text-slate-950">
           {value ?? "-"}
         </div>
       </div>
@@ -110,13 +110,13 @@ function SectionBand({
     <section className="border-t border-slate-200 py-5 first:border-t-0 first:pt-0">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex items-center gap-3">
-          <h2 className="text-[0.9rem] lg:text-base font-extrabold text-gray-700">
+          <h2 className="text-[0.85rem] lg:text-[0.9rem] font-extrabold text-gray-700">
             {title}
           </h2>
           {description ? (
             <div className="flex items-center gap-3">
               <div className="h-4 w-px bg-slate-400" />
-              <p className="mt-1 max-w-2xl text-[0.83rem] lg:text-sm text-slate-500">
+              <p className="lg:mt-1 max-w-2xl text-[0.8rem] lg:text-sm text-slate-500">
                 {description}
               </p>
             </div>
@@ -402,16 +402,11 @@ export function MemberProfilePage() {
     );
   }
 
-  const standing =
-    member.status === "ACTIVE" && member.registrationFeePaid
-      ? "In good standing"
-      : "Action may be required";
-
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <section className="overflow-hidden md:rounded-3xl md:border md:border-slate-200 md:bg-white">
         <div className="w-full items-center text-center lg:text-left grid gap-3 md:gap-4 lg:gap-6 border-b border-gray-300 bg-[#f8fafc] px-4 py-5 md:px-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
-          <div className="flex min-w-0 flex-col gap-4 md:flex-row items-center md:items-end">
+          <div className="flex min-w-0 flex-col gap-2 lg:gap-4 md:flex-row items-center md:items-end">
             <div className=" relative h-24 w-24 shrink-0">
               <MemberAvatar
                 user={avatarUser}
@@ -442,17 +437,17 @@ export function MemberProfilePage() {
             </div>
 
             <div className="min-w-0">
-              <h1 className="mt-2 wrap-break-word text-xl font-extrabold text-gray-700 md:text-2xl">
+              <h1 className="mt-2 wrap-break-word text-lg md:text-xl font-extrabold text-gray-700 lg:text-2xl">
                 {member.name}
               </h1>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
+              <p className="mt-1 text-xs md:text-sm font-semibold text-slate-500">
                 {member.membershipNumber} / Joined{" "}
                 {formatDate(member.dateJoined)}
               </p>
             </div>
           </div>
 
-          <div className="w-full grid gap-1 lg:gap-2 text-sm text-slate-600 lg:min-w-64 lg:text-right">
+          <div className="w-full grid gap-1 text-xs md:text-sm text-slate-600 lg:min-w-64 lg:text-right">
             <p>Approved {formatDate(member.approvedAt)}</p>
             <p>{member.email ?? member.phone ?? "Member workspace"}</p>
             <Button
@@ -660,6 +655,7 @@ export function MemberProfilePage() {
                     <Button
                       size="sm"
                       variant="secondary"
+                      className="w-full lg:w-auto"
                       onClick={() => setEditingBeneficiary(true)}
                     >
                       Request change

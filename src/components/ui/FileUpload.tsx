@@ -28,7 +28,7 @@ export function FileUpload({
   return (
     <label
       className={clsx(
-        'flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center transition',
+        'flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-3 lg:p-6 text-center transition',
         dragging ? 'border-brand-500 bg-brand-50' : 'border-ink-100 bg-white hover:bg-ink-50',
         disabled && 'cursor-not-allowed opacity-60',
       )}
@@ -55,10 +55,10 @@ export function FileUpload({
       }}
     >
       <FiUploadCloud className="text-brand-600" size={28} />
-      <span className="mt-2 text-sm font-semibold text-ink-900">
+      <span className="mt-2 text-[0.8rem] lg:text-sm font-semibold text-ink-900">
         {dragging ? 'Drop file to upload' : 'Drag and drop or click to upload'}
       </span>
-      <span className="text-xs text-ink-500">PDF, Office docs, images, or text files up to 100MB</span>
+      <span className="text-[0.7rem] lg:text-xs text-ink-500">PDF, Office docs, images, or text files up to 10MB</span>
       <input
         className="hidden"
         type="file"

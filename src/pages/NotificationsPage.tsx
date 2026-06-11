@@ -131,7 +131,7 @@ export function NotificationsPage() {
           </div>
         </Card>
 
-        <Card className="p-0">
+        {/* <Card className="p-0">
           <div className="flex items-center gap-2 border-b border-ink-100 p-4">
             <FiSettings className="h-4 w-4 text-brand-700" />
             <p className="font-extrabold text-ink-900">Preferences</p>
@@ -162,7 +162,7 @@ export function NotificationsPage() {
               </div>
             ))}
           </div>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
