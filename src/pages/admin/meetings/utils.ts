@@ -4,7 +4,12 @@ const STEP_ORDER: MeetingStep[] = ['attendance', 'fines', 'collections', 'repaym
 
 const loanWindowStatuses = new Set(['LOAN_WINDOW_OPEN', 'RESOLUTIONS_OPEN', 'CLOSING_REVIEW', 'ONGOING']);
 
+export function isCorrectionMode(meeting?: MeetingRecord | null) {
+  return Boolean(meeting?.correctionModeAt);
+}
+
 export function isEarlyCeremonyLocked(meeting?: MeetingRecord | null) {
+  if (isCorrectionMode(meeting)) return false;
   return Boolean(meeting && loanWindowStatuses.has(meeting.status));
 }
 
@@ -97,6 +102,7 @@ export function advanceBlockReason(
   collectionsReady?: boolean,
 ): string | null {
   if (!meeting || meeting.status === 'CLOSED') return 'Meeting is closed.';
+  if (isCorrectionMode(meeting)) return null;
   switch (step) {
     case 'attendance':
       if (['SCHEDULED', 'NOTICE_SENT'].includes(meeting.status)) return 'Start the meeting before continuing.';
@@ -149,6 +155,7 @@ export function canGoToStep(
   pool?: LoanPool | null,
 ): boolean {
   if (!meeting || meeting.status === 'CLOSED') return target === 'close';
+  if (isCorrectionMode(meeting)) return true;
   if (target === 'attendance') return true;
   if (target === 'fines') return canAdvanceStep('attendance', meeting, roster, pool);
   if (target === 'collections') return canAdvanceStep('attendance', meeting, roster, pool) && canAdvanceStep('fines', meeting, roster, pool);

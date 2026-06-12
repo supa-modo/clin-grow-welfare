@@ -8,7 +8,8 @@ import SearchableDropdown from '@/components/ui/SearchableDropdown';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { money } from '@/pages/admin/shared/adminFormatters';
 import type { MeetingRecord, MeetingRoster } from '../../types';
-import { monthStartIso, todayIso, weekStartIso } from '../../utils';
+import { isCorrectionMode, monthStartIso, todayIso, weekStartIso } from '../../utils';
+import { PostedItemsCorrectionPanel } from '../PostedItemsCorrectionPanel';
 
 type CollectionDraft = Record<string, {
   type: string;
@@ -54,6 +55,8 @@ type Props = {
   onWaiver: (memberId: string, patch: { weeklyWaived?: boolean; welfareWaived?: boolean }) => void;
   onPost: (memberId: string, type: string, amount: number, periodDate?: string) => void;
   onFinalize: () => void;
+  onReverseItem?: (itemId: string, reason: string) => void;
+  onAdjustItem?: (itemId: string, amount: number, reason: string) => void;
 };
 
 const PAYMENT_METHODS = ['CASH', 'BANK', 'MPESA', 'TRANSFER', 'OTHER'] as const;
@@ -71,6 +74,8 @@ export function CollectionsStep({
   onWaiver,
   onPost,
   onFinalize,
+  onReverseItem,
+  onAdjustItem,
 }: Props) {
   const today = useMemo(() => new Date(), []);
   const [search, setSearch] = useState('');
@@ -78,7 +83,7 @@ export function CollectionsStep({
   const [selectedWaiverMemberId, setSelectedWaiverMemberId] = useState('');
   const location = useLocation();
   const finalized = Boolean(meeting.collectionsFinalizedAt);
-  const blocked = !!busy || meeting.status === 'CLOSED' || finalized;
+  const blocked = !!busy || meeting.status === 'CLOSED' || (finalized && !isCorrectionMode(meeting));
   const canFinalize = !finalized
     && meeting.status !== 'CLOSED'
     && Boolean(readiness?.ready || constitutionalOverride);
@@ -275,8 +280,19 @@ export function CollectionsStep({
     },
   ];
 
+  const contributionTypes = ['REGISTRATION', 'SHARE_CAPITAL', 'WEEKLY_SAVINGS', 'WELFARE_KITTY', 'EMERGENCY_CONTRIBUTION', 'FINE_PAYMENT', 'OTHER'];
+
   return (
     <div className="space-y-3">
+      {onReverseItem && onAdjustItem ? (
+        <PostedItemsCorrectionPanel
+          meeting={meeting}
+          busy={busy}
+          collectionTypes={contributionTypes}
+          onReverse={onReverseItem}
+          onAdjust={onAdjustItem}
+        />
+      ) : null}
       <div className="rounded-xl border border-ink-100 bg-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

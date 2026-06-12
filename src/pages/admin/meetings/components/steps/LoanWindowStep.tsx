@@ -108,29 +108,23 @@ export function LoanWindowStep({
     setEligibilityLoading(true);
     setEligibilityLoaded(false);
     setEligibleOptions([]);
-    void (async () => {
-      const results = await Promise.all(
-        roster.members.map(async (row) => {
-          try {
-            const eligibility = await loanApi.getEligibility(row.member.id);
-            return { row, eligibility };
-          } catch {
-            return null;
-          }
-        }),
-      );
+    window.setTimeout(() => {
       if (cancelled) return;
-      const opts = results
-        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
-        .filter(({ eligibility }) => !eligibility.hasActiveLoan && eligibility.maxEligible > 0)
-        .map(({ row, eligibility }) => ({
+      const multiplier = roster.settings.loanMultiplierLimit ?? 3;
+      const opts = roster.members
+        .map((row) => {
+          const base = row.expectations.shareCapital.paidToDate + (row.expectations.weeklySavings.paidToDate ?? 0);
+          return { row, maxEligible: base * multiplier, hasActiveLoan: row.expectations.loans.active.length > 0 };
+        })
+        .filter(({ hasActiveLoan, maxEligible }) => !hasActiveLoan && maxEligible > 0)
+        .map(({ row, maxEligible }) => ({
           value: row.member.id,
-          label: `${row.member.membershipNumber} - ${row.member.name} (max ${money(eligibility.maxEligible)})`,
+          label: `${row.member.membershipNumber} - ${row.member.name} (max ${money(maxEligible)})`,
         }));
       setEligibleOptions(opts);
       setEligibilityLoading(false);
       setEligibilityLoaded(true);
-    })();
+    }, 0);
     return () => {
       cancelled = true;
     };

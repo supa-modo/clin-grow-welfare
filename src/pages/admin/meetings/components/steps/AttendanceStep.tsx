@@ -6,7 +6,7 @@ import SlideOver from "@/components/ui/SlideOver";
 import Select from "@/components/ui/Select";
 import { money, tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingRecord, MeetingRoster } from "../../types";
-import { finePreview, resolveAttendanceStatus } from "../../utils";
+import { finePreview, isCorrectionMode, resolveAttendanceStatus } from "../../utils";
 import { FaSave } from "react-icons/fa";
 import { TbEdit } from "react-icons/tb";
 
@@ -69,7 +69,7 @@ export function AttendanceStep({
 
   const finalized = Boolean(meeting.attendanceFinalizedAt);
   const needsStart = ["SCHEDULED", "NOTICE_SENT"].includes(meeting.status);
-  const blocked = !!busy || meeting.status === "CLOSED" || finalized;
+  const blocked = !!busy || meeting.status === "CLOSED" || (finalized && !isCorrectionMode(meeting));
 
   const rows = useMemo<AttendanceRow[]>(() => {
     return (roster?.members ?? []).map((row) => {

@@ -5,6 +5,7 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import { LoanDetailModal } from "@/components/loans/LoanDetailModal";
 import { money } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingRecord, MeetingRoster } from "../../types";
+import { PostedItemsCorrectionPanel } from "../PostedItemsCorrectionPanel";
 import { TbMoneybagMoveBack } from "react-icons/tb";
 
 type RepaymentRow = {
@@ -36,6 +37,8 @@ type Props = {
   collectionDraft: CollectionDraft;
   setCollectionDraft: React.Dispatch<React.SetStateAction<CollectionDraft>>;
   onPost: (memberId: string, loanId: string, amount: number) => void;
+  onReverseItem?: (itemId: string, reason: string) => void;
+  onAdjustItem?: (itemId: string, amount: number, reason: string) => void;
 };
 
 const PAYMENT_METHODS = ["CASH", "BANK", "MPESA", "TRANSFER", "OTHER"] as const;
@@ -47,6 +50,8 @@ export function RepaymentsStep({
   collectionDraft,
   setCollectionDraft,
   onPost,
+  onReverseItem,
+  onAdjustItem,
 }: Props) {
   const [search, setSearch] = useState("");
   const [detailLoanId, setDetailLoanId] = useState<string | null>(null);
@@ -271,6 +276,15 @@ export function RepaymentsStep({
 
   return (
     <div className="space-y-3">
+      {onReverseItem && onAdjustItem ? (
+        <PostedItemsCorrectionPanel
+          meeting={meeting}
+          busy={busy}
+          collectionTypes={["LOAN_REPAYMENT"]}
+          onReverse={onReverseItem}
+          onAdjust={onAdjustItem}
+        />
+      ) : null}
       <LoanDetailModal
         loanId={detailLoanId}
         open={Boolean(detailLoanId)}

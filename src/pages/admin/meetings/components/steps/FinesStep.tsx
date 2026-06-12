@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { money } from '@/pages/admin/shared/adminFormatters';
 import type { MeetingRecord, MeetingRoster } from '../../types';
+import { isCorrectionMode } from '../../utils';
 
 type FineRow = {
   id: string;
@@ -30,7 +31,7 @@ type Props = {
 export function FinesStep({ meeting, roster, busy, onGenerate, onCollectFine, onNotify, onDefer }: Props) {
   const [search, setSearch] = useState('');
   const blocked = !!busy || meeting.status === 'CLOSED';
-  const finesLocked = Boolean(meeting.finesGeneratedAt);
+  const finesLocked = Boolean(meeting.finesGeneratedAt) && !isCorrectionMode(meeting);
 
   const rows = useMemo<FineRow[]>(() => {
     return (roster?.members ?? []).flatMap((row) =>

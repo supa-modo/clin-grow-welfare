@@ -13,6 +13,8 @@ export type MeetingRecord = {
   attendanceFinalizedAt?: string | null;
   finesGeneratedAt?: string | null;
   collectionsFinalizedAt?: string | null;
+  correctionModeAt?: string | null;
+  correctionReason?: string | null;
   loanStageReachedAt?: string | null;
   minutesFilePath?: string | null;
   minutesFileName?: string | null;
@@ -22,10 +24,14 @@ export type MeetingRecord = {
   attendance?: unknown[];
   collectionSessions?: Array<{ id: string; status: string; items?: unknown[] }>;
   collectionItems?: Array<{
+    id: string;
     collectionType: string;
     amount: number;
     status: string;
     memberId?: string | null;
+    postedAt?: string | null;
+    contributionId?: string | null;
+    loanRepaymentId?: string | null;
     member?: { name?: string; membershipNumber?: string } | null;
   }>;
   loanWindows?: Array<{
@@ -71,7 +77,7 @@ export type RosterMember = {
   attendance?: { attendanceStatus?: string } | null;
   apology?: { id: string; status: string; reason: string } | null;
   expectations: {
-    weeklySavings: { paidThisWeek: number; min: number; max: number; remainingToMax: number; paymentsByWeek?: Record<string, number> };
+    weeklySavings: { paidThisWeek: number; paidToDate?: number; min: number; max: number; remainingToMax: number; paymentsByWeek?: Record<string, number> };
     shareCapital: { paidToDate: number; max: number; remaining: number };
     welfareKitty: { paidThisMonth: number; dueThisMonth: number; paidMonths?: string[] };
     fines: { pendingTotal: number; rows: Array<{ id: string; fineType: string; amount: number; status: string; carriedForward?: boolean }> };
@@ -89,6 +95,7 @@ export type MeetingRoster = {
     maxWeeklySavings: number;
     maxShareCapital: number;
     monthlyWelfareContribution: number;
+    loanMultiplierLimit?: number;
   };
   members: RosterMember[];
 };

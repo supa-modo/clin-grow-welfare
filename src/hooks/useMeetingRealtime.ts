@@ -25,7 +25,14 @@ export function useMeetingRealtime(
 ) {
   const token = useAuthStore((s) => s.token);
   const socketRef = useRef<Socket | null>(null);
+  const handlersRef = useRef(handlers);
+  const pendingEventsRef = useRef(new Set<MeetingRealtimeEvent['type']>());
+  const flushTimerRef = useRef<number | null>(null);
   const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   useEffect(() => {
     if (!token || !meetingId) return undefined;
@@ -43,27 +50,48 @@ export function useMeetingRealtime(
     });
     socket.on('disconnect', () => setConnected(false));
 
+    const flushPendingEvents = () => {
+      flushTimerRef.current = null;
+      const pending = pendingEventsRef.current;
+      pendingEventsRef.current = new Set();
+      const currentHandlers = handlersRef.current;
+      if (pending.has('meeting:updated')) currentHandlers.onMeeting?.();
+      if (pending.has('meeting:loan')) currentHandlers.onLoan?.();
+      if (pending.has('meeting:roster')) currentHandlers.onRoster?.();
+      else if (pending.has('meeting:pool')) currentHandlers.onPool?.();
+    };
+
     socket.on('meeting:event', (event: MeetingRealtimeEvent) => {
       if (event.meetingId !== meetingId) return;
-      if (event.type === 'meeting:roster') handlers.onRoster?.();
-      if (event.type === 'meeting:pool') handlers.onPool?.();
-      if (event.type === 'meeting:loan') handlers.onLoan?.();
-      if (event.type === 'meeting:updated') handlers.onMeeting?.();
+      pendingEventsRef.current.add(event.type);
+      if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = window.setTimeout(flushPendingEvents, 120);
     });
 
     return () => {
+      if (flushTimerRef.current) {
+        window.clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
       socket.emit('meeting:unsubscribe', meetingId);
       socket.disconnect();
       socketRef.current = null;
       setConnected(false);
     };
-  }, [token, meetingId, handlers.onRoster, handlers.onPool, handlers.onMeeting, handlers.onLoan]);
+  }, [token, meetingId]);
 
   return { connected, socket: socketRef.current };
 }
 
 export function useMeetingsLiveRefresh(onRefresh: (meetingId: string) => void) {
   const token = useAuthStore((s) => s.token);
+  const refreshRef = useRef(onRefresh);
+  const pendingRef = useRef(new Set<string>());
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    refreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   useEffect(() => {
     if (!token) return undefined;
@@ -73,10 +101,22 @@ export function useMeetingsLiveRefresh(onRefresh: (meetingId: string) => void) {
       transports: ['websocket', 'polling'],
     });
     socket.on('meetings:live', (payload: { meetingId?: string }) => {
-      if (payload.meetingId) onRefresh(payload.meetingId);
+      if (!payload.meetingId) return;
+      pendingRef.current.add(payload.meetingId);
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => {
+        const ids = [...pendingRef.current];
+        pendingRef.current = new Set();
+        timerRef.current = null;
+        ids.forEach((id) => refreshRef.current(id));
+      }, 200);
     });
     return () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       socket.disconnect();
     };
-  }, [token, onRefresh]);
+  }, [token]);
 }

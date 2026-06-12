@@ -7,6 +7,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Spinner } from '@/components/ui/Feedback';
 import { loanApi } from '@/services/loanApi';
 import type { Loan, LoanRepayment, LoanStatement } from '@/types/loan';
+import { formatLoanDate, loanDueDate } from '@/lib/loanDates';
 
 function money(n: number | string | undefined) {
   return `KES ${Number(n ?? 0).toLocaleString()}`;
@@ -60,6 +61,7 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
   }, [open, loanId]);
 
   const repayments = (loan?.repayments ?? []).filter((r) => !r.reversedAt);
+  const dueDate = loan ? loanDueDate(loan) : undefined;
 
   const repaymentColumns: Column<LoanRepayment>[] = [
     {
@@ -131,7 +133,13 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
             {loan.disbursedAt ? (
               <div>
                 <span className="font-semibold text-ink-600">Disbursed:</span>{' '}
-                {new Date(loan.disbursedAt).toLocaleDateString()}
+                {formatLoanDate(loan.disbursedAt)}
+              </div>
+            ) : null}
+            {dueDate ? (
+              <div>
+                <span className="font-semibold text-ink-600">Due:</span>{' '}
+                <span className="font-semibold text-amber-700">{formatLoanDate(dueDate)}</span>
               </div>
             ) : null}
           </div>

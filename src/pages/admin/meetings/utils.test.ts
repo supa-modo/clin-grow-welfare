@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canGoToStep, clampCeremonyStep, isCollectionsFinalized, isEarlyCeremonyLocked, resolveAttendanceStatus } from './utils';
+import { canGoToStep, clampCeremonyStep, isCollectionsFinalized, isCorrectionMode, isEarlyCeremonyLocked, resolveAttendanceStatus } from './utils';
 import type { MeetingRecord, MeetingRoster } from './types';
 
 const rosterStub = {
@@ -83,5 +83,28 @@ describe('isEarlyCeremonyLocked', () => {
 
     expect(isEarlyCeremonyLocked(attendanceMeeting)).toBe(false);
     expect(isEarlyCeremonyLocked(loanWindowMeeting)).toBe(true);
+  });
+
+  it('unlocks early ceremony during correction mode', () => {
+    const loanWindowMeeting = {
+      status: 'LOAN_WINDOW_OPEN',
+      correctionModeAt: '2026-06-01',
+    } as MeetingRecord;
+    expect(isCorrectionMode(loanWindowMeeting)).toBe(true);
+    expect(isEarlyCeremonyLocked(loanWindowMeeting)).toBe(false);
+  });
+});
+
+describe('correction mode navigation', () => {
+  it('allows all ceremony tabs during correction mode', () => {
+    const meeting = {
+      status: 'COLLECTIONS_OPEN',
+      correctionModeAt: '2026-06-01',
+      attendanceFinalizedAt: null,
+      collectionsFinalizedAt: null,
+    } as MeetingRecord;
+    expect(canGoToStep('attendance', meeting, rosterStub)).toBe(true);
+    expect(canGoToStep('repayments', meeting, rosterStub)).toBe(true);
+    expect(canGoToStep('loans', meeting, rosterStub)).toBe(true);
   });
 });

@@ -12,6 +12,16 @@ import { clampCeremonyStep, collectionTotalsFromMeeting, resolveAttendanceStatus
 const CEREMONY_STORAGE_KEY = 'clingrow.ceremony.v1';
 const meetingSteps: MeetingStep[] = ['attendance', 'fines', 'collections', 'repayments', 'summary', 'loans', 'close'];
 
+const ADMIN_REOPEN_TARGET_STEP: Record<
+  'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW',
+  MeetingStep
+> = {
+  ATTENDANCE_RECORDING: 'attendance',
+  COLLECTIONS_OPEN: 'collections',
+  LOAN_WINDOW_OPEN: 'loans',
+  CLOSING_REVIEW: 'close',
+};
+
 export type PendingCeremonyAction = {
   key: string;
   title: string;
@@ -120,9 +130,9 @@ export function useMeetingCeremony() {
   }, [selectedMeeting?.id, step]);
 
   const syncCeremonyStepToServer = useCallback(async (meetingId: string, next: MeetingStep) => {
-    if (selectedMeeting?.status === 'CLOSED') return;
+    if (selectedMeeting?.status === 'CLOSED' && !selectedMeeting?.correctionModeAt) return;
     await api.patch(`/meetings/${meetingId}/ceremony-step`, { step: next });
-  }, [selectedMeeting?.status]);
+  }, [selectedMeeting?.status, selectedMeeting?.correctionModeAt]);
 
   const setCeremonyStepWithSync = useCallback((next: MeetingStep) => {
     setStep(next);
@@ -339,7 +349,9 @@ export function useMeetingCeremony() {
           await api.post(`/meetings/${meetingId}/admin-reopen`, input);
           await reload();
           await loadRoster(meetingId);
-          toastSuccess('Meeting reopened', 'You can now correct attendance, collections, or loan records.');
+          const nextStep = ADMIN_REOPEN_TARGET_STEP[input.targetStatus] ?? 'attendance';
+          setCeremonyStepWithSync(nextStep);
+          toastSuccess('Meeting reopened', 'Correction mode is active. Changes post with the meeting date.');
         } catch (err) {
           toastError('Could not reopen meeting', getApiError(err));
         } finally {
@@ -354,9 +366,14 @@ export function useMeetingCeremony() {
     const attendanceStatus = rosterRow
       ? resolveAttendanceStatus(rosterRow, attendanceDraft[memberId])
       : attendanceDraft[memberId] || 'PRESENT_ON_TIME';
+    const correctionOverride = Boolean(selectedMeeting?.correctionModeAt);
     setBusy(`attendance-${memberId}`);
     try {
-      await api.post(`/meetings/${meetingId}/attendance`, { memberId, attendanceStatus });
+      await api.post(`/meetings/${meetingId}/attendance`, {
+        memberId,
+        attendanceStatus,
+        ...(correctionOverride ? { override: true } : {}),
+      });
       setSavedAttendanceIds((s) => ({ ...s, [memberId]: true }));
       await reload();
       await loadRoster(meetingId);
@@ -370,11 +387,16 @@ export function useMeetingCeremony() {
 
   const saveAllAttendance = async (meetingId: string) => {
     if (!roster?.members.length) return;
+    const correctionOverride = Boolean(selectedMeeting?.correctionModeAt);
     setBusy('attendance-bulk');
     try {
       for (const row of roster.members) {
         const attendanceStatus = resolveAttendanceStatus(row, attendanceDraft[row.member.id]);
-        await api.post(`/meetings/${meetingId}/attendance`, { memberId: row.member.id, attendanceStatus });
+        await api.post(`/meetings/${meetingId}/attendance`, {
+          memberId: row.member.id,
+          attendanceStatus,
+          ...(correctionOverride ? { override: true } : {}),
+        });
         setSavedAttendanceIds((s) => ({ ...s, [row.member.id]: true }));
       }
       await reload();
@@ -433,6 +455,34 @@ export function useMeetingCeremony() {
         }
       },
     });
+  };
+
+  const reverseCollectionItem = async (meetingId: string, itemId: string, reason: string) => {
+    setBusy(`reverse-item-${itemId}`);
+    try {
+      await api.post(`/meetings/${meetingId}/collection-items/${itemId}/reverse`, { reason });
+      await reload();
+      await loadRoster(meetingId);
+      toastSuccess('Item reversed', 'The journal entry was reversed.');
+    } catch (err) {
+      toastError('Reverse failed', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const adjustCollectionItem = async (meetingId: string, itemId: string, amount: number, reason: string) => {
+    setBusy(`adjust-item-${itemId}`);
+    try {
+      await api.post(`/meetings/${meetingId}/collection-items/${itemId}/adjust`, { amount, reason });
+      await reload();
+      await loadRoster(meetingId);
+      toastSuccess('Item adjusted', 'The corrected amount was reposted with the meeting date.');
+    } catch (err) {
+      toastError('Adjust failed', getApiError(err));
+    } finally {
+      setBusy('');
+    }
   };
 
   const updateCollectionWaiver = async (
@@ -839,6 +889,8 @@ export function useMeetingCeremony() {
     loadCollectionsReadiness,
     finalizeCollections,
     updateCollectionWaiver,
+    reverseCollectionItem,
+    adjustCollectionItem,
     reviewApology,
     notifyFine,
     collect,

@@ -17,6 +17,7 @@ import type { MeetingStep } from "../types";
 import {
   canCloseMeeting,
   canGoToStep,
+  isCorrectionMode,
   isEarlyCeremonyLocked,
   isMeetingStarted,
   nextStep,
@@ -103,6 +104,8 @@ export function MeetingControlRoom({
     closeLoanWindow,
     reopenLoanWindow,
     adminReopenMeeting,
+    reverseCollectionItem,
+    adjustCollectionItem,
     updateReservation,
     releaseReservation,
     officialReserve,
@@ -142,6 +145,13 @@ export function MeetingControlRoom({
   return (
     <Card className="flex min-h-0 flex-col overflow-hidden p-0">
       <div className="shrink-0 p-5 pb-0">
+        {isCorrectionMode(m) ? (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            Correction mode — changes post with meeting date{" "}
+            {new Date(m.meetingDate).toLocaleDateString("en-KE")}. Correct earlier
+            meetings before later ones. Re-close when done to regenerate the summary.
+          </div>
+        ) : null}
         {stageLocked ? (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             Loan stage is locked. Attendance, fines, and collections can no
@@ -264,6 +274,8 @@ export function MeetingControlRoom({
               void collect(m, memberId, { type, amount, periodDate })
             }
             onFinalize={() => finalizeCollections(m.id)}
+            onReverseItem={(itemId, reason) => void reverseCollectionItem(m.id, itemId, reason)}
+            onAdjustItem={(itemId, amount, reason) => void adjustCollectionItem(m.id, itemId, amount, reason)}
           />
         ) : null}
         {step === "repayments" ? (
@@ -280,6 +292,8 @@ export function MeetingControlRoom({
                 loanId,
               })
             }
+            onReverseItem={(itemId, reason) => void reverseCollectionItem(m.id, itemId, reason)}
+            onAdjustItem={(itemId, amount, reason) => void adjustCollectionItem(m.id, itemId, amount, reason)}
           />
         ) : null}
         {step === "summary" ? (

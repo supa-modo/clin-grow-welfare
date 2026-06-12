@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/services/api';
-import { FiCheckCircle, FiDownload, FiFileText, FiSend, FiUpload } from 'react-icons/fi';
+import { FiCheckCircle, FiDownload, FiFileText, FiRefreshCw, FiSend, FiUpload } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { downloadReport, money } from '@/pages/admin/shared/adminFormatters';
 import { useAuthStore } from '@/store/auth';
 import type { MeetingRecord } from '../../types';
@@ -24,6 +25,13 @@ type MeetingReportSummary = {
   resolutions?: number;
 };
 
+type AdminReopenInput = {
+  targetStatus: 'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW';
+  unfinalizeAttendance?: boolean;
+  unfinalizeCollections?: boolean;
+  reason: string;
+};
+
 type Props = {
   meeting: MeetingRecord;
   busy: string;
@@ -35,12 +43,7 @@ type Props = {
   onPublish: () => void;
   onUploadMinutes: (file: File) => void;
   onSendSummary: () => void;
-  onAdminReopen?: (input: {
-    targetStatus: 'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW';
-    unfinalizeAttendance?: boolean;
-    unfinalizeCollections?: boolean;
-    reason: string;
-  }) => void;
+  onAdminReopen?: (input: AdminReopenInput) => void;
   canClose: boolean;
 };
 
@@ -66,8 +69,9 @@ export function CloseStep({
   const permissions = useAuthStore((s) => s.user?.permissions ?? []);
   const canAdminOverride = permissions.includes('officialsPortal.meetings.adminOverride');
   const fileRef = useRef<HTMLInputElement>(null);
-  const [adminTarget, setAdminTarget] = useState<'ATTENDANCE_RECORDING' | 'COLLECTIONS_OPEN' | 'LOAN_WINDOW_OPEN' | 'CLOSING_REVIEW'>('COLLECTIONS_OPEN');
-  const [unfinalizeAttendance, setUnfinalizeAttendance] = useState(false);
+  const [showReopenModal, setShowReopenModal] = useState(false);
+  const [adminTarget, setAdminTarget] = useState<AdminReopenInput['targetStatus']>('ATTENDANCE_RECORDING');
+  const [unfinalizeAttendance, setUnfinalizeAttendance] = useState(true);
   const [unfinalizeCollections, setUnfinalizeCollections] = useState(true);
   const [adminReason, setAdminReason] = useState('');
   const [readiness, setReadiness] = useState<{
@@ -87,6 +91,18 @@ export function CloseStep({
   const summary = asSummary(meetingReport);
   const quorumWarning = readiness && readiness.quorumMet === false;
   const isClosed = meeting.status === 'CLOSED';
+
+  const submitReopen = () => {
+    if (!onAdminReopen || adminReason.trim().length < 5) return;
+    onAdminReopen({
+      targetStatus: adminTarget,
+      unfinalizeAttendance,
+      unfinalizeCollections,
+      reason: adminReason.trim(),
+    });
+    setShowReopenModal(false);
+    setAdminReason('');
+  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -164,65 +180,26 @@ export function CloseStep({
             <Button size="sm" variant="secondary2" icon={<FiSend />} disabled={!!busy || !isClosed} onClick={onPublish}>Publish minutes</Button>
           </div>
         </Card>
-        {isClosed && canAdminOverride && onAdminReopen ? (
-          <Card className="border-amber-200 bg-amber-50/40 p-4">
-            <p className="font-bold text-ink-900">Admin override — reopen meeting</p>
-            <p className="mt-1 text-sm text-ink-600">
-              Correct seeded data or fix totals after close. The original close report is kept; re-close to regenerate the summary.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="text-xs font-semibold text-ink-600 sm:col-span-2">
-                Reopen to step
-                <select
-                  className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
-                  value={adminTarget}
-                  onChange={(e) => setAdminTarget(e.target.value as typeof adminTarget)}
-                >
-                  <option value="ATTENDANCE_RECORDING">Attendance</option>
-                  <option value="COLLECTIONS_OPEN">Collections</option>
-                  <option value="LOAN_WINDOW_OPEN">Loan window</option>
-                  <option value="CLOSING_REVIEW">Close review</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
-                <input type="checkbox" checked={unfinalizeAttendance} onChange={(e) => setUnfinalizeAttendance(e.target.checked)} />
-                Unfinalize attendance
-              </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
-                <input type="checkbox" checked={unfinalizeCollections} onChange={(e) => setUnfinalizeCollections(e.target.checked)} />
-                Unfinalize collections
-              </label>
-              <label className="text-xs font-semibold text-ink-600 sm:col-span-2">
-                Reason (required)
-                <textarea
-                  className="mt-1 min-h-[72px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
-                  value={adminReason}
-                  onChange={(e) => setAdminReason(e.target.value)}
-                  placeholder="e.g. Correct workbook import totals for share capital"
-                />
-              </label>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <Button
-                variant="secondary"
-                disabled={!!busy || adminReason.trim().length < 5}
-                onClick={() => onAdminReopen({
-                  targetStatus: adminTarget,
-                  unfinalizeAttendance,
-                  unfinalizeCollections,
-                  reason: adminReason.trim(),
-                })}
-              >
-                Reopen meeting
-              </Button>
-            </div>
-          </Card>
-        ) : null}
       </div>
       <Card className="p-4">
         <p className="font-bold text-ink-900">Reports</p>
         <p className="mt-1 text-sm text-ink-600">Closing generates the official meeting summary with attendance, collections, repayments, and loan applications.</p>
         <div className="mt-3 grid gap-2">
+          {isClosed && canAdminOverride && onAdminReopen ? (
+            <Button
+              variant="secondary2"
+              icon={<FiRefreshCw />}
+              disabled={!!busy}
+              onClick={() => setShowReopenModal(true)}
+            >
+              Reopen for corrections
+            </Button>
+          ) : null}
+          {isClosed && !canAdminOverride ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+              Reopen requires Chair or Secretary role.
+            </p>
+          ) : null}
           <Button icon={<FiCheckCircle />} disabled={blocked} onClick={onCloseMeeting}>Close meeting</Button>
           <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-summary', 'pdf', { meetingId: meeting.id })}>Meeting summary PDF</Button>
           <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-collections', 'pdf', { meetingId: meeting.id })}>Collections PDF</Button>
@@ -236,6 +213,61 @@ export function CloseStep({
           ) : null}
         </div>
       </Card>
+
+      <Modal
+        open={showReopenModal}
+        title="Reopen meeting for corrections"
+        subtitle="Unlock attendance through loans to fix seeded data, rollovers, or deferred fines. Re-close when done to regenerate the summary."
+        onClose={() => setShowReopenModal(false)}
+        footer={(
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowReopenModal(false)}>Cancel</Button>
+            <Button
+              variant="secondary2"
+              disabled={!!busy || adminReason.trim().length < 5}
+              onClick={submitReopen}
+            >
+              Reopen meeting
+            </Button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-600">
+            Correct earlier meetings before later ones so rollovers, deferred fines, and pool balances stay consistent.
+          </p>
+          <label className="text-xs font-semibold text-ink-600">
+            Reopen to step
+            <select
+              className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
+              value={adminTarget}
+              onChange={(e) => setAdminTarget(e.target.value as AdminReopenInput['targetStatus'])}
+            >
+              <option value="ATTENDANCE_RECORDING">Attendance</option>
+              <option value="COLLECTIONS_OPEN">Collections</option>
+              <option value="LOAN_WINDOW_OPEN">Loan window</option>
+              <option value="CLOSING_REVIEW">Close review</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+            <input type="checkbox" checked={unfinalizeAttendance} onChange={(e) => setUnfinalizeAttendance(e.target.checked)} />
+            Unfinalize attendance (allows attendance and fine edits)
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+            <input type="checkbox" checked={unfinalizeCollections} onChange={(e) => setUnfinalizeCollections(e.target.checked)} />
+            Unfinalize collections (allows collection and repayment edits)
+          </label>
+          <label className="text-xs font-semibold text-ink-600">
+            Reason (required)
+            <textarea
+              className="mt-1 min-h-[88px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
+              value={adminReason}
+              onChange={(e) => setAdminReason(e.target.value)}
+              placeholder="e.g. Correct workbook import totals for share capital"
+            />
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 }
