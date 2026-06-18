@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiSend } from "react-icons/fi";
 import { api } from "@/services/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner, EmptyState } from "@/components/ui/Feedback";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
 import {
   MemberHero,
   MemberSection,
@@ -53,7 +56,15 @@ const CLAIM_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> =
     APPROVED: "success",
     SUBMITTED: "warning",
     UNDER_REVIEW: "warning",
+    PAYMENT_PENDING: "warning",
   };
+
+function claimTypeLabel(type: WelfareType) {
+  if (type.maxAmount != null) {
+    return `${type.name} — ${money(type.maxAmount)}`;
+  }
+  return `${type.name} — meeting-approved amount`;
+}
 
 export function MemberWelfareClaimsPage() {
   const user = useAuthStore((s) => s.user);
@@ -68,12 +79,27 @@ export function MemberWelfareClaimsPage() {
     registrationFeePaid: true,
   });
   const [claimTypeId, setClaimTypeId] = useState("");
-  const [amountRequested, setAmountRequested] = useState(5000);
+  const [amountRequested, setAmountRequested] = useState(0);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const load = async () => {
+  const selectedType = useMemo(
+    () => types.find((type) => type.id === claimTypeId) ?? null,
+    [types, claimTypeId],
+  );
+
+  const isFixedAmount = selectedType?.maxAmount != null;
+  const typeOptions = useMemo(
+    () =>
+      types.map((type) => ({
+        value: type.id,
+        label: claimTypeLabel(type),
+      })),
+    [types],
+  );
+
+  const load = useCallback(async () => {
     const [typesRes, claimsRes, dash] = await Promise.all([
       api.get<{ types: WelfareType[] }>("/welfare/types"),
       api.get<{ data: WelfareClaim[] }>("/welfare/member/me"),
@@ -82,7 +108,10 @@ export function MemberWelfareClaimsPage() {
     const typeList = typesRes.data.types ?? [];
     setTypes(typeList);
     setClaims(claimsRes.data.data ?? []);
-    if (!claimTypeId && typeList[0]) setClaimTypeId(typeList[0].id);
+    setClaimTypeId((current) => {
+      if (current && typeList.some((type) => type.id === current)) return current;
+      return typeList[0]?.id ?? "";
+    });
     if (dash) {
       setHero({
         firstName: dash.firstName,
@@ -91,26 +120,44 @@ export function MemberWelfareClaimsPage() {
         registrationFeePaid: dash.registrationFeePaid,
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
     load()
       .catch(() => toastError("Could not load welfare claims"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [load, toastError]);
+
+  useEffect(() => {
+    if (!selectedType) {
+      setAmountRequested(0);
+      return;
+    }
+    if (selectedType.maxAmount != null) {
+      setAmountRequested(Number(selectedType.maxAmount));
+    }
+  }, [selectedType]);
 
   const submit = async () => {
+    if (!user?.memberId) {
+      toastError("Member profile required", "Sign in with a member account to submit a claim.");
+      return;
+    }
     if (!claimTypeId) {
       toastError("Select a claim type");
+      return;
+    }
+    if (!amountRequested || amountRequested <= 0) {
+      toastError("Enter a valid claim amount");
       return;
     }
     setSubmitting(true);
     try {
       await api.post("/welfare", {
-        memberId: user?.memberId,
+        memberId: user.memberId,
         claimTypeId,
         amountRequested,
-        reason,
+        reason: reason.trim() || undefined,
       });
       setReason("");
       await load();
@@ -124,6 +171,13 @@ export function MemberWelfareClaimsPage() {
       setSubmitting(false);
     }
   };
+
+  const canSubmit =
+    Boolean(user?.memberId) &&
+    Boolean(claimTypeId) &&
+    types.length > 0 &&
+    amountRequested > 0 &&
+    !submitting;
 
   if (loading) {
     return (
@@ -154,45 +208,66 @@ export function MemberWelfareClaimsPage() {
         title="New claim"
         description="Provide accurate details for committee review"
       >
-        <div className="grid gap-3 md:grid-cols-[1fr_160px]">
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={claimTypeId}
-            onChange={(e) => setClaimTypeId(e.target.value)}
-          >
-            {types.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}{" "}
-                {type.maxAmount
-                  ? `— max ${money(type.maxAmount)}`
-                  : "— meeting-approved"}
-              </option>
-            ))}
-          </select>
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            value={amountRequested}
-            onChange={(e) => setAmountRequested(Number(e.target.value))}
-            min={0}
+        {types.length === 0 ? (
+          <EmptyState
+            title="Welfare benefits not configured"
+            message="Claim types are not available yet. Please contact the Secretary or Treasurer."
           />
-          <textarea
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm md:col-span-2"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason and supporting context"
-            rows={3}
-          />
-          <div className="flex justify-end md:col-span-2">
-            <Button
-              icon={submitting ? <Spinner /> : <FiSend />}
-              disabled={submitting}
-              onClick={() => void submit()}
-            >
-              Submit claim
-            </Button>
+        ) : (
+          <div className="space-y-4">
+            <Select
+              label="Claim type"
+              placeholder="Select a welfare benefit"
+              required
+              options={typeOptions}
+              value={claimTypeId}
+              onChange={(e) => setClaimTypeId(e.target.value)}
+              wrapperClassName="max-w-none"
+            />
+
+            {isFixedAmount ? (
+              <Input
+                label="Claim amount"
+                value={money(amountRequested)}
+                readOnly
+                disabled
+                helperText="Fixed per Clin-Grow Welfare Constitution Article 12.3"
+              />
+            ) : (
+              <Input
+                label="Claim amount"
+                type="number"
+                min={1}
+                value={amountRequested > 0 ? String(amountRequested) : ""}
+                onChange={(e) => setAmountRequested(Number(e.target.value))}
+                helperText="Enter the amount approved by the general meeting"
+                required
+              />
+            )}
+
+            <Textarea
+              label="Reason and supporting details"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Briefly describe the circumstance and any supporting context"
+              rows={3}
+            />
+
+            <p className="text-xs text-ink-500">
+              Amounts follow the Clin-Grow Welfare Constitution Article 12.3 schedules.
+            </p>
+
+            <div className="flex justify-end">
+              <Button
+                icon={submitting ? <Spinner /> : <FiSend />}
+                disabled={!canSubmit}
+                onClick={() => void submit()}
+              >
+                Submit claim
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </MemberSection>
 
       <MemberSection
