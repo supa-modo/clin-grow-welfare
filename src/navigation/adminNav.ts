@@ -97,12 +97,6 @@ export const adminNavItems: NavItemDef[] = [
     permission: "officialsPortal.loans.view",
   },
   {
-    path: "/dashboard/vouchers",
-    label: "Vouchers",
-    icon: TbReportMoney,
-    permission: "officialsPortal.vouchers.view",
-  },
-  {
     path: "/dashboard/welfare",
     label: "Welfare Claims",
     icon: TbHeartHandshake,
@@ -166,12 +160,6 @@ export const officialsNavItems: NavItemDef[] = [
     label: "Loans",
     icon: FiCreditCard,
     permission: "officialsPortal.loans.view",
-  },
-  {
-    path: "/officials/vouchers",
-    label: "Vouchers",
-    icon: TbReportMoney,
-    permission: "officialsPortal.vouchers.view",
   },
   {
     path: "/officials/welfare",

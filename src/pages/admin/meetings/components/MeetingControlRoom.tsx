@@ -84,6 +84,7 @@ export function MeetingControlRoom({
     action,
     sendNotice,
     generateFines,
+    createManualFine,
     markAttendance,
     saveAllAttendance,
     finalizeAttendance,
@@ -251,6 +252,7 @@ export function MeetingControlRoom({
             }
             onNotify={(fineId) => void notifyFine(fineId)}
             onDefer={(fineId) => void deferFine(fineId)}
+            onCreateManualFine={(input) => void createManualFine(m.id, input)}
           />
         ) : null}
         {step === "collections" ? (

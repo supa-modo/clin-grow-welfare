@@ -17,6 +17,7 @@ import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { api } from "@/services/api";
 import { loanApi } from "@/services/loanApi";
+import { memberApi } from "@/services/memberApi";
 import type { LoanEligibility } from "@/types/loan";
 import type { Member } from "@/types/member";
 
@@ -89,6 +90,23 @@ export function MemberDetailSlideOver({
   const [loanEligibility, setLoanEligibility] = useState<LoanEligibility | null>(null);
   const [contribSearch, setContribSearch] = useState("");
   const [loadingTab, setLoadingTab] = useState(false);
+  const [detailMember, setDetailMember] = useState<Member | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  useEffect(() => {
+    if (!open || !member?.id) {
+      setDetailMember(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDetails(true);
+    void memberApi.get(member.id).then((full) => {
+      if (!cancelled) setDetailMember(full);
+    }).finally(() => {
+      if (!cancelled) setLoadingDetails(false);
+    });
+    return () => { cancelled = true; };
+  }, [open, member?.id]);
 
   useEffect(() => {
     if (!open || !member?.id) return;
@@ -124,6 +142,22 @@ export function MemberDetailSlideOver({
   }, [activeTab, contribSearch, member?.id, open]);
 
   if (!member) return null;
+
+  const displayMember = detailMember ?? member;
+  const beneficiaries = displayMember.beneficiaries?.length
+    ? displayMember.beneficiaries
+    : displayMember.beneficiaryName
+      ? [{
+          id: "primary-inline",
+          memberId: displayMember.id,
+          name: displayMember.beneficiaryName,
+          phone: displayMember.beneficiaryPhone,
+          relationship: displayMember.beneficiaryRelationship,
+          allocationPercentage: 100,
+          isPrimary: true,
+          isActive: true,
+        }]
+      : [];
 
   const tabs = [
     { value: "details" as const, label: "Details" },
@@ -252,16 +286,50 @@ export function MemberDetailSlideOver({
             <DetailField label="Email" value={member.email} />
             <DetailField label="ID / Passport" value={member.idNumber} />
             <DetailField label="Joined" value={formatDate(member.dateJoined)} />
-            <DetailField label="Approved" value={formatDate(member.approvedAt)} />
-            <DetailField label="Introduced by" value={member.introducedBy?.name} />
+            <DetailField label="Approved" value={formatDate(displayMember.approvedAt)} />
+            <DetailField
+              label="Approved by"
+              value={
+                displayMember.approvedByName
+                ?? displayMember.approver?.name
+                ?? (displayMember.approvedAt ? "—" : undefined)
+              }
+            />
+            <DetailField label="Introduced by" value={displayMember.introducedBy?.name} />
           </div>
+          {displayMember.approvedAt && (displayMember.approvedByName || displayMember.approver?.name) ? (
+            <p className="text-sm text-gray-600">
+              Approved by {displayMember.approvedByName ?? displayMember.approver?.name} on {formatDate(displayMember.approvedAt)}
+            </p>
+          ) : null}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Primary beneficiary</p>
-            <p className="mt-2 text-base font-extrabold text-gray-900">{member.beneficiaryName || "-"}</p>
-            <p className="mt-1 text-sm text-gray-500">{member.beneficiaryRelationship || "Relationship not set"}</p>
-            <p className="mt-1 text-sm font-semibold text-gray-700">{member.beneficiaryPhone || "-"}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Beneficiaries</p>
+            {loadingDetails ? (
+              <p className="mt-2 text-sm text-gray-500">Loading beneficiaries…</p>
+            ) : beneficiaries.length ? (
+              <div className="mt-3">
+              <DataTable
+                columns={[
+                  { header: "Name", render: (row) => row.name },
+                  { header: "Relationship", render: (row) => row.relationship },
+                  { header: "Phone", render: (row) => row.phone ?? "—" },
+                  {
+                    header: "Allocation",
+                    render: (row) => `${row.allocationPercentage}%${row.isPrimary ? " · Primary" : ""}`,
+                  },
+                ]}
+                rows={beneficiaries}
+                getRowKey={(row) => row.id}
+                showAutoNumber={false}
+                emptyTitle="No beneficiaries"
+                emptyMessage="Beneficiary records will appear here."
+              />
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">No beneficiaries on file.</p>
+            )}
           </div>
-          <DependantsPanel memberId={member.id} scope="admin" canVerify={canUpdate} />
+          <DependantsPanel memberId={displayMember.id} scope="admin" canVerify={canUpdate} />
         </div>
       ) : null}
 

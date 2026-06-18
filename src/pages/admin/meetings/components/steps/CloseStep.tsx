@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { downloadReport, money } from '@/pages/admin/shared/adminFormatters';
 import { useAuthStore } from '@/store/auth';
+import { isSystemAdmin } from '@/lib/workspaces';
 import type { MeetingRecord } from '../../types';
 
 type MeetingReportSummary = {
@@ -66,8 +67,10 @@ export function CloseStep({
   onAdminReopen,
   canClose,
 }: Props) {
-  const permissions = useAuthStore((s) => s.user?.permissions ?? []);
-  const canAdminOverride = permissions.includes('officialsPortal.meetings.adminOverride');
+  const user = useAuthStore((s) => s.user);
+  const permissions = user?.permissions ?? [];
+  const canAdminOverride =
+    isSystemAdmin(user) || permissions.includes('officialsPortal.meetings.adminOverride');
   const fileRef = useRef<HTMLInputElement>(null);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [adminTarget, setAdminTarget] = useState<AdminReopenInput['targetStatus']>('ATTENDANCE_RECORDING');

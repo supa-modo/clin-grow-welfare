@@ -125,19 +125,6 @@ export function CollectionsStep({
     }));
   };
 
-  const welfareCoveredMonths = (startDate: string, amount: number, paidMonths: string[] = []) => {
-    const monthCount = monthly > 0 && amount > 0 && Math.abs(amount / monthly - Math.round(amount / monthly)) < 0.01
-      ? Math.round(amount / monthly)
-      : 0;
-    if (!monthCount) return { covered: [] as string[], duplicate: [] as string[], validMultiple: false };
-    const start = new Date(`${startDate.slice(0, 7)}-01T00:00:00`);
-    const covered = Array.from({ length: monthCount }, (_, index) => {
-      const d = new Date(start.getFullYear(), start.getMonth() + index, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    });
-    return { covered, duplicate: covered.filter((month) => paidMonths.includes(month)), validMultiple: true };
-  };
-
   const renderContributionCell = (
     row: MemberRow,
     type: 'WEEKLY_SAVINGS' | 'SHARE_CAPITAL' | 'WELFARE_KITTY',
@@ -148,16 +135,22 @@ export function CollectionsStep({
     const weekly = rosterRow.expectations.weeklySavings;
     const share = rosterRow.expectations.shareCapital;
     const welfare = rosterRow.expectations.welfareKitty;
-    const suggested = kind === 'week' ? weekly.remainingToMax : kind === 'share' ? share.remaining : welfare.dueThisMonth || monthly;
+    const welfareRemaining = welfare.remainingThisMonth ?? welfare.dueThisMonth ?? monthly;
+    const suggested = kind === 'week'
+      ? weekly.remainingToMax
+      : kind === 'share'
+        ? share.remaining
+        : welfareRemaining;
     const label = kind === 'share'
       ? `${money(share.paidToDate)} / ${money(share.max)} share`
       : kind === 'welfare'
-        ? `${money(welfare.paidThisMonth)} paid this month`
+        ? `${money(welfare.paidThisMonth)} / ${money(welfare.monthlyDue ?? monthly)} · ${money(welfareRemaining)} due`
         : '';
 
     const draftKey = `${meeting.id}-${row.memberId}-${type}`;
     const draft = collectionDraft[draftKey] ?? { type, amount: String(suggested), reference: '', paymentMethod: 'CASH', periodDate: '' };
-    const shareDisabled = kind === 'share' && share.remaining <= 0;
+    const shareWindowClosed = kind === 'share' && share.windowOpen === false;
+    const shareDisabled = kind === 'share' && (share.remaining <= 0 || shareWindowClosed);
     const periodDate = kind === 'week'
       ? (draft.periodDate || defaultWeekDate)
       : kind === 'welfare'
@@ -169,15 +162,23 @@ export function CollectionsStep({
     const displayLabel = kind === 'week'
       ? `${money(selectedWeekPaid)} / ${money(weekly.max)} selected week`
       : label;
-    const welfareStatus = kind === 'welfare'
-      ? welfareCoveredMonths(periodDate, Number(draft.amount || 0), welfare.paidMonths ?? [])
-      : { covered: [], duplicate: [] as string[], validMultiple: true };
-    const welfareBlocked = kind === 'welfare' && (!welfareStatus.validMultiple || welfareStatus.duplicate.length > 0);
+    const welfareAmount = Number(draft.amount || 0);
+    const welfareOverpay = kind === 'welfare' && welfareAmount > welfareRemaining + 0.01;
+    const welfareFullyPaid = kind === 'welfare' && welfareRemaining <= 0;
+    const welfareBlocked = kind === 'welfare' && (welfareOverpay || welfareFullyPaid);
     const weeklyBlocked = kind === 'week' && selectedWeekRemaining <= 0;
 
     return (
       <div className="min-w-40">
         <p className="mb-1 text-xs font-semibold text-ink-500">{displayLabel}</p>
+        {shareWindowClosed && share.windowClosesAt ? (
+          <p className="mb-1 text-xs font-semibold text-amber-700">
+            Share window closed {new Date(share.windowClosesAt).toLocaleDateString('en-KE')}
+          </p>
+        ) : null}
+        {welfareOverpay ? (
+          <p className="mb-1 text-xs font-semibold text-red-700">Exceeds remaining welfare due</p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-1">
           <input
             className="w-20 rounded-lg border border-ink-200 px-2 py-1 text-sm disabled:bg-ink-50"
@@ -241,11 +242,11 @@ export function CollectionsStep({
         ) : null}
         {kind === 'welfare' ? (
           <p className={`mt-1 text-xs ${welfareBlocked ? 'font-semibold text-red-700' : 'text-ink-500'}`}>
-            {!welfareStatus.validMultiple
-              ? `Use ${money(monthly)} or exact multiple.`
-              : welfareStatus.duplicate.length
-                ? `Paid: ${welfareStatus.duplicate.join(', ')}.`
-                : `Covers ${welfareStatus.covered.join(', ') || 'month'}.`}
+            {welfareFullyPaid
+              ? 'Month complete.'
+              : welfareOverpay
+                ? `Max ${money(welfareRemaining)} remaining this month.`
+                : `${money(welfareRemaining)} remaining this month.`}
           </p>
         ) : null}
       </div>

@@ -71,8 +71,8 @@ export function MemberQuickActionCard({
     <Link
       to={to}
       className={clsx(
-        "group relative flex h-full min-h-[7rem] flex-col rounded-xl border border-slate-200/95 p-4",
-        "bg-gradient-to-br from-brand-700 to-brand-800 shadow-sm transition duration-200",
+        "group relative flex h-full min-h-28 flex-col rounded-xl border border-slate-200/95 p-4",
+        "bg-linear-to-br from-brand-700 to-brand-800 shadow-sm transition duration-200",
         "hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
       )}
     >
@@ -222,7 +222,7 @@ export function ActiveLoanProgress({
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-600 to-emerald-500 transition-all duration-500"
+              className="h-full rounded-full bg-linear-to-r from-brand-600 to-emerald-500 transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -282,10 +282,10 @@ export function SetupState({
     <div className="grid min-h-[50vh] place-items-center px-4">
       <div className="max-w-md text-center">
         {loading ? (
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <div className="mx-auto mb-4 h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
         ) : null}
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{message}</p>
+        <h2 className="text-[0.85rem] lg:text-sm font-semibold text-slate-900">{title}</h2>
+        <p className="mt-2 text-[0.75rem] lg:text-sm leading-relaxed text-slate-600">{message}</p>
       </div>
     </div>
   );

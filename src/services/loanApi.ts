@@ -48,20 +48,8 @@ export const loanApi = {
       loanNumber: string;
       memberAcknowledged: boolean;
       treasurerVerified: boolean;
+      managementApproved: boolean;
       chairpersonAuthorized: boolean;
-      voucher: {
-        id: string;
-        voucherNo: string;
-        status: string;
-        readiness: {
-          ready: boolean;
-          hasTreasurer: boolean;
-          hasSecond: boolean;
-          management: boolean;
-          missingRoles?: string[];
-          requiredRoles?: string[];
-        } | null;
-      } | null;
     };
   },
 

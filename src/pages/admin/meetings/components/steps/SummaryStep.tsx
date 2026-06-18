@@ -67,7 +67,7 @@ export function SummaryStep({ meeting, collectionTotals, pool }: Props) {
         <StatCard
           label="Loanable for this meeting"
           value={money(pool?.totalLoanablePool ?? 0)}
-          detail={`${money(pool?.reservedAmount ?? 0)} reserved · ${money(pool?.remainingAmount ?? 0)} available`}
+          detail={`${money(pool?.reservedAmount ?? 0)} reserved · ${money(pool?.remainingAmount ?? 0)} available · welfare excluded`}
         />
       </div>
       <SegmentedTabs

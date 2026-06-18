@@ -228,16 +228,20 @@ export function LoansPage() {
           {l.status === 'SUBMITTED' && <Button size="sm" variant="ghost" icon={<FiCheck size={13} />} onClick={(e) => { e.stopPropagation(); doVerify(l); }} className="text-blue-600 hover:bg-blue-50">Verify</Button>}
           {['PENDING_MEETING_APPROVAL', 'UNDER_REVIEW'].includes(l.status) && (
             <>
-              <Button size="sm" variant="ghost" icon={<FiCheck size={13} />} onClick={(e) => { e.stopPropagation(); setApprovedAmount(String(l.requestedAmount)); setShowApprove(l); }} className="text-green-600 hover:bg-green-50">Approve</Button>
+              {l.reviewedAt && !l.memberAcknowledgedAt && (
+                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); void loanApi.recordMemberAck(l.id).then(load).catch((err) => showError('Acknowledgement failed', getApiError(err, 'Failed to record acknowledgement.'))); }} className="text-blue-600 hover:bg-blue-50">Record ack</Button>
+              )}
+              {l.memberAcknowledgedAt && (
+                <Button size="sm" variant="ghost" icon={<FiCheck size={13} />} onClick={(e) => { e.stopPropagation(); setApprovedAmount(String(l.requestedAmount)); setShowApprove(l); }} className="text-green-600 hover:bg-green-50">Approve</Button>
+              )}
               <Button size="sm" variant="ghost" icon={<FiX size={13} />} onClick={(e) => { e.stopPropagation(); setShowReject(l); }} className="text-red-600 hover:bg-red-50">Reject</Button>
             </>
           )}
           {l.status === 'AGREEMENT_PENDING' && (
             <>
               <Button size="sm" variant="ghost" icon={<FiFileText size={13} />} onClick={(e) => { e.stopPropagation(); loanApi.downloadAgreement(l.id, `agreement-${l.loanNumber}.pdf`); }}>Agreement</Button>
-              {!l.agreementGeneratedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'generate'); }}>Generate</Button>}
-              {l.memberAcknowledgedAt && !l.treasurerVerifiedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'verify'); }}>Treasurer Verify</Button>}
-              {l.treasurerVerifiedAt && !l.chairpersonAuthorizedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'authorize'); }}>Chair Authorize</Button>}
+              {!l.memberAcknowledgedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); void loanApi.recordMemberAck(l.id).then(load).catch((err) => showError('Acknowledgement failed', getApiError(err, 'Failed to record acknowledgement.'))); }}>Record ack</Button>}
+              {l.memberAcknowledgedAt && !l.chairpersonAuthorizedAt && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); doAgreementAction(l, 'authorize'); }}>Authorize</Button>}
             </>
           )}
           {l.status === 'READY_FOR_DISBURSEMENT' && <Button size="sm" variant="ghost" icon={<FiDollarSign size={13} />} onClick={(e) => { e.stopPropagation(); setDisburseConfirm(l); }} className="text-purple-600 hover:bg-purple-50">Disburse</Button>}
@@ -443,7 +447,7 @@ export function LoansPage() {
         title="Confirm loan disbursement"
         message={
           disburseConfirm
-            ? `Disburse ${money(disburseConfirm.approvedAmount ?? disburseConfirm.requestedAmount)} to ${disburseConfirm.member?.name ?? 'this member'}? A payment voucher will be prepared and marked paid if all controls pass.`
+            ? `Disburse ${money(disburseConfirm.approvedAmount ?? disburseConfirm.requestedAmount)} to ${disburseConfirm.member?.name ?? 'this member'}? This will post the disbursement journal entry and notify the member by email.`
             : ''
         }
         confirmText={saving ? 'Disbursing...' : 'Disburse'}

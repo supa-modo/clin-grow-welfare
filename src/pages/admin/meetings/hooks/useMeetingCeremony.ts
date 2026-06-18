@@ -556,6 +556,23 @@ export function useMeetingCeremony() {
     }
   };
 
+  const createManualFine = async (
+    meetingId: string,
+    input: { memberId: string; amount: number; reason: string; fineType?: string },
+  ) => {
+    setBusy('manual-fine');
+    try {
+      await api.post(`/meetings/${meetingId}/fines`, input);
+      await reload();
+      await loadRoster(meetingId);
+      toastSuccess('Manual fine added', 'The fine is now on the meeting roster.');
+    } catch (err) {
+      toastError('Could not add fine', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
   const collectImpl = async (
     meeting: MeetingRecord,
     memberId: string,
@@ -873,6 +890,7 @@ export function useMeetingCeremony() {
     openLoanWindow,
     sendNotice,
     generateFines,
+    createManualFine,
     closeLoanWindow,
     reopenLoanWindow,
     adminReopenMeeting,

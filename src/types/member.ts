@@ -22,6 +22,12 @@ export type MemberDependantDocument = {
   createdAt: string;
 };
 
+export type MemberUserRef = {
+  id: string;
+  name: string | null;
+  email?: string | null;
+};
+
 export type MemberDependant = {
   id: string;
   memberId: string;
@@ -33,6 +39,8 @@ export type MemberDependant = {
   notes?: string | null;
   verifiedAt?: string | null;
   verifiedBy?: string | null;
+  verifiedByName?: string | null;
+  verifiedByUser?: MemberUserRef | null;
   createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +69,8 @@ export type Member = {
   registrationFeePaid: boolean;
   approvedAt?: string | null;
   approvedBy?: string | null;
+  approvedByName?: string | null;
+  approver?: MemberUserRef | null;
   approvalMeetingId?: string | null;
   beneficiaryName: string;
   beneficiaryPhone: string;

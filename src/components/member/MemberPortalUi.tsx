@@ -44,10 +44,10 @@ export function MemberWelcomeHeader({
         {greeting ? (
           <p className="text-sm font-medium text-ink-500">{greeting}</p>
         ) : null}
-        <h1 className="font-google text-xl font-extrabold tracking-tight text-ink-950 md:text-2xl lg:text-[1.7rem]">
+        <h1 className="font-google text-[1rem] font-extrabold tracking-tight text-ink-950 md:text-2xl lg:text-[1.3rem]">
           {name}
         </h1>
-        <p className="mt-1 text-xs text-ink-500 md:text-[0.8rem] lg:text-sm">
+        <p className="mt-1 text-xs text-gray-600 md:text-[0.8rem] lg:text-sm">
           {membershipNumber} · {statusLabel}
         </p>
       </div>

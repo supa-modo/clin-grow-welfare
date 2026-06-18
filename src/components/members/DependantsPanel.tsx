@@ -372,6 +372,11 @@ export function DependantsPanel({
                     <p className="mt-1 text-sm text-slate-500">
                       {dependant.relationship}
                     </p>
+                    {dependant.verifiedAt ? (
+                      <p className="mt-1 text-xs font-semibold text-emerald-700">
+                        Verified by {dependant.verifiedByName ?? dependant.verifiedByUser?.name ?? "official"} on {formatDate(dependant.verifiedAt)}
+                      </p>
+                    ) : null}
                     <div className="mt-3 grid gap-2 text-xs text-slate-600 grid-cols-2 lg:grid-cols-3">
                       <span className="min-w-0 wrap-break-word">
                         DOB: {formatDate(dependant.dateOfBirth)}

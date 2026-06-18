@@ -67,6 +67,8 @@ export type LoanReservation = {
     outstandingPrincipal?: number;
     agreementGeneratedAt?: string;
     memberAcknowledgedAt?: string;
+    reviewedAt?: string;
+    approvedAt?: string;
     treasurerVerifiedAt?: string;
     chairpersonAuthorizedAt?: string;
   };
@@ -78,10 +80,21 @@ export type RosterMember = {
   apology?: { id: string; status: string; reason: string } | null;
   expectations: {
     weeklySavings: { paidThisWeek: number; paidToDate?: number; min: number; max: number; remainingToMax: number; paymentsByWeek?: Record<string, number> };
-    shareCapital: { paidToDate: number; max: number; remaining: number };
-    welfareKitty: { paidThisMonth: number; dueThisMonth: number; paidMonths?: string[] };
+    shareCapital: { paidToDate: number; max: number; remaining: number; windowOpen?: boolean; windowClosesAt?: string };
+    welfareKitty: { paidThisMonth: number; dueThisMonth: number; remainingThisMonth?: number; monthlyDue?: number; paidMonths?: string[] };
     fines: { pendingTotal: number; rows: Array<{ id: string; fineType: string; amount: number; status: string; carriedForward?: boolean }> };
-    loans: { active: Array<{ id: string; loanNumber?: string; outstandingPrincipal?: number }>; outstandingTotal: number };
+    loans: {
+      active: Array<{
+        id: string;
+        loanNumber?: string;
+        outstandingPrincipal?: number;
+        totalOutstanding?: number;
+        status?: string;
+        disbursedAt?: string;
+        nextInterestDate?: string;
+      }>;
+      outstandingTotal: number;
+    };
   };
 };
 
@@ -103,5 +116,6 @@ export type MeetingRoster = {
 export type LoanPool = {
   totalLoanablePool: number;
   reservedAmount: number;
+  committedAmount?: number;
   remainingAmount: number;
 };

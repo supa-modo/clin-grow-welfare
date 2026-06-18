@@ -7,6 +7,14 @@ import { money } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingRecord, MeetingRoster } from "../../types";
 import { PostedItemsCorrectionPanel } from "../PostedItemsCorrectionPanel";
 import { TbMoneybagMoveBack } from "react-icons/tb";
+import {
+  compareLoansForRepayment,
+  formatLoanDate,
+  isLoanOverdue,
+  loanDueDate,
+  loanRepaymentBucket,
+  type LoanRepaymentBucket,
+} from "@/lib/loanDates";
 
 type RepaymentRow = {
   key: string;
@@ -17,6 +25,8 @@ type RepaymentRow = {
   loanNumber: string;
   outstanding: number;
   status: string;
+  dueDate?: string;
+  bucket: LoanRepaymentBucket;
 };
 
 type CollectionDraft = Record<
@@ -43,6 +53,16 @@ type Props = {
 
 const PAYMENT_METHODS = ["CASH", "BANK", "MPESA", "TRANSFER", "OTHER"] as const;
 
+function filterRows(rows: RepaymentRow[], search: string) {
+  const q = search.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((r) =>
+    [r.memberName, r.membershipNumber, r.loanNumber].some((v) =>
+      v.toLowerCase().includes(q),
+    ),
+  );
+}
+
 export function RepaymentsStep({
   meeting,
   roster,
@@ -58,33 +78,36 @@ export function RepaymentsStep({
   const blocked = !!busy || meeting.status === "CLOSED";
 
   const rows = useMemo<RepaymentRow[]>(() => {
-    return (roster?.members ?? []).flatMap((row) =>
-      row.expectations.loans.active.map((loan) => ({
-        key: `${meeting.id}-${row.member.id}-LOAN_REPAYMENT`,
-        memberId: row.member.id,
-        memberName: row.member.name,
-        membershipNumber: row.member.membershipNumber,
-        loanId: loan.id,
-        loanNumber: loan.loanNumber ?? loan.id.slice(0, 8),
-        outstanding: Number(
-          (loan as { totalOutstanding?: number }).totalOutstanding ??
-            loan.outstandingPrincipal ??
-            0,
-        ),
-        status: (loan as { status?: string }).status ?? "ACTIVE",
-      })),
+    const meetingDate = meeting.meetingDate;
+    const built = (roster?.members ?? []).flatMap((row) =>
+      row.expectations.loans.active.map((loan) => {
+        const status = loan.status ?? "ACTIVE";
+        const dueDate = loanDueDate(loan) ?? undefined;
+        return {
+          key: `${meeting.id}-${row.member.id}-LOAN_REPAYMENT`,
+          memberId: row.member.id,
+          memberName: row.member.name,
+          membershipNumber: row.member.membershipNumber,
+          loanId: loan.id,
+          loanNumber: loan.loanNumber ?? loan.id.slice(0, 8),
+          outstanding: Number(loan.totalOutstanding ?? loan.outstandingPrincipal ?? 0),
+          status,
+          dueDate,
+          bucket: loanRepaymentBucket(loan, meetingDate),
+        };
+      }),
     );
-  }, [meeting.id, roster]);
+    return built.sort(compareLoansForRepayment);
+  }, [meeting.id, meeting.meetingDate, roster]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.memberName, r.membershipNumber, r.loanNumber].some((v) =>
-        v.toLowerCase().includes(q),
-      ),
-    );
-  }, [rows, search]);
+  const dueRows = useMemo(
+    () => filterRows(rows.filter((r) => r.bucket === "due"), search),
+    [rows, search],
+  );
+  const advanceRows = useMemo(
+    () => filterRows(rows.filter((r) => r.bucket === "advance"), search),
+    [rows, search],
+  );
 
   const columns: Column<RepaymentRow>[] = [
     {
@@ -102,6 +125,18 @@ export function RepaymentsStep({
           </p>
         </button>
       ),
+    },
+    {
+      key: "due",
+      header: "Due",
+      render: (r) => {
+        const overdue = isLoanOverdue(r.dueDate, meeting.meetingDate);
+        return (
+          <span className={overdue ? "font-semibold text-red-700" : "text-ink-700"}>
+            {formatLoanDate(r.dueDate)}
+          </span>
+        );
+      },
     },
     {
       key: "outstanding",
@@ -274,8 +309,11 @@ export function RepaymentsStep({
     },
   ];
 
+  const rowClassName = (r: RepaymentRow) =>
+    ["OVERDUE", "DEFAULTED"].includes(r.status) ? "bg-red-50" : "";
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {onReverseItem && onAdjustItem ? (
         <PostedItemsCorrectionPanel
           meeting={meeting}
@@ -290,20 +328,47 @@ export function RepaymentsStep({
         open={Boolean(detailLoanId)}
         onClose={() => setDetailLoanId(null)}
       />
-      <DataTable
-        columns={columns}
-        rows={filtered}
-        getRowKey={(r) => r.loanId}
-        getRowClassName={(r) =>
-          ["OVERDUE", "DEFAULTED"].includes(r.status) ? "bg-red-50" : ""
-        }
-        search
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search loan or member"
-        emptyTitle="No repayments"
-        emptyMessage="No active loans on the meeting roster."
-      />
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-ink-600">
+          Post repayments for loans due this meeting week first, or pay ahead on other active loans below.
+        </p>
+        <input
+          className="w-full max-w-xs rounded-lg border border-ink-200 px-3 py-2 text-sm sm:w-72"
+          placeholder="Search loan or member"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-bold text-ink-900">Due this week / overdue</h3>
+          <Badge tone="warning">{dueRows.length}</Badge>
+        </div>
+        <DataTable
+          columns={columns}
+          rows={dueRows}
+          getRowKey={(r) => `due-${r.loanId}`}
+          getRowClassName={rowClassName}
+          emptyTitle="No loans due this week"
+          emptyMessage="No overdue or due-this-week loans on the roster."
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-bold text-ink-900">Other active loans (advance payment)</h3>
+          <Badge tone="neutral">{advanceRows.length}</Badge>
+        </div>
+        <DataTable
+          columns={columns}
+          rows={advanceRows}
+          getRowKey={(r) => `advance-${r.loanId}`}
+          emptyTitle="No other active loans"
+          emptyMessage="All active loans are due this week or overdue."
+        />
+      </div>
     </div>
   );
 }

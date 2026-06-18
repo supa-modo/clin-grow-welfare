@@ -6,7 +6,6 @@ import {
   FiSend,
   FiXCircle,
 } from "react-icons/fi";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -15,6 +14,7 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { loanApi } from "@/services/loanApi";
 import { LoanDisbursementPanel } from "@/components/loans/LoanDisbursementPanel";
 import { useAuthStore } from "@/store/auth";
+import { isSystemAdmin } from "@/lib/workspaces";
 import { money, tone } from "@/pages/admin/shared/adminFormatters";
 import { isCollectionsFinalized } from "../../utils";
 import type {
@@ -78,11 +78,14 @@ export function LoanWindowStep({
   onRefreshPool,
   onLoanAction,
 }: Props) {
-  const permissions = useAuthStore((s) => s.user?.permissions ?? []);
+  const user = useAuthStore((s) => s.user);
+  const permissions = user?.permissions ?? [];
   const canDisburse = permissions.includes("officialsPortal.loans.disburse");
   const canApproveLoan = permissions.includes("officialsPortal.loans.approve");
   const canVerify = permissions.includes("officialsPortal.loans.disburse");
-  const canAdminOverride = permissions.includes("officialsPortal.meetings.adminOverride");
+  const canAdminOverride =
+    isSystemAdmin(user) ||
+    permissions.includes("officialsPortal.meetings.adminOverride");
   const blocked = !!busy || meeting.status === "CLOSED";
   const windowOpen =
     activeLoanWindow &&
@@ -134,13 +137,13 @@ export function LoanWindowStep({
     activeLoanWindow &&
     (activeLoanWindow as { status: string }).status === "CLOSED";
 
-  const pipelineLabels = ["Reserved", "Verified", "Approved", "Agreement", "Voucher", "Disbursed"];
+  const pipelineLabels = ["Reserved", "Verified", "Member ack", "Approved", "Disbursed"];
   const pipelineIndex = (status: string) => {
     if (status === "SUBMITTED") return 0;
     if (["PENDING_MEETING_APPROVAL", "UNDER_REVIEW"].includes(status)) return 1;
+    if (status === "READY_FOR_DISBURSEMENT") return 3;
+    if (["ACTIVE", "PARTIALLY_PAID", "IN_ROLLOVER", "OVERDUE"].includes(status)) return 4;
     if (status === "AGREEMENT_PENDING") return 2;
-    if (status === "READY_FOR_DISBURSEMENT") return 4;
-    if (["ACTIVE", "PARTIALLY_PAID", "IN_ROLLOVER", "OVERDUE"].includes(status)) return 5;
     return -1;
   };
 
@@ -150,15 +153,26 @@ export function LoanWindowStep({
       ? "No eligible members for this meeting"
       : "Select eligible member";
 
+  const poolSummary = (() => {
+    const total = pool?.totalLoanablePool ?? 0;
+    const reserved = pool?.reservedAmount ?? 0;
+    const disbursed = pool?.committedAmount ?? 0;
+    const available = pool?.remainingAmount ?? 0;
+    if (windowClosed) {
+      return `${money(available)} available of ${money(total)} collected · ${money(disbursed)} disbursed · ${money(reserved)} reserved`;
+    }
+    return `${money(available)} available of ${money(total)} · ${money(disbursed)} disbursed · ${money(reserved)} reserved`;
+  })();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-100 bg-ink-900 p-4 text-white">
         <div>
           <p className="text-sm font-bold">Meeting loan window</p>
           <p className="mt-1 text-sm text-white/70">
-            Live pool (updates in real time when open):{" "}
-            {money(pool?.remainingAmount ?? 0)} available of{" "}
-            {money(pool?.totalLoanablePool ?? 0)}.
+            {windowOpen ? "Live pool: " : windowClosed ? "Final pool: " : "Pool: "}
+            {poolSummary}. Pool = share capital + savings + repayments + fines
+            collected this meeting (welfare excluded).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -236,6 +250,10 @@ export function LoanWindowStep({
             ["PENDING_MEETING_APPROVAL", "UNDER_REVIEW"].includes(
               loan.status,
             ) &&
+            !!loan.memberAcknowledgedAt;
+          const showMemberAck =
+            loan &&
+            ["PENDING_MEETING_APPROVAL", "UNDER_REVIEW"].includes(loan.status) &&
             !loan.memberAcknowledgedAt;
           return (
             <Card key={reservation.id} className="p-4">
@@ -275,7 +293,12 @@ export function LoanWindowStep({
                   ) : null}
                   {loan?.status === "SUBMITTED" ? (
                     <p className="mt-2 text-xs font-semibold text-amber-800">
-                      Verify required before chairperson can approve.
+                      Treasurer verification required before member acknowledgement.
+                    </p>
+                  ) : null}
+                  {showMemberAck && !loan?.memberAcknowledgedAt && loan?.reviewedAt ? (
+                    <p className="mt-2 text-xs font-semibold text-amber-800">
+                      Record member acknowledgement, then Chair or Secretary can approve.
                     </p>
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -324,6 +347,20 @@ export function LoanWindowStep({
                         Verify
                       </Button>
                     ) : null}
+                    {showMemberAck && canVerify ? (
+                      <Button
+                        size="sm"
+                        variant="secondary2"
+                        disabled={!!busy || !loan.reviewedAt}
+                        onClick={() =>
+                          onLoanAction(loan, "member acknowledgement", () =>
+                            loanApi.recordMemberAck(loan.id),
+                          )
+                        }
+                      >
+                        Record member ack
+                      </Button>
+                    ) : null}
                     {showApprove && canApproveLoan ? (
                       <Button
                         size="sm"
@@ -338,6 +375,21 @@ export function LoanWindowStep({
                         }
                       >
                         Approve
+                      </Button>
+                    ) : null}
+                    {loan.status === "READY_FOR_DISBURSEMENT" ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={!!busy}
+                        onClick={() =>
+                          void loanApi.downloadAgreement(
+                            loan.id,
+                            `agreement-${loan.loanNumber}.pdf`,
+                          )
+                        }
+                      >
+                        Agreement
                       </Button>
                     ) : null}
                     {loan.status === "AGREEMENT_PENDING" ? (
@@ -355,20 +407,6 @@ export function LoanWindowStep({
                         >
                           Agreement
                         </Button>
-                        {!loan.agreementGeneratedAt ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={!!busy}
-                            onClick={() =>
-                              onLoanAction(loan, "agreement generation", () =>
-                                loanApi.generateAgreement(loan.id),
-                              )
-                            }
-                          >
-                            Generate
-                          </Button>
-                        ) : null}
                         {!loan.memberAcknowledgedAt && canVerify ? (
                           <Button
                             size="sm"
@@ -384,22 +422,6 @@ export function LoanWindowStep({
                           </Button>
                         ) : null}
                         {loan.memberAcknowledgedAt &&
-                        !loan.treasurerVerifiedAt &&
-                        canVerify ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={!!busy}
-                            onClick={() =>
-                              onLoanAction(loan, "treasurer verification", () =>
-                                loanApi.verifyAgreement(loan.id),
-                              )
-                            }
-                          >
-                            Treasurer verify
-                          </Button>
-                        ) : null}
-                        {loan.treasurerVerifiedAt &&
                         !loan.chairpersonAuthorizedAt &&
                         canApproveLoan ? (
                           <Button
@@ -443,11 +465,7 @@ export function LoanWindowStep({
         ) : null}
       </div>
       <p className="text-xs text-ink-500">
-        If disbursement fails, check{" "}
-        <Link className="text-brand-700 underline" to="/dashboard/loans">
-          loans / vouchers
-        </Link>{" "}
-        for payment-ready vouchers.
+        Disbursement requires treasurer verification, member acknowledgement, and chair or secretary approval.
       </p>
 
       <Modal

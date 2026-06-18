@@ -144,8 +144,8 @@ export function VouchersPage() {
   return (
     <AdminPageLayout fillHeight>
       <PageHeader
-        title="Payment vouchers"
-        subtitle="Treasurer and Chairperson signatures required before loan disbursement."
+        title="Historical payment vouchers"
+        subtitle="Read-only archive of vouchers created before direct loan and welfare disbursement."
         action={(
           <div className="flex gap-2">
             <Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load()} disabled={loading}>Refresh</Button>
