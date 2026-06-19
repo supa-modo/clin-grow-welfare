@@ -29,6 +29,9 @@ type Props = {
   onNotify: (fineId: string) => void;
   onDefer: (fineId: string) => void;
   onCreateManualFine?: (input: { memberId: string; amount: number; reason: string; fineType?: string }) => void;
+  mattersArisingDraft: string;
+  onMattersArisingChange: (value: string) => void;
+  onSaveMattersArising: () => void;
 };
 
 export function FinesStep({
@@ -40,6 +43,9 @@ export function FinesStep({
   onNotify,
   onDefer,
   onCreateManualFine,
+  mattersArisingDraft,
+  onMattersArisingChange,
+  onSaveMattersArising,
 }: Props) {
   const [search, setSearch] = useState('');
   const [showManualModal, setShowManualModal] = useState(false);
@@ -219,6 +225,31 @@ export function FinesStep({
         emptyTitle="No fines"
         emptyMessage={finesLocked ? 'No fines for this meeting yet. Use Add manual fine for in-meeting offences.' : 'Generate attendance fines or add a manual fine.'}
       />
+
+      <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-ink-900">Matters arising</h3>
+        <p className="mt-1 text-sm text-ink-600">
+          Record any matters arising before proceeding to collections.
+        </p>
+        <textarea
+          className="mt-3 min-h-[120px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-800"
+          value={mattersArisingDraft}
+          onChange={(e) => onMattersArisingChange(e.target.value)}
+          placeholder="Type matters arising from this sitting..."
+          disabled={blocked}
+        />
+        <div className="mt-3 flex justify-end">
+          <Button
+            size="sm"
+            variant="secondary2"
+            disabled={blocked || !!busy}
+            isLoading={busy === 'matters-arising'}
+            onClick={onSaveMattersArising}
+          >
+            Save matters arising
+          </Button>
+        </div>
+      </div>
 
       <Modal
         open={showManualModal}

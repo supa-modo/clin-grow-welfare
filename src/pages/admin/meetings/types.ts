@@ -20,6 +20,8 @@ export type MeetingRecord = {
   minutesFileName?: string | null;
   minutesMimeType?: string | null;
   summaryEmailedAt?: string | null;
+  mattersArising?: string | null;
+  anyOtherBusiness?: string | null;
   collectionWaivers?: Record<string, { weeklyWaived?: boolean; welfareWaived?: boolean }> | null;
   attendance?: unknown[];
   collectionSessions?: Array<{ id: string; status: string; items?: unknown[] }>;

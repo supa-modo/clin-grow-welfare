@@ -76,6 +76,10 @@ export function MeetingControlRoom({
     setReservationDraft,
     minutesDraft,
     setMinutesDraft,
+    mattersArisingDraft,
+    setMattersArisingDraft,
+    aobDraft,
+    setAobDraft,
     meetingReport,
     showReserveModal,
     setShowReserveModal,
@@ -112,6 +116,8 @@ export function MeetingControlRoom({
     officialReserve,
     runLoanAction,
     saveMinutes,
+    saveMattersArising,
+    saveAob,
     publishMinutes,
     sendSummaryToMembers,
     uploadMinutesDocument,
@@ -253,6 +259,9 @@ export function MeetingControlRoom({
             onNotify={(fineId) => void notifyFine(fineId)}
             onDefer={(fineId) => void deferFine(fineId)}
             onCreateManualFine={(input) => void createManualFine(m.id, input)}
+            mattersArisingDraft={mattersArisingDraft[m.id] ?? m.mattersArising ?? ''}
+            onMattersArisingChange={(value) => setMattersArisingDraft((prev) => ({ ...prev, [m.id]: value }))}
+            onSaveMattersArising={() => void saveMattersArising(m)}
           />
         ) : null}
         {step === "collections" ? (
@@ -336,6 +345,9 @@ export function MeetingControlRoom({
             onLoanAction={(loan, label, runner) =>
               void runLoanAction(loan, label, runner)
             }
+            aobDraft={aobDraft[m.id] ?? m.anyOtherBusiness ?? ''}
+            onAobChange={(value) => setAobDraft((prev) => ({ ...prev, [m.id]: value }))}
+            onSaveAob={() => void saveAob(m)}
           />
         ) : null}
         {step === "close" ? (

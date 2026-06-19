@@ -68,6 +68,8 @@ export function useMeetingCeremony() {
   const [collectionDraft, setCollectionDraft] = useState<Record<string, { type: string; amount: string; reference: string; paymentMethod?: string; loanId?: string; fineId?: string; periodDate?: string }>>({});
   const [reservationDraft, setReservationDraft] = useState<Record<string, string>>({});
   const [minutesDraft, setMinutesDraft] = useState<Record<string, string>>({});
+  const [mattersArisingDraft, setMattersArisingDraft] = useState<Record<string, string>>({});
+  const [aobDraft, setAobDraft] = useState<Record<string, string>>({});
   const [showAttendanceFinalize, setShowAttendanceFinalize] = useState(false);
   const [savedAttendanceIds, setSavedAttendanceIds] = useState<Record<string, boolean>>({});
   const [collectionsReadiness, setCollectionsReadiness] = useState<{
@@ -738,6 +740,34 @@ export function useMeetingCeremony() {
     }
   };
 
+  const saveMattersArising = async (meeting: MeetingRecord) => {
+    const text = (mattersArisingDraft[meeting.id] ?? meeting.mattersArising ?? '').trim();
+    setBusy('matters-arising');
+    try {
+      await api.post(`/meetings/${meeting.id}/matters-arising`, { text });
+      await reload();
+      toastSuccess('Matters arising saved', 'The meeting record has been updated.');
+    } catch (err) {
+      toastError('Save failed', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const saveAob = async (meeting: MeetingRecord) => {
+    const text = (aobDraft[meeting.id] ?? meeting.anyOtherBusiness ?? '').trim();
+    setBusy('aob');
+    try {
+      await api.post(`/meetings/${meeting.id}/aob`, { text });
+      await reload();
+      toastSuccess('AOB saved', 'Any other business has been recorded for this meeting.');
+    } catch (err) {
+      toastError('Save failed', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
   const saveMinutes = async (meeting: MeetingRecord) => {
     const minutes = (minutesDraft[meeting.id] ?? meeting.minutes ?? '').trim();
     if (minutes.length < 5) {
@@ -806,6 +836,10 @@ export function useMeetingCeremony() {
           const res = await api.post(`/meetings/${meetingId}/send-summary`);
           await reload();
           const sent = Number(res.data.sentCount ?? 0);
+          if (sent <= 0) {
+            toastError('No emails sent', 'No members with a valid email address were found. Check portal user emails and try again.');
+            return;
+          }
           toastSuccess('Summary sent', `Meeting summary emailed to ${sent} member(s).`);
         } catch (err) {
           toastError('Send failed', getApiError(err));
@@ -882,6 +916,10 @@ export function useMeetingCeremony() {
     setReservationDraft,
     minutesDraft,
     setMinutesDraft,
+    mattersArisingDraft,
+    setMattersArisingDraft,
+    aobDraft,
+    setAobDraft,
     selectedMeeting,
     activeLoanWindow,
     collectionTotals,
@@ -917,6 +955,8 @@ export function useMeetingCeremony() {
     officialReserve,
     runLoanAction,
     saveMinutes,
+    saveMattersArising,
+    saveAob,
     publishMinutes,
     sendSummaryToMembers,
     closeMeeting,

@@ -1,5 +1,7 @@
 import type { Loan } from "@/types/loan";
 
+export const DEFAULT_LOAN_PERIOD_DAYS = 28;
+
 export type LoanDueInput = Pick<Loan, "disbursedAt" | "nextInterestDate"> & {
   status?: string;
 };
@@ -7,17 +9,19 @@ export type LoanDueInput = Pick<Loan, "disbursedAt" | "nextInterestDate"> & {
 export type LoanRepaymentBucket = "due" | "advance";
 
 export function loanDueDate(loan: Pick<Loan, "disbursedAt" | "nextInterestDate">) {
+  if (loan.nextInterestDate) {
+    return new Date(loan.nextInterestDate).toISOString();
+  }
   if (loan.disbursedAt) {
     const due = new Date(loan.disbursedAt);
-    due.setMonth(due.getMonth() + 1);
+    due.setDate(due.getDate() + DEFAULT_LOAN_PERIOD_DAYS);
     return due.toISOString();
   }
-  return loan.nextInterestDate;
+  return undefined;
 }
 
 export function meetingWeekRange(meetingDate: Date | string) {
   const start = new Date(meetingDate);
-  start.setDate(start.getDate() - start.getDay());
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(end.getDate() + 7);
