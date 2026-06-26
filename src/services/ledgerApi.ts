@@ -1,4 +1,5 @@
 import { api } from './api';
+import { downloadBlobResponse } from '@/pages/admin/shared/adminFormatters';
 import type { FinancialYear, WelfareSetting, Fund, LedgerAccount, JournalEntry, MemberBalances } from '@/types/ledger';
 
 export const ledgerApi = {
@@ -18,6 +19,11 @@ export const ledgerApi = {
   async updateSystemSettings(input: Partial<WelfareSetting> & Partial<{ startDate: string; endDate: string; savingsStopDate?: string; agmDate?: string }>) {
     const { data } = await api.put('/ledger/system-settings', input);
     return data as { financialYear: FinancialYear; settings: WelfareSetting };
+  },
+  async downloadDatabaseBackup() {
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, (match) => (match === 'T' ? '_' : ''));
+    const res = await api.post('/ledger/database-backup', {}, { responseType: 'blob' });
+    await downloadBlobResponse(res, `clingrow_${timestamp}.sql.gz`);
   },
   async createFinancialYear(input: { name: string; startDate: string; endDate: string; savingsStopDate?: string; agmDate?: string }) {
     const { data } = await api.post('/ledger/financial-years', input);

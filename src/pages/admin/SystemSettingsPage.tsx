@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiRefreshCw, FiSave } from "react-icons/fi";
+import { FiDownload, FiRefreshCw, FiSave } from "react-icons/fi";
 import { AdminPageLayout, AdminPageMain } from "@/layouts/AdminPageLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
 import { ledgerApi } from "@/services/ledgerApi";
+import { readBlobError } from "@/pages/admin/shared/adminFormatters";
 import type { FinancialYear, WelfareSetting } from "@/types/ledger";
 
 type VoucherSignatoryRole = NonNullable<WelfareSetting["voucherRequiredSignatoryRoles"]>[number];
@@ -106,6 +107,8 @@ export function SystemSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [backupConfirmOpen, setBackupConfirmOpen] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
   const canEdit = Boolean(user?.roles.some((role) => ["SystemAdmin", "Chairperson", "Secretary", "AssistantSecretary"].includes(role)));
 
   const load = async () => {
@@ -183,6 +186,19 @@ export function SystemSettingsPage() {
     }
   };
 
+  const downloadBackup = async () => {
+    setBackingUp(true);
+    try {
+      await ledgerApi.downloadDatabaseBackup();
+      setBackupConfirmOpen(false);
+      toastSuccess("Database backup downloaded.");
+    } catch (error) {
+      toastError(await readBlobError(error));
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
   return (
     <AdminPageLayout className="pb-8">
       <PageHeader
@@ -251,6 +267,31 @@ export function SystemSettingsPage() {
           </div>
         </section>
 
+        {canEdit ? (
+          <section className="mb-4 rounded-lg border border-ink-100 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-extrabold text-ink-900">Database backup</h2>
+                <p className="mt-1 text-xs text-ink-500">
+                  Download a full PostgreSQL backup of the welfare database to this computer for disaster recovery.
+                </p>
+                <p className="mt-2 text-xs font-semibold text-amber-700">
+                  The file contains sensitive member and financial data. Store it securely and do not share it casually.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                icon={<FiDownload />}
+                disabled={loading || backingUp}
+                isLoading={backingUp}
+                onClick={() => setBackupConfirmOpen(true)}
+              >
+                Download database backup
+              </Button>
+            </div>
+          </section>
+        ) : null}
+
         <div className="grid gap-4 xl:grid-cols-2">
           {groups.map((group) => (
             <section key={group.title} className="rounded-lg border border-ink-100 bg-white p-4 shadow-sm">
@@ -308,6 +349,15 @@ export function SystemSettingsPage() {
         message="These values are used immediately by new contribution validation, meeting workflows, fines, loan calculations, and financial-year rules."
         confirmText="Save Settings"
         onConfirm={() => void save()}
+      />
+
+      <NotificationModal
+        isOpen={backupConfirmOpen}
+        onClose={() => !backingUp && setBackupConfirmOpen(false)}
+        title="Download database backup?"
+        message="This will create a compressed SQL dump of the full database and download it to this computer. The process may take a minute depending on database size."
+        confirmText="Download backup"
+        onConfirm={() => void downloadBackup()}
       />
     </AdminPageLayout>
   );

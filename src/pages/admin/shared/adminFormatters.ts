@@ -31,14 +31,52 @@ export function getApiError(error: unknown) {
 
 export async function downloadReport(reportKey: string, format: 'pdf' | 'csv' | 'xlsx', params?: Record<string, string>) {
   const res = await api.get(`/reports/${reportKey}/export`, { params: { format, ...params }, responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([res.data]));
+  await downloadBlobResponse(res, `${reportKey}.${format}`);
+}
+
+export function filenameFromContentDisposition(header: string | undefined, fallback: string) {
+  if (!header) return fallback;
+  const quoted = /filename="([^"]+)"/i.exec(header);
+  if (quoted?.[1]) return quoted[1];
+  const plain = /filename=([^;]+)/i.exec(header);
+  return plain?.[1]?.trim() ?? fallback;
+}
+
+export async function downloadBlobResponse(
+  res: { data: Blob; headers: Record<string, unknown> },
+  fallbackFilename: string,
+) {
+  const disposition = String(res.headers['content-disposition'] ?? res.headers['Content-Disposition'] ?? '');
+  const filename = filenameFromContentDisposition(disposition, fallbackFilename);
+  const url = window.URL.createObjectURL(res.data);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${reportKey}.${format}`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
+}
+
+export async function readBlobError(error: unknown) {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'data' in error.response &&
+    error.response.data instanceof Blob
+  ) {
+    try {
+      const text = await error.response.data.text();
+      const parsed = JSON.parse(text) as { error?: string; message?: string };
+      return parsed.error ?? parsed.message ?? 'Something went wrong. Please try again.';
+    } catch {
+      return 'Something went wrong. Please try again.';
+    }
+  }
+  return getApiError(error);
 }
 
 export function canApproveClaim(status: string) {
