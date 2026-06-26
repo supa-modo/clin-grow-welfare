@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FiDownload, FiRefreshCw } from 'react-icons/fi';
+import { FiDownload, FiMail, FiRefreshCw } from 'react-icons/fi';
 import { TbChartBar, TbFileAnalytics, TbFileSpreadsheet, TbScale, TbWallet } from 'react-icons/tb';
 import { api } from '@/services/api';
 import { Badge } from '@/components/ui/Badge';
@@ -7,21 +7,27 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import DataTable, { type Column } from '@/components/ui/DataTable';
 import type { MultiFilterSection, MultiFilterValue } from '@/components/ui/MultiFilterDropdown';
+import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import StatCard from '@/components/ui/StatCard';
 import { AdminPageLayout, AdminPageMain, AdminPageStatsGrid } from '@/layouts/AdminPageLayout';
-import { downloadReport, money } from '@/pages/admin/shared/adminFormatters';
+import { downloadReport, getApiError, money } from '@/pages/admin/shared/adminFormatters';
 import { StateBlock, useLoad } from '@/pages/admin/shared/adminUi';
+import { useUiStore } from '@/store/uiStore';
+
+type ReportFormat = 'pdf' | 'csv' | 'xlsx';
 
 type ReportRow = {
   key: string;
   title: string;
   category: 'finance' | 'loans' | 'meetings' | 'welfare' | 'audit' | 'yearEnd';
   cadence: string;
-  formats: Array<'pdf' | 'csv'>;
+  formats: ReportFormat[];
+  shareWithMembers?: boolean;
 };
 
 const reportRows: ReportRow[] = [
+  { key: 'welfare-accounts-overview', title: 'Welfare accounts overview', category: 'yearEnd', cadence: 'Member transparency', formats: ['pdf', 'xlsx'], shareWithMembers: true },
   { key: 'executive', title: 'Executive dashboard', category: 'finance', cadence: 'Board pack', formats: ['pdf', 'csv'] },
   { key: 'fund-balances', title: 'Fund balances', category: 'finance', cadence: 'Daily close', formats: ['pdf', 'csv'] },
   { key: 'trial-balance', title: 'Trial balance', category: 'finance', cadence: 'Month end', formats: ['pdf', 'csv'] },
@@ -30,9 +36,7 @@ const reportRows: ReportRow[] = [
   { key: 'loan-applications', title: 'Loan applications', category: 'loans', cadence: 'Committee pack', formats: ['pdf', 'csv'] },
   { key: 'loan-repayments', title: 'Loan repayments', category: 'loans', cadence: 'Cash office', formats: ['pdf', 'csv'] },
   { key: 'contributions', title: 'Contributions register', category: 'finance', cadence: 'Cash office', formats: ['pdf', 'csv'] },
-  { key: 'receipts', title: 'Receipts register', category: 'finance', cadence: 'Cash office', formats: ['pdf', 'csv'] },
   { key: 'welfare-claims', title: 'Welfare claims', category: 'welfare', cadence: 'Committee pack', formats: ['pdf', 'csv'] },
-  { key: 'audit-pack', title: 'Audit pack', category: 'audit', cadence: 'Audit file', formats: ['pdf', 'csv'] },
   { key: 'year-end-allocation', title: 'Year-end allocation', category: 'yearEnd', cadence: 'AGM close', formats: ['pdf', 'csv'] },
 ];
 
@@ -61,16 +65,20 @@ const categoryLabels: Record<ReportRow['category'], string> = {
 };
 
 export function ReportsPage() {
+  const toastSuccess = useUiStore((s) => s.toastSuccess);
+  const toastError = useUiStore((s) => s.toastError);
   const { data, loading, error, reload } = useLoad(async () => {
-    const [executive, funds, aging, trial, collections] = await Promise.all([
+    const [executive, funds, aging, trial, collections, overview] = await Promise.all([
       api.get('/reports/executive'),
       api.get('/reports/fund-balances'),
       api.get('/reports/loan-aging'),
       api.get('/reports/trial-balance'),
       api.get('/reports/meeting-collections'),
+      api.get('/reports/welfare-accounts-overview'),
     ]);
     return {
       executive: executive.data.data,
+      overview: overview.data.data,
       funds: funds.data.data ?? [],
       aging: aging.data.data ?? [],
       trial: trial.data.data,
@@ -78,15 +86,36 @@ export function ReportsPage() {
     };
   }, []);
   const [exporting, setExporting] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [includeExcelOnShare, setIncludeExcelOnShare] = useState(false);
   const [search, setSearch] = useState('');
   const [filterValue, setFilterValue] = useState<MultiFilterValue>({ category: [] });
 
-  const runExport = async (key: string, format: 'pdf' | 'csv') => {
+  const runExport = async (key: string, format: ReportFormat) => {
     setExporting(`${key}-${format}`);
     try {
       await downloadReport(key, format);
     } finally {
       setExporting('');
+    }
+  };
+
+  const shareOverviewWithMembers = async () => {
+    setSharing(true);
+    try {
+      const res = await api.post('/reports/welfare-accounts-overview/share', { includeExcel: includeExcelOnShare });
+      const sent = Number(res.data.data?.sentCount ?? 0);
+      if (sent <= 0) {
+        toastError('No emails sent', 'No members with a valid email address were found.');
+        return;
+      }
+      toastSuccess('Overview shared', `Welfare accounts overview emailed to ${sent} member(s).`);
+      setShareModalOpen(false);
+    } catch (err) {
+      toastError('Share failed', getApiError(err));
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -126,19 +155,32 @@ export function ReportsPage() {
               size="sm"
               variant={format === 'pdf' ? 'secondary' : 'secondary2'}
               icon={<FiDownload />}
-              disabled={!!exporting}
+              disabled={!!exporting || sharing}
               isLoading={exporting === `${report.key}-${format}`}
               onClick={() => void runExport(report.key, format)}
             >
-              {format.toUpperCase()}
+              {format === 'xlsx' ? 'Excel' : format.toUpperCase()}
             </Button>
           ))}
+          {report.shareWithMembers ? (
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<FiMail />}
+              disabled={!!exporting || sharing}
+              isLoading={sharing}
+              onClick={() => setShareModalOpen(true)}
+            >
+              Share with members
+            </Button>
+          ) : null}
         </div>
       ),
     },
   ];
 
   const executive = data?.executive ?? {};
+  const overview = data?.overview ?? {};
   const trial = data?.trial;
   const aging = data?.aging ?? [];
   const funds = data?.funds ?? [];
@@ -150,15 +192,15 @@ export function ReportsPage() {
     <AdminPageLayout className="pb-8">
       <PageHeader
         title="Reports"
-        subtitle="Executive reporting, audit evidence, finance registers, and committee packs."
+        subtitle="Executive reporting, audit evidence, finance registers, and member transparency packs."
         action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void reload()}>Refresh</Button>}
       />
 
       <StateBlock loading={loading && !data} error={error} />
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={TbWallet} iconColor="#1f7a76" label="Fund balances" value={money(fundTotal)} subtitle={`${funds.length} funds`} />
-        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(executive.distributableIncome ?? 0)} subtitle="Interest plus fines" />
+        <StatCard icon={TbWallet} iconColor="#1f7a76" label="Member savings" value={money(overview.totalMemberSavings ?? 0)} subtitle="Shares plus weekly savings" />
+        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Closed-loan interest plus fines" />
         <StatCard icon={TbScale} iconColor={trial?.balanced ? '#16a34a' : '#dc2626'} label="Trial balance" value={trial?.balanced ? 'Balanced' : 'Review'} subtitle={trial ? `${money(trial.totalDebits)} debits` : 'Not loaded'} />
         <StatCard icon={TbFileAnalytics} iconColor="#d97706" label="Loan aging" value={money(agedLoanValue)} subtitle={`${aging.length} loans in aging`} />
       </AdminPageStatsGrid>
@@ -169,26 +211,26 @@ export function ReportsPage() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-extrabold text-ink-900">Financial Position</h3>
-                <p className="text-xs font-semibold text-ink-500">Ledger-derived balances and income controls</p>
+                <p className="text-xs font-semibold text-ink-500">Constitution-aligned overview as at today</p>
               </div>
               <Badge tone={trial?.balanced ? 'success' : 'danger'}>{trial?.balanced ? 'Balanced' : 'Out of balance'}</Badge>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Loan interest income</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(executive.loanInterestIncome ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Interest (completed loans)</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.interestFromClosedLoans ?? 0)}</p>
               </div>
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Fines income</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(executive.finesIncome ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Fines collected</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.finesCollected ?? 0)}</p>
               </div>
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Total debits</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(trial?.totalDebits ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Welfare kitty</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.welfareKittyBalance ?? 0)}</p>
               </div>
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Total credits</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(trial?.totalCredits ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Posted ledger interest</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.ledgerInterestIncome ?? executive.loanInterestIncome ?? 0)}</p>
               </div>
             </div>
           </Card>
@@ -266,6 +308,34 @@ export function ReportsPage() {
           emptyMessage="Adjust filters to find the report you need."
         />
       </AdminPageMain>
+
+      <Modal
+        open={shareModalOpen}
+        title="Share welfare accounts overview with members?"
+        subtitle="The PDF summary will be emailed to every active member with an email address on file."
+        onClose={() => !sharing && setShareModalOpen(false)}
+        footer={(
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" disabled={sharing} onClick={() => setShareModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" icon={<FiMail />} isLoading={sharing} onClick={() => void shareOverviewWithMembers()}>
+              Send to members
+            </Button>
+          </div>
+        )}
+      >
+        <p className="text-sm text-ink-600">
+          Members will receive a concise overview of fines collected, interest from completed loans, share capital and savings balances, and the distributable income pool. The welfare kitty is shown separately.
+        </p>
+        <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-ink-700">
+          <input
+            type="checkbox"
+            checked={includeExcelOnShare}
+            onChange={(event) => setIncludeExcelOnShare(event.target.checked)}
+            className="rounded border-ink-300"
+          />
+          Also attach Excel workbook
+        </label>
+      </Modal>
     </AdminPageLayout>
   );
 }

@@ -29,7 +29,7 @@ export function getApiError(error: unknown) {
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 }
 
-export async function downloadReport(reportKey: string, format: 'pdf' | 'csv', params?: Record<string, string>) {
+export async function downloadReport(reportKey: string, format: 'pdf' | 'csv' | 'xlsx', params?: Record<string, string>) {
   const res = await api.get(`/reports/${reportKey}/export`, { params: { format, ...params }, responseType: 'blob' });
   const url = window.URL.createObjectURL(new Blob([res.data]));
   const link = document.createElement('a');
