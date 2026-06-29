@@ -28,6 +28,14 @@ export function meetingWeekRange(meetingDate: Date | string) {
   return { start, end };
 }
 
+/** Extend due window through the meeting sitting day when it falls after the constitutional Thursday. */
+export function meetingRepaymentWindowEnd(meetingDate: Date | string) {
+  const { end } = meetingWeekRange(meetingDate);
+  const meeting = new Date(meetingDate);
+  meeting.setHours(23, 59, 59, 999);
+  return meeting > end ? meeting : end;
+}
+
 export function loanRepaymentBucket(
   loan: LoanDueInput,
   meetingDate: Date | string,
@@ -38,7 +46,7 @@ export function loanRepaymentBucket(
   const dueRaw = loanDueDate(loan);
   if (!dueRaw) return "due";
   const due = new Date(dueRaw);
-  const { end } = meetingWeekRange(meetingDate);
+  const end = meetingRepaymentWindowEnd(meetingDate);
   return due < end ? "due" : "advance";
 }
 

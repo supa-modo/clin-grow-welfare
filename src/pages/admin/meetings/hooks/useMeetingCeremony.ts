@@ -7,7 +7,7 @@ import { getApiError } from '@/pages/admin/shared/adminFormatters';
 import { mapDisburseError } from '@/components/loans/LoanDisbursementPanel';
 import { useLoad } from '@/pages/admin/shared/adminUi';
 import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep } from '../types';
-import { clampCeremonyStep, collectionTotalsFromMeeting, resolveAttendanceStatus } from '../utils';
+import { clampCeremonyStep, collectionTotalsFromMeeting, periodDateToIso, resolveAttendanceStatus } from '../utils';
 
 const CEREMONY_STORAGE_KEY = 'clingrow.ceremony.v1';
 const meetingSteps: MeetingStep[] = ['attendance', 'fines', 'collections', 'repayments', 'summary', 'loans', 'close'];
@@ -280,7 +280,39 @@ export function useMeetingCeremony() {
     ).length;
   };
 
-  const closeLoanWindow = (loanWindowId: string, meeting?: MeetingRecord | null) => {
+  const executeCloseLoanWindow = async (
+    loanWindowId: string,
+    options?: { carryOverRemaining?: boolean },
+  ) => {
+    setBusy('close-loan-window');
+    try {
+      await api.post(`/meetings/loan-window/${loanWindowId}/close`, {
+        carryOverRemaining: Boolean(options?.carryOverRemaining),
+      });
+      await reload();
+      await loadRoster();
+      toastSuccess(
+        'Loan window closed',
+        options?.carryOverRemaining
+          ? 'Remaining pool will be added to the next meeting loan window.'
+          : 'No new meeting loan applications can be reserved.',
+      );
+    } catch (err) {
+      toastError('Could not close loan window', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const closeLoanWindow = (
+    loanWindowId: string,
+    meeting?: MeetingRecord | null,
+    options?: { carryOverRemaining?: boolean; skipConfirm?: boolean },
+  ) => {
+    if (options?.skipConfirm) {
+      void executeCloseLoanWindow(loanWindowId, options);
+      return;
+    }
     const inFlight = countInFlightLoans(meeting);
     confirmAction({
       key: 'close-loan-window',
@@ -290,19 +322,7 @@ export function useMeetingCeremony() {
         ? `${inFlight} loan application(s) are still in progress. Closing stops new reservations; existing applications can still be completed. Use admin override if you must force-close with blockers.`
         : 'No new loan reservations or applications can be made in this meeting after closing.',
       confirmText: 'Close window',
-      run: async () => {
-        setBusy('close-loan-window');
-        try {
-          await api.post(`/meetings/loan-window/${loanWindowId}/close`);
-          await reload();
-          await loadRoster();
-          toastSuccess('Loan window closed', 'No new meeting loan applications can be reserved.');
-        } catch (err) {
-          toastError('Could not close loan window', getApiError(err));
-        } finally {
-          setBusy('');
-        }
-      },
+      run: () => executeCloseLoanWindow(loanWindowId, options),
     });
   };
 
@@ -601,7 +621,9 @@ export function useMeetingCeremony() {
         paymentReference: input.reference || `MTG-${meeting.meetingNumber}-${Date.now()}`,
         loanId: input.loanId ?? defaults?.loanId,
         fineId: input.fineId ?? defaults?.fineId,
-        periodDate: input.periodDate ? new Date(input.periodDate).toISOString() : undefined,
+        periodDate: (input.periodDate || defaults?.periodDate)
+          ? periodDateToIso(input.periodDate || defaults!.periodDate!)
+          : undefined,
       });
       await reload();
       await loadRoster(meeting.id);

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   FiCheckCircle,
   FiDollarSign,
@@ -12,6 +13,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { RefreshIconButton } from "@/components/ui/RefreshIconButton";
 import { tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingStep } from "../types";
 import {
@@ -128,6 +131,8 @@ export function MeetingControlRoom({
     clearPendingAction,
     runPendingAction,
   } = ceremony;
+
+  const [agendaExpanded, setAgendaExpanded] = useState(false);
 
   if (!selectedMeeting) return null;
 
@@ -336,7 +341,7 @@ export function MeetingControlRoom({
             reserveForm={reserveForm}
             setReserveForm={setReserveForm}
             onOpenWindow={() => void openLoanWindow(m.id)}
-            onCloseWindow={(id) => void closeLoanWindow(id, m)}
+            onCloseWindow={(id, options) => void closeLoanWindow(id, m, options)}
             onReopenWindow={(id) => void reopenLoanWindow(id)}
             onUpdateReservation={(r) => void updateReservation(r)}
             onReleaseReservation={(r) => void releaseReservation(r)}

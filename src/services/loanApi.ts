@@ -78,6 +78,11 @@ export const loanApi = {
     return data.repayment;
   },
 
+  async waiveInterestCharge(loanId: string, chargeId: string, reason: string) {
+    const { data } = await api.post(`/loans/${loanId}/interest-charges/${chargeId}/waive`, { reason });
+    return data.charge;
+  },
+
   async downloadStatement(id: string, filename?: string) {
     const response = await api.get(`/loans/${id}/statement`, { responseType: 'blob' });
     const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));

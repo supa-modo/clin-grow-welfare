@@ -200,7 +200,7 @@ export function ReportsPage() {
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={TbWallet} iconColor="#1f7a76" label="Member savings" value={money(overview.totalMemberSavings ?? 0)} subtitle="Shares plus weekly savings" />
-        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Closed-loan interest plus fines" />
+        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Posted loan interest plus fines" />
         <StatCard icon={TbScale} iconColor={trial?.balanced ? '#16a34a' : '#dc2626'} label="Trial balance" value={trial?.balanced ? 'Balanced' : 'Review'} subtitle={trial ? `${money(trial.totalDebits)} debits` : 'Not loaded'} />
         <StatCard icon={TbFileAnalytics} iconColor="#d97706" label="Loan aging" value={money(agedLoanValue)} subtitle={`${aging.length} loans in aging`} />
       </AdminPageStatsGrid>
@@ -217,8 +217,8 @@ export function ReportsPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Interest (completed loans)</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.interestFromClosedLoans ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Loan interest income (posted)</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.ledgerInterestIncome ?? executive.loanInterestIncome ?? 0)}</p>
               </div>
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
                 <p className="text-xs font-bold uppercase text-ink-500">Fines collected</p>
@@ -229,8 +229,8 @@ export function ReportsPage() {
                 <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.welfareKittyBalance ?? 0)}</p>
               </div>
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Posted ledger interest</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.ledgerInterestIncome ?? executive.loanInterestIncome ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Completed-loan repayments interest</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.interestFromClosedLoans ?? 0)}</p>
               </div>
             </div>
           </Card>

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Spinner } from '@/components/ui/Feedback';
 import { loanApi } from '@/services/loanApi';
-import type { Loan, LoanRepayment, LoanStatement } from '@/types/loan';
+import type { Loan, LoanInterestCharge, LoanRepayment, LoanStatement } from '@/types/loan';
 import { formatLoanDate, loanDueDate } from '@/lib/loanDates';
 
 function money(n: number | string | undefined) {
@@ -36,6 +36,13 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
   const [loan, setLoan] = useState<Loan | null>(null);
   const [statement, setStatement] = useState<LoanStatement | null>(null);
   const [loading, setLoading] = useState(false);
+  const [waivingId, setWaivingId] = useState<string | null>(null);
+
+  const reload = async (id: string) => {
+    const detail = await loanApi.get(id);
+    setLoan(detail.loan);
+    setStatement(detail.statement);
+  };
 
   useEffect(() => {
     if (!open || !loanId) {
@@ -60,8 +67,56 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
     };
   }, [open, loanId]);
 
+  const handleWaiveCharge = async (charge: LoanInterestCharge) => {
+    if (!loan) return;
+    const reason = window.prompt('Reason for waiving this interest charge?');
+    if (!reason?.trim()) return;
+    setWaivingId(charge.id);
+    try {
+      await loanApi.waiveInterestCharge(loan.id, charge.id, reason.trim());
+      await reload(loan.id);
+    } finally {
+      setWaivingId(null);
+    }
+  };
+
   const repayments = (loan?.repayments ?? []).filter((r) => !r.reversedAt);
+  const interestCharges = (loan?.interestCharges ?? []).filter((charge) => !charge.waivedAt);
   const dueDate = loan ? loanDueDate(loan) : undefined;
+
+  const interestColumns: Column<LoanInterestCharge>[] = [
+    {
+      key: 'period',
+      header: 'Period',
+      render: (row) => `P${row.periodNumber}`,
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      render: (row) => new Date(row.chargeDate).toLocaleDateString(),
+    },
+    {
+      key: 'amount',
+      header: 'Interest',
+      render: (row) => <span className="font-semibold">{money(row.interestAmount)}</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (row) => (
+        row.periodNumber >= 2 ? (
+          <Button
+            size="xs"
+            variant="secondary"
+            disabled={waivingId === row.id}
+            onClick={() => void handleWaiveCharge(row)}
+          >
+            Waive
+          </Button>
+        ) : null
+      ),
+    },
+  ];
 
   const repaymentColumns: Column<LoanRepayment>[] = [
     {
@@ -167,6 +222,17 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
             <p className="mt-3 border-t border-ink-200 pt-3 text-base font-bold text-ink-900">
               Total outstanding: {money(statement.outstanding)}
             </p>
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-sm font-bold text-ink-800">Interest charges</h3>
+            <DataTable
+              columns={interestColumns}
+              rows={interestCharges}
+              getRowKey={(row) => row.id}
+              emptyTitle="No interest charges"
+              emptyMessage="Accrued interest will appear here."
+            />
           </div>
 
           <div>

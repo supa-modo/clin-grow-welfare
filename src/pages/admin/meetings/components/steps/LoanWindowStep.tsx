@@ -44,7 +44,7 @@ type Props = {
     React.SetStateAction<{ memberId: string; amount: string; purpose: string }>
   >;
   onOpenWindow: () => void;
-  onCloseWindow: (id: string) => void;
+  onCloseWindow: (id: string, options?: { carryOverRemaining?: boolean; skipConfirm?: boolean }) => void;
   onReopenWindow?: (id: string) => void;
   onUpdateReservation: (r: LoanReservation) => void;
   onReleaseReservation: (r: LoanReservation) => void;
@@ -104,6 +104,8 @@ export function LoanWindowStep({
   >([]);
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [eligibilityLoaded, setEligibilityLoaded] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [carryOverOnClose, setCarryOverOnClose] = useState(false);
   const collectionsFinalized = isCollectionsFinalized(meeting);
 
   useEffect(() => {
@@ -164,10 +166,12 @@ export function LoanWindowStep({
     const reserved = pool?.reservedAmount ?? 0;
     const disbursed = pool?.committedAmount ?? 0;
     const available = pool?.remainingAmount ?? 0;
+    const carried = pool?.carriedForwardAmount ?? 0;
+    const carriedNote = carried > 0 ? ` (incl. ${money(carried)} carried from previous meeting)` : '';
     if (windowClosed) {
-      return `${money(available)} available of ${money(total)} collected · ${money(disbursed)} disbursed · ${money(reserved)} reserved`;
+      return `${money(available)} available of ${money(total)} collected${carriedNote} · ${money(disbursed)} disbursed · ${money(reserved)} reserved`;
     }
-    return `${money(available)} available of ${money(total)} · ${money(disbursed)} disbursed · ${money(reserved)} reserved`;
+    return `${money(available)} available of ${money(total)}${carriedNote} · ${money(disbursed)} disbursed · ${money(reserved)} reserved`;
   })();
 
   return (
@@ -231,9 +235,10 @@ export function LoanWindowStep({
                 variant="secondary"
                 icon={<FiXCircle />}
                 disabled={!!busy}
-                onClick={() =>
-                  onCloseWindow((activeLoanWindow as { id: string }).id)
-                }
+                onClick={() => {
+                  setCarryOverOnClose((pool?.remainingAmount ?? 0) > 0);
+                  setShowCloseModal(true);
+                }}
               >
                 Close window
               </Button>
@@ -549,6 +554,55 @@ export function LoanWindowStep({
             }
           />
           
+        </div>
+      </Modal>
+
+      <Modal
+        open={showCloseModal}
+        title="Close loan window?"
+        subtitle="No new loan reservations can be made after closing."
+        onClose={() => setShowCloseModal(false)}
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-600">
+            Remaining pool: <span className="font-bold text-ink-900">{money(pool?.remainingAmount ?? 0)}</span>
+          </p>
+          {(pool?.remainingAmount ?? 0) > 0 ? (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={carryOverOnClose}
+                onChange={(e) => setCarryOverOnClose(e.target.checked)}
+              />
+              <span>
+                <span className="font-semibold text-ink-900">Carry remaining to next meeting</span>
+                <span className="mt-0.5 block text-ink-500">
+                  Adds {money(pool?.remainingAmount ?? 0)} to the next meeting&apos;s loanable pool when its window opens.
+                </span>
+              </span>
+            </label>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setShowCloseModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary2"
+              disabled={!!busy}
+              onClick={() => {
+                setShowCloseModal(false);
+                onCloseWindow((activeLoanWindow as { id: string }).id, {
+                  carryOverRemaining: carryOverOnClose,
+                  skipConfirm: true,
+                });
+              }}
+            >
+              Close window
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

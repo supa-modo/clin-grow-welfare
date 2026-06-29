@@ -214,3 +214,9 @@ export function addWeeksIso(isoDate: string, weeks: number) {
 export function monthStartIso(date: Date) {
   return localDateIso(new Date(date.getFullYear(), date.getMonth(), 1));
 }
+
+/** Serialize a calendar date for collection periodDate without UTC month drift. */
+export function periodDateToIso(isoDate: string) {
+  const dateOnly = isoDate.includes('T') ? isoDate.slice(0, 10) : isoDate;
+  return `${dateOnly}T12:00:00.000Z`;
+}

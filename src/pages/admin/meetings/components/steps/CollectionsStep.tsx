@@ -6,6 +6,7 @@ import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import { Modal } from '@/components/ui/Modal';
 import SearchableDropdown from '@/components/ui/SearchableDropdown';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { money } from '@/pages/admin/shared/adminFormatters';
 import type { MeetingRecord, MeetingRoster } from '../../types';
 import { isCorrectionMode, monthStartIso, todayIso, weekStartIso } from '../../utils';
@@ -20,6 +21,8 @@ type CollectionDraft = Record<string, {
   fineId?: string;
   periodDate?: string;
 }>;
+
+type CollectionTab = 'weekly' | 'share' | 'welfare';
 
 type MemberRow = {
   memberId: string;
@@ -61,6 +64,12 @@ type Props = {
 
 const PAYMENT_METHODS = ['CASH', 'BANK', 'MPESA', 'TRANSFER', 'OTHER'] as const;
 
+const TAB_CONFIG: Record<CollectionTab, { label: string; type: 'WEEKLY_SAVINGS' | 'SHARE_CAPITAL' | 'WELFARE_KITTY'; kind: 'week' | 'share' | 'welfare' }> = {
+  weekly: { label: 'Weekly savings', type: 'WEEKLY_SAVINGS', kind: 'week' },
+  share: { label: 'Share capital', type: 'SHARE_CAPITAL', kind: 'share' },
+  welfare: { label: 'Welfare kitty', type: 'WELFARE_KITTY', kind: 'welfare' },
+};
+
 export function CollectionsStep({
   meeting,
   roster,
@@ -77,8 +86,8 @@ export function CollectionsStep({
   onReverseItem,
   onAdjustItem,
 }: Props) {
-  const today = useMemo(() => new Date(), []);
   const [search, setSearch] = useState('');
+  const [collectionTab, setCollectionTab] = useState<CollectionTab>('weekly');
   const [showWaivers, setShowWaivers] = useState(false);
   const [selectedWaiverMemberId, setSelectedWaiverMemberId] = useState('');
   const location = useLocation();
@@ -89,7 +98,7 @@ export function CollectionsStep({
     && Boolean(readiness?.ready || constitutionalOverride);
   const monthly = roster?.settings?.monthlyWelfareContribution ?? 250;
   const defaultWeekDate = todayIso();
-  const defaultWelfareMonthDate = monthStartIso(today);
+  const defaultWelfareMonthDate = monthStartIso(new Date(meeting.meetingDate));
   const contributionsDeskPath = location.pathname.startsWith('/dashboard') ? '/dashboard/contributions' : '/officials/contributions';
   const waiverRows = readiness?.rows ?? [];
   const dueWaiverRows = waiverRows.filter((row) => !row.ready || row.weeklyWaived || row.welfareWaived);
@@ -106,6 +115,18 @@ export function CollectionsStep({
       name: row.member.name,
     }));
   }, [roster]);
+
+  const tabCounts = useMemo(() => {
+    const members = roster?.members ?? [];
+    return {
+      weekly: members.filter((row) => row.expectations.weeklySavings.remainingToMax > 0).length,
+      share: members.filter((row) =>
+        row.expectations.shareCapital.remaining > 0
+        && row.expectations.shareCapital.windowOpen !== false,
+      ).length,
+      welfare: readiness?.rows.filter((row) => !row.welfareOk && !row.welfareWaived).length ?? 0,
+    };
+  }, [roster, readiness]);
 
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -141,11 +162,6 @@ export function CollectionsStep({
       : kind === 'share'
         ? share.remaining
         : welfareRemaining;
-    const label = kind === 'share'
-      ? `${money(share.paidToDate)} / ${money(share.max)} share`
-      : kind === 'welfare'
-        ? `${money(welfare.paidThisMonth)} / ${money(welfare.monthlyDue ?? monthly)} · ${money(welfareRemaining)} due`
-        : '';
 
     const draftKey = `${meeting.id}-${row.memberId}-${type}`;
     const draft = collectionDraft[draftKey] ?? { type, amount: String(suggested), reference: '', paymentMethod: 'CASH', periodDate: '' };
@@ -159,36 +175,51 @@ export function CollectionsStep({
     const selectedWeekKey = kind === 'week' ? weekStartIso(new Date(`${periodDate}T00:00:00`)) : '';
     const selectedWeekPaid = kind === 'week' ? Number(weekly.paymentsByWeek?.[selectedWeekKey] ?? 0) : 0;
     const selectedWeekRemaining = kind === 'week' ? Math.max(0, weekly.max - selectedWeekPaid) : suggested;
-    const displayLabel = kind === 'week'
-      ? `${money(selectedWeekPaid)} / ${money(weekly.max)} selected week`
-      : label;
+    const selectedMonthKey = kind === 'welfare' ? periodDate.slice(0, 7) : '';
+    const selectedMonthPaid = kind === 'welfare'
+      ? Number(welfare.paymentsByMonth?.[selectedMonthKey] ?? 0)
+      : 0;
+    const selectedMonthRemaining = kind === 'welfare'
+      ? Math.max(0, (welfare.monthlyDue ?? monthly) - selectedMonthPaid)
+      : suggested;
     const welfareAmount = Number(draft.amount || 0);
-    const welfareOverpay = kind === 'welfare' && welfareAmount > welfareRemaining + 0.01;
-    const welfareFullyPaid = kind === 'welfare' && welfareRemaining <= 0;
+    const welfareOverpay = kind === 'welfare' && welfareAmount > selectedMonthRemaining + 0.01;
+    const welfareFullyPaid = kind === 'welfare' && selectedMonthRemaining <= 0;
     const welfareBlocked = kind === 'welfare' && (welfareOverpay || welfareFullyPaid);
     const weeklyBlocked = kind === 'week' && selectedWeekRemaining <= 0;
 
     return (
-      <div className="min-w-40">
-        <p className="mb-1 text-xs font-semibold text-ink-500">{displayLabel}</p>
-        {shareWindowClosed && share.windowClosesAt ? (
-          <p className="mb-1 text-xs font-semibold text-amber-700">
-            Share window closed {new Date(share.windowClosesAt).toLocaleDateString('en-KE')}
-          </p>
-        ) : null}
-        {welfareOverpay ? (
-          <p className="mb-1 text-xs font-semibold text-red-700">Exceeds remaining welfare due</p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="min-w-0">
+        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
+          {kind === 'week' ? (
+            <span>{money(selectedWeekPaid)} / {money(weekly.max)} · week</span>
+          ) : null}
+          {kind === 'share' ? (
+            <span>{money(share.paidToDate)} / {money(share.max)} share</span>
+          ) : null}
+          {kind === 'welfare' ? (
+            <span>{money(selectedMonthPaid)} / {money(welfare.monthlyDue ?? monthly)} · month</span>
+          ) : null}
+          {shareWindowClosed && share.windowClosesAt ? (
+            <span className="font-semibold text-amber-700">
+              Window closed {new Date(share.windowClosesAt).toLocaleDateString('en-KE')}
+            </span>
+          ) : null}
+          {welfareOverpay ? (
+            <span className="font-semibold text-red-700">Exceeds remaining welfare due</span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <input
-            className="w-20 rounded-lg border border-ink-200 px-2 py-1 text-sm disabled:bg-ink-50"
+            className="w-24 rounded-lg border border-ink-200 px-2.5 py-2 text-sm disabled:bg-ink-50"
             value={draft.amount}
             disabled={shareDisabled || weeklyBlocked}
+            placeholder="Amount"
             onChange={(e) => setDraft(draftKey, type, { amount: e.target.value }, String(selectedWeekRemaining))}
           />
           {kind === 'week' ? (
             <input
-              className="w-32 rounded-lg border border-ink-200 px-2 py-1 text-xs"
+              className="w-36 rounded-lg border border-ink-200 px-2.5 py-2 text-xs"
               type="date"
               title="Target saving week"
               value={periodDate}
@@ -202,15 +233,20 @@ export function CollectionsStep({
           ) : null}
           {kind === 'welfare' ? (
             <input
-              className="w-32 rounded-lg border border-ink-200 px-2 py-1 text-xs"
+              className="w-36 rounded-lg border border-ink-200 px-2.5 py-2 text-xs"
               type="month"
               title="Target welfare month"
               value={periodDate.slice(0, 7)}
-              onChange={(e) => setDraft(draftKey, type, { periodDate: `${e.target.value}-01` }, draft.amount)}
+              onChange={(e) => {
+                const nextMonthKey = e.target.value;
+                const nextPaid = Number(welfare.paymentsByMonth?.[nextMonthKey] ?? 0);
+                const nextRemaining = Math.max(0, (welfare.monthlyDue ?? monthly) - nextPaid);
+                setDraft(draftKey, type, { periodDate: `${nextMonthKey}-01`, amount: String(nextRemaining) }, String(nextRemaining));
+              }}
             />
           ) : null}
           <select
-            className="rounded-lg border border-ink-200 px-1 py-1 text-xs"
+            className="rounded-lg border border-ink-200 px-2 py-2 text-xs"
             value={draft.paymentMethod ?? 'CASH'}
             title="Payment mode"
             onChange={(e) => setDraft(draftKey, type, { paymentMethod: e.target.value }, draft.amount)}
@@ -220,13 +256,13 @@ export function CollectionsStep({
             ))}
           </select>
           <input
-            className="w-24 rounded-lg border border-ink-200 px-2 py-1 text-xs"
-            placeholder="Ref"
+            className="min-w-24 flex-1 rounded-lg border border-ink-200 px-2.5 py-2 text-xs"
+            placeholder="Receipt ref"
             value={draft.reference}
             onChange={(e) => setDraft(draftKey, type, { reference: e.target.value }, draft.amount)}
           />
           <Button
-            size="xs"
+            size="sm"
             disabled={blocked || shareDisabled || weeklyBlocked || welfareBlocked || Number(draft.amount) <= 0}
             onClick={() => onPost(row.memberId, type, Number(draft.amount), periodDate)}
           >
@@ -234,25 +270,24 @@ export function CollectionsStep({
           </Button>
         </div>
         {kind === 'week' ? (
-          <p className={`mt-1 text-xs ${weeklyBlocked ? 'font-semibold text-emerald-700' : 'text-ink-500'}`}>
-            {weeklyBlocked
-              ? 'Week complete.'
-              : `${money(selectedWeekRemaining)} remaining.`}
+          <p className={`mt-2 text-xs ${weeklyBlocked ? 'font-semibold text-emerald-700' : 'text-ink-500'}`}>
+            {weeklyBlocked ? 'Week complete.' : `${money(selectedWeekRemaining)} remaining for selected week.`}
           </p>
         ) : null}
         {kind === 'welfare' ? (
-          <p className={`mt-1 text-xs ${welfareBlocked ? 'font-semibold text-red-700' : 'text-ink-500'}`}>
+          <p className={`mt-2 text-xs ${welfareBlocked ? 'font-semibold text-red-700' : 'text-ink-500'}`}>
             {welfareFullyPaid
-              ? 'Month complete.'
+              ? 'Selected month complete.'
               : welfareOverpay
-                ? `Max ${money(welfareRemaining)} remaining this month.`
-                : `${money(welfareRemaining)} remaining this month.`}
+                ? `Max ${money(selectedMonthRemaining)} remaining for selected month.`
+                : `${money(selectedMonthRemaining)} remaining for selected month.`}
           </p>
         ) : null}
       </div>
     );
   };
 
+  const activeConfig = TAB_CONFIG[collectionTab];
   const columns: Column<MemberRow>[] = [
     {
       key: 'member',
@@ -265,26 +300,16 @@ export function CollectionsStep({
       ),
     },
     {
-      key: 'weekly',
-      header: 'Weekly savings',
-      render: (row) => renderContributionCell(row, 'WEEKLY_SAVINGS', 'week'),
-    },
-    {
-      key: 'share',
-      header: 'Share capital',
-      render: (row) => renderContributionCell(row, 'SHARE_CAPITAL', 'share'),
-    },
-    {
-      key: 'welfare',
-      header: 'Welfare kitty',
-      render: (row) => renderContributionCell(row, 'WELFARE_KITTY', 'welfare'),
+      key: 'collection',
+      header: activeConfig.label,
+      render: (row) => renderContributionCell(row, activeConfig.type, activeConfig.kind),
     },
   ];
 
   const contributionTypes = ['REGISTRATION', 'SHARE_CAPITAL', 'WEEKLY_SAVINGS', 'WELFARE_KITTY', 'EMERGENCY_CONTRIBUTION', 'FINE_PAYMENT', 'OTHER'];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {onReverseItem && onAdjustItem ? (
         <PostedItemsCorrectionPanel
           meeting={meeting}
@@ -294,10 +319,11 @@ export function CollectionsStep({
           onAdjust={onAdjustItem}
         />
       ) : null}
+
       <div className="rounded-xl border border-ink-100 bg-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-bold text-ink-900">Constitutional collections readiness</p>
+            <p className="font-bold text-ink-900">Collections readiness</p>
             <p className="text-sm text-ink-600">
               {readiness?.ready || constitutionalOverride
                 ? 'Collections are cleared for the next stage.'
@@ -336,8 +362,25 @@ export function CollectionsStep({
       </div>
 
       <p className="text-sm text-ink-600">
-        Edge-case contributions: <Link className="font-semibold text-brand-700 underline" to={contributionsDeskPath}>official contributions desk</Link> for non-meeting corrections, imports, or exceptional receipts.
+        Edge-case contributions:{' '}
+        <Link className="font-semibold text-brand-700 underline" to={contributionsDeskPath}>
+          official contributions desk
+        </Link>{' '}
+        for non-meeting corrections, imports, or exceptional receipts.
       </p>
+
+      <SegmentedTabs<CollectionTab>
+        tabs={[
+          { value: 'weekly', label: 'Weekly savings', count: tabCounts.weekly },
+          { value: 'share', label: 'Share capital', count: tabCounts.share },
+          { value: 'welfare', label: 'Welfare kitty', count: tabCounts.welfare },
+        ]}
+        value={collectionTab}
+        onChange={setCollectionTab}
+        variant="line"
+        compact
+        aria-label="Collection types"
+      />
 
       <DataTable
         columns={columns}

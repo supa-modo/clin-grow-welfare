@@ -21,6 +21,8 @@ export interface LoanInterestCharge {
   interestAmount: number;
   compoundedInterest: number;
   journalEntryId?: string;
+  waivedAt?: string | null;
+  waiverReason?: string | null;
 }
 
 export interface LoanPenalty {

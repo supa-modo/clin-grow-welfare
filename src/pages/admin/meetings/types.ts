@@ -83,7 +83,14 @@ export type RosterMember = {
   expectations: {
     weeklySavings: { paidThisWeek: number; paidToDate?: number; min: number; max: number; remainingToMax: number; paymentsByWeek?: Record<string, number> };
     shareCapital: { paidToDate: number; max: number; remaining: number; windowOpen?: boolean; windowClosesAt?: string };
-    welfareKitty: { paidThisMonth: number; dueThisMonth: number; remainingThisMonth?: number; monthlyDue?: number; paidMonths?: string[] };
+    welfareKitty: {
+      paidThisMonth: number;
+      dueThisMonth: number;
+      remainingThisMonth?: number;
+      monthlyDue?: number;
+      paidMonths?: string[];
+      paymentsByMonth?: Record<string, number>;
+    };
     fines: { pendingTotal: number; rows: Array<{ id: string; fineType: string; amount: number; status: string; carriedForward?: boolean }> };
     loans: {
       active: Array<{
@@ -120,4 +127,6 @@ export type LoanPool = {
   reservedAmount: number;
   committedAmount?: number;
   remainingAmount: number;
+  carriedForwardAmount?: number;
+  collectionsPosted?: number;
 };
