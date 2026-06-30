@@ -20,7 +20,7 @@ type Props = {
   meeting: MeetingRecord;
   resolutions?: Resolution[];
   busy: string;
-  onRecorded: () => void;
+  onRecorded: (resolution: Resolution) => void;
 };
 
 export function ResolutionsStep({ meeting, resolutions = [], busy, onRecorded }: Props) {
@@ -40,7 +40,7 @@ export function ResolutionsStep({ meeting, resolutions = [], busy, onRecorded }:
       return;
     }
     try {
-      await api.post(`/meetings/${meeting.id}/resolutions`, {
+      const res = await api.post(`/meetings/${meeting.id}/resolutions`, {
         title: title.trim(),
         description: description.trim() || undefined,
         decision,
@@ -50,8 +50,8 @@ export function ResolutionsStep({ meeting, resolutions = [], busy, onRecorded }:
       });
       setTitle('');
       setDescription('');
+      if (res.data.resolution) onRecorded(res.data.resolution as Resolution);
       toastSuccess('Resolution recorded', 'The decision is saved on this meeting.');
-      onRecorded();
     } catch (error) {
       toastError('Could not record resolution', getApiError(error));
     }

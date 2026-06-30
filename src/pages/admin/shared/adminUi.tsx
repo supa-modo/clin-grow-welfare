@@ -9,8 +9,8 @@ export function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = []) {
   useEffect(() => {
     loaderRef.current = loader;
   });
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     setError('');
     try {
       setData(await loaderRef.current());
@@ -31,14 +31,17 @@ export function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = []) {
             : 'Failed to load data';
       setError(message);
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
+  }, []);
+  const patchData = useCallback((updater: T | ((prev: T | null) => T | null)) => {
+    setData((prev) => (typeof updater === 'function' ? (updater as (prev: T | null) => T | null)(prev) : updater));
   }, []);
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
-  return { data, loading, error, reload: load };
+  return { data, loading, error, reload: load, patchData };
 }
 
 export function StateBlock({ loading, error, empty }: { loading?: boolean; error?: string; empty?: boolean }) {

@@ -125,7 +125,9 @@ export function MeetingControlRoom({
     sendSummaryToMembers,
     uploadMinutesDocument,
     loadPool,
-    reload,
+    refreshWorkspace,
+    workspaceSyncing,
+    appendResolution,
     closeMeeting,
     pendingAction,
     clearPendingAction,
@@ -185,12 +187,16 @@ export function MeetingControlRoom({
             </p>
             <p className="mt-2 max-w-3xl text-sm text-ink-600">{m.agenda}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <RefreshIconButton
+              loading={workspaceSyncing}
+              onClick={() => void refreshWorkspace()}
+            />
             <Button
               size="sm"
               variant="secondary"
               icon={<FiSend />}
-              disabled={!!busy || m.status === "CLOSED"}
+              disabled={busy === `notices` || m.status === "CLOSED"}
               onClick={() => void sendNotice(m.id)}
             >
               Email notice
@@ -200,7 +206,7 @@ export function MeetingControlRoom({
                 size="sm"
                 variant="secondary"
                 icon={<FiPlay />}
-                disabled={!!busy}
+                disabled={busy === "start"}
                 onClick={() => void action(m.id, "start")}
               >
                 Start meeting
@@ -210,7 +216,7 @@ export function MeetingControlRoom({
               <Button
                 size="sm"
                 variant="secondary2"
-                disabled={!!busy}
+                disabled={false}
                 onClick={() => setGuardedStep(continueStep)}
               >
                 Continue to {continueStep.replace(/_/g, " ")}
@@ -323,7 +329,7 @@ export function MeetingControlRoom({
               meeting={m}
               resolutions={m.resolutions}
               busy={busy}
-              onRecorded={() => void reload()}
+              onRecorded={(resolution) => appendResolution(m.id, resolution)}
             />
           </div>
         ) : null}
@@ -380,7 +386,7 @@ export function MeetingControlRoom({
         meeting={m}
         roster={roster}
         pool={pool}
-        disabled={!!busy}
+        disabled={false}
         collectionsReady={collectionsReadiness?.ready || collectionsOverride}
       />
 

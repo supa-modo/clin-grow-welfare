@@ -14,7 +14,8 @@ export function MeetingsPage() {
     data,
     loading,
     error,
-    reload,
+    refreshWorkspace,
+    workspaceSyncing,
     busy,
     showSchedule,
     setShowSchedule,
@@ -36,7 +37,7 @@ export function MeetingsPage() {
         subtitle="Run the weekly welfare sitting from notice to attendance, collections, loan window, resolutions, and close report."
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void reload()}>Refresh</Button>
+            <Button variant="secondary" icon={<FiRefreshCw />} isLoading={workspaceSyncing} onClick={() => void refreshWorkspace()}>Refresh</Button>
             <Button icon={<FiClock />} onClick={() => setShowSchedule(true)}>Schedule Meeting</Button>
           </div>
         }
@@ -44,7 +45,7 @@ export function MeetingsPage() {
 
      
 
-      <StateBlock loading={loading} error={error} empty={!loading && !data?.length} />
+      <StateBlock loading={loading && !data?.length} error={error} empty={!loading && !data?.length} />
       {data?.length ? (
         <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[380px_1fr]">
           <MeetingListSidebar meetings={data} selectedId={selectedMeeting?.id ?? selectedId} onSelect={setSelectedId} onDelete={deleteMeeting} />

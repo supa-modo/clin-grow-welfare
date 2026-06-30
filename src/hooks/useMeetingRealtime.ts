@@ -65,7 +65,7 @@ export function useMeetingRealtime(
       if (event.meetingId !== meetingId) return;
       pendingEventsRef.current.add(event.type);
       if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = window.setTimeout(flushPendingEvents, 120);
+      flushTimerRef.current = window.setTimeout(flushPendingEvents, 300);
     });
 
     return () => {
