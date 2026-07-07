@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { FiPlus, FiShield } from 'react-icons/fi';
+import { FiCheck, FiClock, FiMail, FiPlus, FiShield } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import SearchableDropdown from '@/components/ui/SearchableDropdown';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { RowActionsMenu } from '@/components/ui/RowActionsMenu';
 import { money } from '@/pages/admin/shared/adminFormatters';
 import type { MeetingRecord, MeetingRoster } from '../../types';
 import { isCorrectionMode } from '../../utils';
@@ -33,6 +34,10 @@ type Props = {
   onMattersArisingChange: (value: string) => void;
   onSaveMattersArising: () => void;
 };
+
+function isPayableFine(row: FineRow) {
+  return row.status === 'PENDING' || (row.carriedForward && row.status === 'DEFERRED');
+}
 
 export function FinesStep({
   meeting,
@@ -137,40 +142,49 @@ export function FinesStep({
       render: (r) => {
         if (r.status === 'PAID') return <Badge tone="success">Paid</Badge>;
         if (r.status === 'PENDING') return <Badge tone="warning">Pending</Badge>;
+        if (r.carriedForward && r.status === 'DEFERRED') return <Badge tone="warning">Deferred (due)</Badge>;
         return <Badge tone="neutral">{r.status}</Badge>;
       },
     },
     {
       key: 'actions',
-      header: 'Actions',
-      render: (r) =>
-        r.status === 'PENDING' ? (
-          <div className="flex flex-wrap gap-2">
-            <Button size="xs" disabled={blocked} onClick={() => onCollectFine(r.memberId, { id: r.id, amount: r.amount })}>
-              Mark paid
-            </Button>
-            <Button
-              size="xs"
-              variant="secondary"
-              disabled={blocked}
-              isLoading={busy === `fine-notify-${r.id}`}
-              onClick={() => onNotify(r.id)}
-            >
-              Notify
-            </Button>
-            <Button
-              size="xs"
-              variant="danger"
-              disabled={blocked}
-              isLoading={busy === `fine-defer-${r.id}`}
-              onClick={() => onDefer(r.id)}
-            >
-              Defer
-            </Button>
-          </div>
-        ) : (
-          <span className="text-xs text-ink-500">—</span>
-        ),
+      header: '',
+      render: (r) => {
+        if (!isPayableFine(r)) return <span className="text-xs text-ink-500">—</span>;
+        return (
+          <RowActionsMenu
+            ariaLabel={`Fine actions for ${r.memberName}`}
+            items={[
+              {
+                key: 'pay',
+                label: 'Mark paid',
+                icon: <FiCheck size={14} />,
+                disabled: blocked,
+                onClick: () => onCollectFine(r.memberId, { id: r.id, amount: r.amount }),
+              },
+              ...(r.status === 'PENDING' && !r.carriedForward
+                ? [
+                    {
+                      key: 'notify',
+                      label: 'Notify member',
+                      icon: <FiMail size={14} />,
+                      disabled: blocked || busy === `fine-notify-${r.id}`,
+                      onClick: () => onNotify(r.id),
+                    },
+                    {
+                      key: 'defer',
+                      label: 'Defer to next meeting',
+                      icon: <FiClock size={14} />,
+                      variant: 'danger' as const,
+                      disabled: blocked || busy === `fine-defer-${r.id}`,
+                      onClick: () => onDefer(r.id),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        );
+      },
     },
   ];
 
@@ -180,7 +194,7 @@ export function FinesStep({
         <div>
           <p className="font-bold text-ink-900">Generate and collect fines</p>
           <p className="text-sm text-ink-600">
-            Attendance fines: late {money(roster?.settings?.lateFine ?? 100)}, apology {money(roster?.settings?.absentWithApologyFine ?? 150)}, absent {money(roster?.settings?.absentWithoutApologyFine ?? 200)}. Add manual fines for in-meeting offences.
+            Attendance fines: late {money(roster?.settings?.lateFine ?? 100)}, apology {money(roster?.settings?.absentWithApologyFine ?? 150)}, absent {money(roster?.settings?.absentWithoutApologyFine ?? 200)}. Carried-forward deferred fines can be marked paid here.
           </p>
           {finesLocked ? (
             <p className="mt-1 text-xs font-semibold text-brand-700">
@@ -295,7 +309,6 @@ export function FinesStep({
               className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
               value={manualFineType}
               onChange={(e) => setManualFineType(e.target.value)}
-              placeholder="e.g. Late arrival to collections"
             />
           </label>
           <label className="text-xs font-semibold text-ink-600">

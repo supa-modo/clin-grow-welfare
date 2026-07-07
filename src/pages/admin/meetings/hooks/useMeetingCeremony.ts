@@ -5,7 +5,7 @@ import { useUiStore } from '@/store/uiStore';
 import { getApiError } from '@/pages/admin/shared/adminFormatters';
 import { mapDisburseError } from '@/components/loans/LoanDisbursementPanel';
 import { useLoad } from '@/pages/admin/shared/adminUi';
-import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep, LoanReservation } from '../types';
+import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep, LoanReservation, RolloverCandidate } from '../types';
 import { clampCeremonyStep, collectionTotalsFromMeeting, periodDateToIso, resolveAttendanceStatus } from '../utils';
 
 const CEREMONY_STORAGE_KEY = 'clingrow.ceremony.v1';
@@ -63,6 +63,8 @@ export function useMeetingCeremony() {
   const [selectedId, setSelectedId] = useState('');
   const [roster, setRoster] = useState<MeetingRoster | null>(null);
   const [pool, setPool] = useState<LoanPool | null>(null);
+  const [rolloverCandidates, setRolloverCandidates] = useState<RolloverCandidate[]>([]);
+  const [unclaimedCarryover, setUnclaimedCarryover] = useState(0);
   const [meetingReport, setMeetingReport] = useState<Record<string, unknown> | null>(null);
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [reserveForm, setReserveForm] = useState({ memberId: '', amount: '', purpose: '' });
@@ -173,10 +175,24 @@ export function useMeetingCeremony() {
 
   const loadPool = useCallback(async (meetingId: string) => {
     try {
-      const poolRes = await api.get(`/meetings/${meetingId}/loan-window/pool`);
+      const [poolRes, carryRes] = await Promise.all([
+        api.get(`/meetings/${meetingId}/loan-window/pool`),
+        api.get(`/meetings/${meetingId}/unclaimed-carryover`).catch(() => ({ data: { amount: 0 } })),
+      ]);
       setPool(poolRes.data.pool ?? null);
+      setUnclaimedCarryover(Number(carryRes.data.amount ?? 0));
     } catch {
       setPool(null);
+      setUnclaimedCarryover(0);
+    }
+  }, []);
+
+  const loadRolloverCandidates = useCallback(async (meetingId: string) => {
+    try {
+      const res = await api.get(`/meetings/${meetingId}/rollover-candidates`);
+      setRolloverCandidates(res.data.candidates ?? []);
+    } catch {
+      setRolloverCandidates([]);
     }
   }, []);
 
@@ -496,6 +512,12 @@ export function useMeetingCeremony() {
   }, [step, selectedMeeting?.id, loadCollectionsReadiness, collectionsOverride]);
 
   useEffect(() => {
+    if (step === 'repayments' && selectedMeeting?.id) {
+      void loadRolloverCandidates(selectedMeeting.id);
+    }
+  }, [step, selectedMeeting?.id, loadRolloverCandidates]);
+
+  useEffect(() => {
     if (!selectedMeeting?.id || selectedMeeting.status === 'CLOSED') return;
     if (step !== 'collections' && step !== 'repayments') return;
     if (selectedMeeting.status === 'COLLECTIONS_OPEN') return;
@@ -558,6 +580,7 @@ export function useMeetingCeremony() {
           finesGeneratedAt: new Date().toISOString(),
           ceremonyStep: 'fines',
         });
+        await loadRoster(meetingId);
       }
       toastSuccess('Meeting updated', 'The workflow state has been refreshed.');
     } catch (err) {
@@ -919,6 +942,40 @@ export function useMeetingCeremony() {
       toastSuccess('Manual fine added', 'The fine is now on the meeting roster.');
     } catch (err) {
       toastError('Could not add fine', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const confirmLoanRollover = async (
+    meetingId: string,
+    loanId: string,
+    input: { periodNumber: number; confirmedAmount?: number },
+  ) => {
+    setBusy(`rollover-confirm-${loanId}`);
+    try {
+      await api.post(`/meetings/${meetingId}/loans/${loanId}/rollover/confirm`, input);
+      await Promise.all([loadRolloverCandidates(meetingId), loadRoster(meetingId)]);
+      toastSuccess('Rollover confirmed', 'Interest has been applied for this loan period.');
+    } catch (err) {
+      toastError('Could not confirm rollover', getApiError(err));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const waiveLoanRollover = async (
+    meetingId: string,
+    loanId: string,
+    input: { periodNumber: number; reason: string },
+  ) => {
+    setBusy(`rollover-waive-${loanId}`);
+    try {
+      await api.post(`/meetings/${meetingId}/loans/${loanId}/rollover/waive`, input);
+      await Promise.all([loadRolloverCandidates(meetingId), loadRoster(meetingId)]);
+      toastSuccess('Rollover waived', 'No rollover interest will apply for this period.');
+    } catch (err) {
+      toastError('Could not waive rollover', getApiError(err));
     } finally {
       setBusy('');
     }
@@ -1445,6 +1502,11 @@ export function useMeetingCeremony() {
     uploadMinutesDocument,
     loadPool,
     loadRoster,
+    loadRolloverCandidates,
+    rolloverCandidates,
+    unclaimedCarryover,
+    confirmLoanRollover,
+    waiveLoanRollover,
     appendResolution,
     pendingAction,
     confirmAction,

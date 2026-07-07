@@ -127,6 +127,10 @@ export function MeetingControlRoom({
     loadPool,
     refreshWorkspace,
     workspaceSyncing,
+    rolloverCandidates,
+    unclaimedCarryover,
+    confirmLoanRollover,
+    waiveLoanRollover,
     appendResolution,
     closeMeeting,
     pendingAction,
@@ -307,6 +311,13 @@ export function MeetingControlRoom({
             busy={busy}
             collectionDraft={collectionDraft}
             setCollectionDraft={setCollectionDraft}
+            rolloverCandidates={rolloverCandidates}
+            onConfirmRollover={(loanId, periodNumber, confirmedAmount) =>
+              void confirmLoanRollover(m.id, loanId, { periodNumber, confirmedAmount })
+            }
+            onWaiveRollover={(loanId, periodNumber, reason) =>
+              void waiveLoanRollover(m.id, loanId, { periodNumber, reason })
+            }
             onPost={(memberId, loanId, amount) =>
               void collect(m, memberId, {
                 type: "LOAN_REPAYMENT",
@@ -324,6 +335,7 @@ export function MeetingControlRoom({
               meeting={m}
               collectionTotals={collectionTotals}
               pool={pool}
+              unclaimedCarryover={unclaimedCarryover}
             />
             <ResolutionsStep
               meeting={m}
@@ -353,6 +365,7 @@ export function MeetingControlRoom({
             onReleaseReservation={(r) => void releaseReservation(r)}
             onOfficialReserve={() => void officialReserve()}
             onRefreshPool={() => void loadPool(m.id)}
+            unclaimedCarryover={unclaimedCarryover}
             onLoanAction={(loan, label, runner) =>
               void runLoanAction(loan, label, runner)
             }

@@ -50,6 +50,7 @@ type Props = {
   onReleaseReservation: (r: LoanReservation) => void;
   onOfficialReserve: () => void;
   onRefreshPool: () => void;
+  unclaimedCarryover?: number;
   onLoanAction: (
     loan: NonNullable<LoanReservation["loan"]>,
     label: string,
@@ -79,6 +80,7 @@ export function LoanWindowStep({
   onReleaseReservation,
   onOfficialReserve,
   onRefreshPool,
+  unclaimedCarryover = 0,
   onLoanAction,
   aobDraft,
   onAobChange,
@@ -249,6 +251,12 @@ export function LoanWindowStep({
       {!collectionsFinalized ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
           Finalize collections on the Collections step before opening the loan window.
+        </p>
+      ) : null}
+      {unclaimedCarryover > 0.01 && !windowOpen ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="font-semibold">{money(unclaimedCarryover)} carried forward</span> from a previous meeting is available.
+          Open the loan window to include it in the pool.
         </p>
       ) : null}
       <div className="grid gap-3">

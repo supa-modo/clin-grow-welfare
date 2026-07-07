@@ -17,9 +17,10 @@ type Props = {
   meeting: MeetingRecord;
   collectionTotals: Record<string, number>;
   pool: LoanPool | null;
+  unclaimedCarryover?: number;
 };
 
-export function SummaryStep({ meeting, collectionTotals, pool }: Props) {
+export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryover = 0 }: Props) {
   const [tab, setTab] = useState<'contributions' | 'fines' | 'repayments'>('contributions');
   const [search, setSearch] = useState('');
 
@@ -60,6 +61,15 @@ export function SummaryStep({ meeting, collectionTotals, pool }: Props) {
 
   return (
     <div className="space-y-4">
+      {unclaimedCarryover > 0.01 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Unclaimed carryover available</p>
+          <p className="mt-1">
+            {money(unclaimedCarryover)} from a previous meeting is waiting to be added to the loan pool.
+            Open the loan window to claim it.
+          </p>
+        </div>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-4">
         {Object.entries(collectionTotals).map(([key, value]) => (
           <StatCard key={key} label={key.replace(/_/g, ' ')} value={money(value)} />
@@ -67,7 +77,12 @@ export function SummaryStep({ meeting, collectionTotals, pool }: Props) {
         <StatCard
           label="Loanable for this meeting"
           value={money(pool?.totalLoanablePool ?? 0)}
-          detail={`${money(pool?.reservedAmount ?? 0)} reserved · ${money(pool?.remainingAmount ?? 0)} available · welfare excluded`}
+          detail={[
+            pool?.collectionsPosted != null ? `${money(pool.collectionsPosted)} collected` : null,
+            pool?.carriedForwardAmount ? `${money(pool.carriedForwardAmount)} carried forward` : null,
+            `${money(pool?.reservedAmount ?? 0)} reserved · ${money(pool?.remainingAmount ?? 0)} available`,
+            'welfare excluded',
+          ].filter(Boolean).join(' · ')}
         />
       </div>
       <SegmentedTabs

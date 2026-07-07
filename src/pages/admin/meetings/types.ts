@@ -130,3 +130,16 @@ export type LoanPool = {
   carriedForwardAmount?: number;
   collectionsPosted?: number;
 };
+
+export type RolloverCandidate = {
+  loanId: string;
+  loanNumber: string;
+  memberId: string;
+  memberName: string;
+  membershipNumber: string;
+  periodNumber: number;
+  dueDate: string;
+  proposedAmount: number;
+  status: string;
+  rolloverId?: string;
+};
