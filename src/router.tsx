@@ -27,6 +27,7 @@ import { MemberMeetingDetailPage } from "@/pages/member/MemberMeetingDetailPage"
 import { MemberWelfareClaimsPage } from "@/pages/member/WelfareClaimsPage";
 import { MemberStatementsPage } from "@/pages/member/StatementsPage";
 import { MemberConstitutionPage } from "@/pages/member/MemberConstitutionPage";
+import { MemberDownloadsPage } from "@/pages/member/DownloadsPage";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { WelfarePage } from "@/pages/admin/welfare/WelfareClaimsPage";
 import { MeetingsPage } from "@/pages/admin/meetings/MeetingsPage";
@@ -352,6 +353,7 @@ export const router = createBrowserRouter([
                   },
                   { path: "welfare", element: <MemberWelfareClaimsPage /> },
                   { path: "statements", element: <MemberStatementsPage /> },
+                  { path: "downloads", element: <MemberDownloadsPage /> },
                   { path: "notifications", element: <NotificationsPage /> },
                 ],
               },

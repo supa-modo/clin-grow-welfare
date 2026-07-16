@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { FiCalendar, FiCreditCard, FiFileText } from "react-icons/fi";
+import { FiCalendar, FiCreditCard, FiDownload, FiFileText } from "react-icons/fi";
 
 export type TrendMonths = 3 | 6 | 9;
 
@@ -111,11 +111,17 @@ const quickActions = [
     icon: FiCalendar,
     tone: "bg-ink-800 hover:bg-ink-900",
   },
+  {
+    label: "Downloads",
+    href: "/member/downloads",
+    icon: FiDownload,
+    tone: "bg-brand-600 hover:bg-brand-700",
+  },
 ] as const;
 
 export function MemberQuickActions() {
   return (
-    <section className="grid grid-cols-3 gap-2 max-[360px]:grid-cols-2 sm:gap-3">
+    <section className="grid grid-cols-4 gap-2 max-[420px]:grid-cols-2 sm:gap-3">
       {quickActions.map((action) => (
         <Link
           key={action.href}
