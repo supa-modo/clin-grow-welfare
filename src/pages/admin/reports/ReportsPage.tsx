@@ -185,7 +185,6 @@ export function ReportsPage() {
   const aging = data?.aging ?? [];
   const funds = data?.funds ?? [];
   const collections = data?.collections;
-  const fundTotal = funds.reduce((sum: number, fund: { balance: number }) => sum + Number(fund.balance), 0);
   const agedLoanValue = aging.reduce((sum: number, loan: { outstanding?: number; outstandingBalance?: number }) => sum + Number(loan.outstanding ?? loan.outstandingBalance ?? 0), 0);
 
   return (
@@ -200,7 +199,7 @@ export function ReportsPage() {
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={TbWallet} iconColor="#1f7a76" label="Member savings" value={money(overview.totalMemberSavings ?? 0)} subtitle="Shares plus weekly savings" />
-        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Posted loan interest plus fines" />
+        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Interest, fines, registrations, and suspense" />
         <StatCard icon={TbScale} iconColor={trial?.balanced ? '#16a34a' : '#dc2626'} label="Trial balance" value={trial?.balanced ? 'Balanced' : 'Review'} subtitle={trial ? `${money(trial.totalDebits)} debits` : 'Not loaded'} />
         <StatCard icon={TbFileAnalytics} iconColor="#d97706" label="Loan aging" value={money(agedLoanValue)} subtitle={`${aging.length} loans in aging`} />
       </AdminPageStatsGrid>
@@ -229,9 +228,29 @@ export function ReportsPage() {
                 <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.welfareKittyBalance ?? 0)}</p>
               </div>
               <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase text-ink-500">Completed-loan repayments interest</p>
-                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(overview.interestFromClosedLoans ?? 0)}</p>
+                <p className="text-xs font-bold uppercase text-ink-500">Registration and suspense income</p>
+                <p className="mt-1 text-xl font-extrabold text-ink-900">{money(Number(overview.registrationIncome ?? 0) + Number(overview.suspenseFundBalance ?? 0))}</p>
               </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 xl:col-span-3">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-extrabold text-ink-900">Estimated member distribution</h3>
+                <p className="text-xs font-semibold text-ink-500">Live estimate based on each active member's share capital plus weekly savings.</p>
+              </div>
+              <Badge tone="success">{overview.memberDistribution?.length ?? 0} active members</Badge>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-ink-100">
+              <table className="min-w-full divide-y divide-ink-100 text-sm">
+                <thead className="bg-ink-50 text-left text-xs font-bold uppercase text-ink-500"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3 text-right">Share capital</th><th className="px-4 py-3 text-right">Weekly savings</th><th className="px-4 py-3 text-right">Share</th><th className="px-4 py-3 text-right">Estimated amount</th></tr></thead>
+                <tbody className="divide-y divide-ink-100 bg-white">
+                  {(overview.memberDistribution ?? []).map((row: { memberId: string; memberName: string; membershipNumber: string; shareCapital: number; weeklySavings: number; allocationPercentage: number; estimatedDistribution: number }) => (
+                    <tr key={row.memberId}><td className="px-4 py-3"><p className="font-bold text-ink-900">{row.memberName}</p><p className="text-xs text-ink-500">{row.membershipNumber}</p></td><td className="px-4 py-3 text-right font-semibold">{money(row.shareCapital)}</td><td className="px-4 py-3 text-right font-semibold">{money(row.weeklySavings)}</td><td className="px-4 py-3 text-right font-semibold">{Number(row.allocationPercentage).toFixed(2)}%</td><td className="px-4 py-3 text-right font-extrabold text-brand-700">{money(row.estimatedDistribution)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </Card>
 
@@ -324,7 +343,7 @@ export function ReportsPage() {
         )}
       >
         <p className="text-sm text-ink-600">
-          Members will receive a concise overview of fines collected, interest from completed loans, share capital and savings balances, and the distributable income pool. The welfare kitty is shown separately.
+          Members will receive posted loan interest, fines, registration and suspense income, fund balances, and the live per-member distribution estimate. The welfare kitty is shown separately.
         </p>
         <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-ink-700">
           <input

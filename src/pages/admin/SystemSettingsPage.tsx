@@ -1,16 +1,39 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FiDownload, FiRefreshCw, FiSave } from "react-icons/fi";
+import { TbHeartbeat } from "react-icons/tb";
 import { AdminPageLayout, AdminPageMain } from "@/layouts/AdminPageLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { NotificationModal } from "@/components/ui/NotificationModal";
+import { Modal } from "@/components/ui/Modal";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { useUiStore } from "@/store/uiStore";
 import { useAuthStore } from "@/store/auth";
 import { ledgerApi } from "@/services/ledgerApi";
 import { readBlobError } from "@/pages/admin/shared/adminFormatters";
 import type { FinancialYear, WelfareSetting } from "@/types/ledger";
+import { api } from "@/services/api";
+
+type LoanIntegrityIssue = {
+  code: string;
+  severity: "ERROR" | "WARNING";
+  category: string;
+  loanNumber: string;
+  memberName: string;
+  message: string;
+  expected?: string | number;
+  actual?: string | number;
+};
+type LoanIntegrityResult = {
+  generatedAt: string;
+  checkedLoans: number;
+  issueCount: number;
+  errorCount: number;
+  warningCount: number;
+  healthy: boolean;
+  issues: LoanIntegrityIssue[];
+};
 
 type VoucherSignatoryRole = NonNullable<WelfareSetting["voucherRequiredSignatoryRoles"]>[number];
 
@@ -109,9 +132,11 @@ export function SystemSettingsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [backupConfirmOpen, setBackupConfirmOpen] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [auditingLoans, setAuditingLoans] = useState(false);
+  const [loanAudit, setLoanAudit] = useState<LoanIntegrityResult | null>(null);
   const canEdit = Boolean(user?.roles.some((role) => ["SystemAdmin", "Chairperson", "Secretary", "AssistantSecretary"].includes(role)));
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const { financialYear: fy } = await ledgerApi.getSystemSettings();
@@ -128,11 +153,12 @@ export function SystemSettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toastError]);
 
   useEffect(() => {
-    void load();
-  }, []);
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const setField = (field: keyof SettingsForm, value: string, type: string) => {
     setForm((current) => ({
@@ -164,11 +190,9 @@ export function SystemSettingsPage() {
     }
     setSaving(true);
     try {
-      const {
-        id,
-        financialYearId,
-        ...payload
-      } = form as SettingsForm & { id?: string; financialYearId?: string };
+      const payload = { ...form } as SettingsForm & { id?: string; financialYearId?: string };
+      delete payload.id;
+      delete payload.financialYearId;
       await ledgerApi.updateSystemSettings({
         ...payload,
         startDate: payload.startDate || undefined,
@@ -196,6 +220,18 @@ export function SystemSettingsPage() {
       toastError(await readBlobError(error));
     } finally {
       setBackingUp(false);
+    }
+  };
+
+  const runLoanIntegrityAudit = async () => {
+    setAuditingLoans(true);
+    try {
+      const response = await api.post("/loans/integrity-audit");
+      setLoanAudit(response.data.data);
+    } catch (error) {
+      toastError(apiError(error));
+    } finally {
+      setAuditingLoans(false);
     }
   };
 
@@ -292,6 +328,21 @@ export function SystemSettingsPage() {
           </section>
         ) : null}
 
+        <section className="mb-4 rounded-lg border border-ink-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-extrabold text-ink-900">Loan records integrity</h2>
+              <p className="mt-1 max-w-3xl text-xs text-ink-500">
+                Check every active loan for balance mismatches, repayment allocation errors, incorrect return dates, rollover gaps, stale statuses, and missing journal links.
+              </p>
+              <p className="mt-2 text-xs font-semibold text-brand-700">This is a read-only check and will not change loan records.</p>
+            </div>
+            <Button variant="secondary" icon={<TbHeartbeat />} isLoading={auditingLoans} disabled={loading || auditingLoans} onClick={() => void runLoanIntegrityAudit()}>
+              Check active loans
+            </Button>
+          </div>
+        </section>
+
         <div className="grid gap-4 xl:grid-cols-2">
           {groups.map((group) => (
             <section key={group.title} className="rounded-lg border border-ink-100 bg-white p-4 shadow-sm">
@@ -350,6 +401,41 @@ export function SystemSettingsPage() {
         confirmText="Save Settings"
         onConfirm={() => void save()}
       />
+
+      <Modal
+        open={Boolean(loanAudit)}
+        title={loanAudit?.healthy ? "All active loans passed" : "Loan integrity issues found"}
+        subtitle={loanAudit ? `${loanAudit.checkedLoans} active loan(s) checked · ${loanAudit.errorCount} errors · ${loanAudit.warningCount} warnings` : undefined}
+        size="xl"
+        onClose={() => setLoanAudit(null)}
+        footer={<div className="flex justify-end"><Button onClick={() => setLoanAudit(null)}>Close</Button></div>}
+      >
+        {loanAudit?.healthy ? (
+          <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-sm font-semibold text-green-800">
+            Balances, repayment allocations, dates, rollovers, statuses, and journal links are internally consistent as of this check.
+          </div>
+        ) : (
+          <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
+            {loanAudit?.issues.map((issue, index) => (
+              <article key={`${issue.loanNumber}-${issue.code}-${index}`} className={`rounded-xl border p-4 ${issue.severity === "ERROR" ? "border-red-200 bg-red-50/70" : "border-amber-200 bg-amber-50/70"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-extrabold text-ink-900">{issue.loanNumber} · {issue.memberName}</p>
+                    <p className="mt-1 text-sm text-ink-700">{issue.message}</p>
+                  </div>
+                  <div className="flex gap-2"><Badge tone={issue.severity === "ERROR" ? "danger" : "warning"}>{issue.severity}</Badge><Badge tone="neutral">{issue.category}</Badge></div>
+                </div>
+                {issue.expected !== undefined || issue.actual !== undefined ? (
+                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                    <div className="rounded-lg bg-white/80 px-3 py-2"><span className="font-bold text-ink-500">Expected:</span> <span className="font-semibold text-ink-800">{String(issue.expected ?? "—")}</span></div>
+                    <div className="rounded-lg bg-white/80 px-3 py-2"><span className="font-bold text-ink-500">Recorded:</span> <span className="font-semibold text-ink-800">{String(issue.actual ?? "—")}</span></div>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       <NotificationModal
         isOpen={backupConfirmOpen}

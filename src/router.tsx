@@ -17,6 +17,7 @@ import { MembersPage } from "@/pages/admin/members";
 import { UserRolesPage } from "@/pages/admin/UserRolesPage";
 import { RolesPermissionsPage } from "@/pages/admin/RolesPermissionsPage";
 import { SystemSettingsPage } from "@/pages/admin/SystemSettingsPage";
+import { FinesPage } from "@/pages/admin/finance/FinesPage";
 import { MemberDashboardPage } from "@/pages/member/DashboardPage";
 import { MemberProfilePage } from "@/pages/member/ProfilePage";
 import { MemberContributionsPage } from "@/pages/member/ContributionsPage";
@@ -153,6 +154,14 @@ export const router = createBrowserRouter([
                     ),
                   },
                   {
+                    path: "fines",
+                    element: (
+                      <PermissionGate permission="officialsPortal.meetings.collections.manage">
+                        <FinesPage />
+                      </PermissionGate>
+                    ),
+                  },
+                  {
                     path: "vouchers",
                     element: (
                       <PermissionGate permission="officialsPortal.vouchers.view">
@@ -265,6 +274,14 @@ export const router = createBrowserRouter([
                     element: (
                       <PermissionGate permission="officialsPortal.loans.view">
                         <LoansPage />
+                      </PermissionGate>
+                    ),
+                  },
+                  {
+                    path: "fines",
+                    element: (
+                      <PermissionGate permission="officialsPortal.meetings.collections.manage">
+                        <FinesPage />
                       </PermissionGate>
                     ),
                   },

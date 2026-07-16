@@ -9,8 +9,8 @@ import {
   TbReportMoney,
   TbSettings,
   TbShieldLock,
-  TbUserCog,
   TbUsers,
+  TbReceiptTax,
 } from "react-icons/tb";
 import { FiCheckCircle, FiCreditCard } from "react-icons/fi";
 import { MdSpaceDashboard } from "react-icons/md";
@@ -97,6 +97,12 @@ export const adminNavItems: NavItemDef[] = [
     permission: "officialsPortal.loans.view",
   },
   {
+    path: "/dashboard/fines",
+    label: "Fines",
+    icon: TbReceiptTax,
+    permission: "officialsPortal.meetings.collections.manage",
+  },
+  {
     path: "/dashboard/welfare",
     label: "Welfare Claims",
     icon: TbHeartHandshake,
@@ -160,6 +166,12 @@ export const officialsNavItems: NavItemDef[] = [
     label: "Loans",
     icon: FiCreditCard,
     permission: "officialsPortal.loans.view",
+  },
+  {
+    path: "/officials/fines",
+    label: "Fines",
+    icon: TbReceiptTax,
+    permission: "officialsPortal.meetings.collections.manage",
   },
   {
     path: "/officials/welfare",
