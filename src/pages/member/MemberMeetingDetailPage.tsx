@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useMeetingRealtime } from "@/hooks/useMeetingRealtime";
 import { loanApi } from "@/services/loanApi";
 import type { LoanEligibility } from "@/types/loan";
-import { FiCreditCard, FiDollarSign, FiFileText, FiSend, FiUsers } from "react-icons/fi";
+import { FiCreditCard, FiDollarSign, FiDownload, FiExternalLink, FiFileText, FiSend, FiUsers } from "react-icons/fi";
 import { api } from "@/services/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
 import { useParams } from "react-router-dom";
+import { downloadBlobResponse } from "@/pages/admin/shared/adminFormatters";
 
 type DetailResponse = {
   meeting: {
@@ -93,6 +94,7 @@ export function MemberMeetingDetailPage() {
   const [apologyReason, setApologyReason] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
   const [loanPurpose, setLoanPurpose] = useState("");
+  const [summaryBusy, setSummaryBusy] = useState<"view" | "download" | "">("");
 
   async function load() {
     if (!id) return;
@@ -167,6 +169,40 @@ export function MemberMeetingDetailPage() {
     }
   };
 
+  const openMeetingSummary = async (mode: "view" | "download") => {
+    if (!id || !data?.meeting.report) return;
+    const previewWindow = mode === "view" ? window.open("", "_blank") : null;
+    if (previewWindow) previewWindow.opener = null;
+    setSummaryBusy(mode);
+    try {
+      const response = await api.get<Blob>(`/member-portal/downloads/meetings/${id}/summary`, {
+        responseType: "blob",
+      });
+      if (mode === "download") {
+        await downloadBlobResponse(
+          response,
+          `meeting-summary-${data.meeting.meetingNumber.replace(/\s+/g, "-")}.pdf`,
+        );
+      } else {
+        const blob = response.data instanceof Blob
+          ? response.data
+          : new Blob([response.data], { type: "application/pdf" });
+        const url = window.URL.createObjectURL(blob);
+        if (previewWindow) {
+          previewWindow.location.href = url;
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+        window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+      }
+    } catch (error) {
+      previewWindow?.close();
+      toastError("Summary unavailable", getApiError(error));
+    } finally {
+      setSummaryBusy("");
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid min-h-80 place-items-center">
@@ -183,6 +219,7 @@ export function MemberMeetingDetailPage() {
   const openLoanWindow = meeting.loanWindows?.find((w) => w.status === "OPEN");
   const reservation = meeting.loanWindows?.flatMap((w) => w.reservations ?? [])[0];
   const reportSummary = meeting.report?.summary;
+  const isClosed = ["CLOSED", "COMPLETED"].includes(meeting.status);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
@@ -321,7 +358,33 @@ export function MemberMeetingDetailPage() {
       </MemberSectionCard>
 
       {reportSummary && typeof reportSummary === "object" ? (
-        <MemberSectionCard title="Meeting report" subtitle="Published session summary">
+        <MemberSectionCard
+          title="Meeting report"
+          subtitle="Official closed-session summary"
+          action={isClosed ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<FiExternalLink />}
+                isLoading={summaryBusy === "view"}
+                disabled={Boolean(summaryBusy)}
+                onClick={() => void openMeetingSummary("view")}
+              >
+                View PDF
+              </Button>
+              <Button
+                size="sm"
+                icon={<FiDownload />}
+                isLoading={summaryBusy === "download"}
+                disabled={Boolean(summaryBusy)}
+                onClick={() => void openMeetingSummary("download")}
+              >
+                Download
+              </Button>
+            </div>
+          ) : undefined}
+        >
           <ul className="list-inside list-disc space-y-1 text-sm text-ink-600">
             {"quorumMet" in reportSummary ? (
               <li>Quorum: {(reportSummary as { quorumMet?: boolean }).quorumMet ? "Met" : "Not met"}</li>

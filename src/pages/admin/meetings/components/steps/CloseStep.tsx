@@ -24,6 +24,15 @@ type MeetingReportSummary = {
   loanApplications?: number;
   loanApplicationsCount?: number;
   resolutions?: number;
+  resolutionDetails?: Array<{
+    resolutionNumber?: string;
+    title?: string;
+    description?: string | null;
+    decision?: string;
+    votesFor?: number | null;
+    votesAgainst?: number | null;
+    votesAbstain?: number | null;
+  }>;
 };
 
 type AdminReopenInput = {
@@ -155,6 +164,25 @@ export function CloseStep({
                 <div className="rounded-lg bg-ink-50 p-3 text-sm sm:col-span-2">
                   <p className="text-xs font-semibold uppercase text-ink-500">Loan pool</p>
                   <p className="mt-1 font-bold">{money(Number(summary.loanablePool.totalLoanablePool ?? 0))} loanable · {summary.loanApplicationsCount ?? summary.loanApplications ?? 0} applications</p>
+                </div>
+              ) : null}
+              {summary.resolutionDetails?.length ? (
+                <div className="rounded-lg bg-ink-50 p-3 text-sm sm:col-span-2">
+                  <p className="text-xs font-semibold uppercase text-ink-500">Resolutions</p>
+                  <div className="mt-2 space-y-2">
+                    {summary.resolutionDetails.map((resolution, index) => (
+                      <div key={`${resolution.resolutionNumber ?? 'resolution'}-${index}`} className="rounded-md bg-white px-3 py-2">
+                        <p className="font-semibold text-ink-900">
+                          {resolution.resolutionNumber ? `${resolution.resolutionNumber} · ` : ''}
+                          {resolution.title ?? 'Untitled resolution'}
+                        </p>
+                        <p className="text-xs text-ink-600">
+                          {(resolution.decision ?? 'RECORDED').replace(/_/g, ' ')}
+                          {resolution.description ? ` · ${resolution.description}` : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>
