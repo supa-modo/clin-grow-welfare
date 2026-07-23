@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FiAlertTriangle } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -50,7 +50,7 @@ type Props = {
   collectionDraft: CollectionDraft;
   setCollectionDraft: React.Dispatch<React.SetStateAction<CollectionDraft>>;
   rolloverCandidates: RolloverCandidate[];
-  onConfirmRollover: (loanId: string, periodNumber: number, confirmedAmount?: number) => void;
+  onConfirmRollover: (loanId: string, periodNumber: number) => void;
   onWaiveRollover: (loanId: string, periodNumber: number, reason: string) => void;
   onPost: (memberId: string, loanId: string, amount: number) => void;
   onReverseItem?: (itemId: string, reason: string) => void;
@@ -85,7 +85,6 @@ export function RepaymentsStep({
   const [search, setSearch] = useState("");
   const [detailLoanId, setDetailLoanId] = useState<string | null>(null);
   const [rolloverModal, setRolloverModal] = useState<RolloverCandidate | null>(null);
-  const [rolloverAmount, setRolloverAmount] = useState("");
   const [waiveModal, setWaiveModal] = useState<RolloverCandidate | null>(null);
   const [waiveReason, setWaiveReason] = useState("");
   const blocked = !!busy || meeting.status === "CLOSED";
@@ -94,10 +93,6 @@ export function RepaymentsStep({
     () => rolloverCandidates.filter((c) => c.status === "PENDING"),
     [rolloverCandidates],
   );
-
-  useEffect(() => {
-    if (rolloverModal) setRolloverAmount(String(rolloverModal.proposedAmount));
-  }, [rolloverModal]);
 
   const rows = useMemo<RepaymentRow[]>(() => {
     const meetingDate = meeting.meetingDate;
@@ -479,21 +474,20 @@ export function RepaymentsStep({
       <Modal
         open={Boolean(rolloverModal)}
         title="Confirm loan rollover"
-        subtitle="Confirm the interest on the balance remaining after today's repayment."
+        subtitle="The server will recalculate interest from the balance remaining after today's repayment."
         onClose={() => setRolloverModal(null)}
         footer={(
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setRolloverModal(null)}>Cancel</Button>
             <Button
               variant="secondary2"
-              disabled={blocked || !rolloverModal || Number(rolloverAmount) <= 0}
+              disabled={blocked || !rolloverModal}
               isLoading={busy === `rollover-confirm-${rolloverModal?.loanId}`}
               onClick={() => {
                 if (!rolloverModal) return;
                 onConfirmRollover(
                   rolloverModal.loanId,
                   rolloverModal.periodNumber,
-                  Number(rolloverAmount),
                 );
                 setRolloverModal(null);
               }}
@@ -507,17 +501,13 @@ export function RepaymentsStep({
           <div className="space-y-3 text-sm">
             <p><span className="font-semibold">Loan:</span> {rolloverModal.loanNumber} — {rolloverModal.memberName}</p>
             <p><span className="font-semibold">Period:</span> {rolloverModal.periodNumber} · Due {formatLoanDate(rolloverModal.dueDate)}</p>
-            <label className="block text-xs font-semibold text-ink-600">
-              Rollover interest (KES)
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
-                value={rolloverAmount}
-                onChange={(e) => setRolloverAmount(e.target.value)}
-              />
-            </label>
+            <p>
+              <span className="font-semibold">Calculated rollover interest:</span>{' '}
+              {money(rolloverModal.proposedAmount)}
+            </p>
+            <p className="text-xs text-ink-500">
+              This preview is refreshed after repayments. The final amount is recalculated and locked by the server when you confirm.
+            </p>
           </div>
         ) : null}
       </Modal>

@@ -950,7 +950,7 @@ export function useMeetingCeremony() {
   const confirmLoanRollover = async (
     meetingId: string,
     loanId: string,
-    input: { periodNumber: number; confirmedAmount?: number },
+    input: { periodNumber: number },
   ) => {
     setBusy(`rollover-confirm-${loanId}`);
     try {

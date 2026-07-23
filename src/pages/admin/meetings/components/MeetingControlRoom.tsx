@@ -312,8 +312,8 @@ export function MeetingControlRoom({
             collectionDraft={collectionDraft}
             setCollectionDraft={setCollectionDraft}
             rolloverCandidates={rolloverCandidates}
-            onConfirmRollover={(loanId, periodNumber, confirmedAmount) =>
-              void confirmLoanRollover(m.id, loanId, { periodNumber, confirmedAmount })
+            onConfirmRollover={(loanId, periodNumber) =>
+              void confirmLoanRollover(m.id, loanId, { periodNumber })
             }
             onWaiveRollover={(loanId, periodNumber, reason) =>
               void waiveLoanRollover(m.id, loanId, { periodNumber, reason })
