@@ -398,7 +398,7 @@ export function RepaymentsStep({
             <p className="font-semibold">Loan rollovers awaiting confirmation</p>
             <p className="mt-1">
               {pendingRollovers.length} loan(s) are due for rollover this meeting week.
-              Confirm or waive each rollover before posting repayments so outstanding amounts stay accurate.
+              Post any repayment first, then confirm rollover only on the balance that remains.
             </p>
           </div>
         </div>
@@ -479,7 +479,7 @@ export function RepaymentsStep({
       <Modal
         open={Boolean(rolloverModal)}
         title="Confirm loan rollover"
-        subtitle="Edit the rollover interest amount if needed, then confirm."
+        subtitle="Confirm the interest on the balance remaining after today's repayment."
         onClose={() => setRolloverModal(null)}
         footer={(
           <div className="flex justify-end gap-2">

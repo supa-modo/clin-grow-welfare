@@ -194,7 +194,7 @@ export function FinesStep({
         <div>
           <p className="font-bold text-ink-900">Generate and collect fines</p>
           <p className="text-sm text-ink-600">
-            Attendance fines: late {money(roster?.settings?.lateFine ?? 100)}, apology {money(roster?.settings?.absentWithApologyFine ?? 150)}, absent {money(roster?.settings?.absentWithoutApologyFine ?? 200)}. Carried-forward deferred fines can be marked paid here.
+            Attendance fines: late {money(roster?.settings?.lateFine ?? 100)}, apology {money(roster?.settings?.absentWithApologyFine ?? 150)}, absent {money(roster?.settings?.absentWithoutApologyFine ?? 200)}. Deferred fines remain deferred as a single record until paid and can be collected here.
           </p>
           {finesLocked ? (
             <p className="mt-1 text-xs font-semibold text-brand-700">

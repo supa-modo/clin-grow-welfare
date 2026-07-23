@@ -889,14 +889,14 @@ export function useMeetingCeremony() {
       key: `fine-defer-${fineId}`,
       type: 'delete',
       title: 'Mark fine not paid?',
-      message: 'This fine will be deferred and carried forward to the next meeting.',
+      message: 'This fine will remain deferred as the same record until it is paid or waived.',
       confirmText: 'Defer fine',
       run: async () => {
         setBusy(`fine-defer-${fineId}`);
         try {
           const res = await api.post(`/meetings/fines/${fineId}/defer`);
           if (res.data.fine) patchFineInRoster(res.data.fine, 'update');
-          toastSuccess('Fine deferred', 'This fine will carry forward to the next meeting.');
+          toastSuccess('Fine deferred', 'The same fine will remain deferred until it is resolved.');
         } catch (err) {
           toastError('Defer failed', getApiError(err));
         } finally {
@@ -1072,6 +1072,9 @@ export function useMeetingCeremony() {
             status: 'PAID',
           }, 'update');
         }
+      }
+      if (type === 'LOAN_REPAYMENT') {
+        await loadRolloverCandidates(meeting.id);
       }
       void loadCollectionsReadiness(meeting.id);
     } catch (err) {
