@@ -5,7 +5,13 @@ import { getApiError } from '@/pages/admin/shared/adminFormatters';
 import { mapDisburseError } from '@/components/loans/LoanDisbursementPanel';
 import { useLoad } from '@/pages/admin/shared/adminUi';
 import type { LoanPool, MeetingRecord, MeetingRoster, MeetingStep, LoanReservation, RolloverCandidate } from '../types';
-import { clampCeremonyStep, collectionTotalsFromMeeting, periodDateToIso, resolveAttendanceStatus } from '../utils';
+import {
+  clampCeremonyStep,
+  collectionDraftKey,
+  collectionTotalsFromMeeting,
+  periodDateToIso,
+  resolveAttendanceStatus,
+} from '../utils';
 
 const CEREMONY_STORAGE_KEY = 'clingrow.ceremony.v1';
 const meetingSteps: MeetingStep[] = ['attendance', 'fines', 'collections', 'repayments', 'summary', 'loans', 'close'];
@@ -63,6 +69,11 @@ export function useMeetingCeremony() {
   const [roster, setRoster] = useState<MeetingRoster | null>(null);
   const [pool, setPool] = useState<LoanPool | null>(null);
   const [rolloverCandidates, setRolloverCandidates] = useState<RolloverCandidate[]>([]);
+  const [rolloverCandidatesStatus, setRolloverCandidatesStatus] = useState<{
+    meetingId: string | null;
+    state: 'idle' | 'loading' | 'loaded' | 'error';
+    error: string | null;
+  }>({ meetingId: null, state: 'idle', error: null });
   const [unclaimedCarryover, setUnclaimedCarryover] = useState(0);
   const [meetingReport, setMeetingReport] = useState<Record<string, unknown> | null>(null);
   const [showReserveModal, setShowReserveModal] = useState(false);
@@ -193,11 +204,14 @@ export function useMeetingCeremony() {
   }, []);
 
   const loadRolloverCandidates = useCallback(async (meetingId: string) => {
+    setRolloverCandidates([]);
+    setRolloverCandidatesStatus({ meetingId, state: 'loading', error: null });
     try {
       const res = await api.get(`/meetings/${meetingId}/rollover-candidates`);
       setRolloverCandidates(res.data.candidates ?? []);
-    } catch {
-      setRolloverCandidates([]);
+      setRolloverCandidatesStatus({ meetingId, state: 'loaded', error: null });
+    } catch (error) {
+      setRolloverCandidatesStatus({ meetingId, state: 'error', error: getApiError(error) });
     }
   }, []);
 
@@ -992,7 +1006,8 @@ export function useMeetingCeremony() {
     defaults?: Partial<{ type: string; amount: number; loanId: string; fineId: string; periodDate?: string }>,
   ) => {
     const type = defaults?.type ?? 'WEEKLY_SAVINGS';
-    const input = collectionDraft[`${meeting.id}-${memberId}-${type}`] ?? {
+    const draftKey = collectionDraftKey(meeting.id, memberId, type, defaults?.loanId);
+    const input = collectionDraft[draftKey] ?? {
       type,
       amount: String(defaults?.amount ?? 250),
       reference: '',
@@ -1097,7 +1112,8 @@ export function useMeetingCeremony() {
     defaults?: Partial<{ type: string; amount: number; loanId: string; fineId: string; periodDate?: string }>,
   ) => {
     const type = defaults?.type ?? 'WEEKLY_SAVINGS';
-    const input = collectionDraft[`${meeting.id}-${memberId}-${type}`] ?? {
+    const draftKey = collectionDraftKey(meeting.id, memberId, type, defaults?.loanId);
+    const input = collectionDraft[draftKey] ?? {
       type,
       amount: String(defaults?.amount ?? 250),
       reference: '',
@@ -1512,6 +1528,7 @@ export function useMeetingCeremony() {
     loadRoster,
     loadRolloverCandidates,
     rolloverCandidates,
+    rolloverCandidatesStatus,
     unclaimedCarryover,
     confirmLoanRollover,
     waiveLoanRollover,

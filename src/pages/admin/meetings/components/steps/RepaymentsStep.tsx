@@ -8,6 +8,7 @@ import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { LoanDetailModal } from "@/components/loans/LoanDetailModal";
 import { money } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingRecord, MeetingRoster, RolloverCandidate } from "../../types";
+import { collectionDraftKey } from "../../utils";
 import { PostedItemsCorrectionPanel } from "../PostedItemsCorrectionPanel";
 import { TbMoneybagMoveBack } from "react-icons/tb";
 import {
@@ -53,6 +54,9 @@ type Props = {
   collectionDraft: CollectionDraft;
   setCollectionDraft: React.Dispatch<React.SetStateAction<CollectionDraft>>;
   rolloverCandidates: RolloverCandidate[];
+  rolloverLoading?: boolean;
+  rolloverLoadError?: string | null;
+  onRefreshRollovers?: () => void;
   onConfirmRollover: (loanId: string, periodNumber: number) => void;
   onWaiveRollover: (loanId: string, periodNumber: number, reason: string) => void;
   onPost: (memberId: string, loanId: string, amount: number) => void;
@@ -79,6 +83,9 @@ export function RepaymentsStep({
   collectionDraft,
   setCollectionDraft,
   rolloverCandidates,
+  rolloverLoading,
+  rolloverLoadError,
+  onRefreshRollovers,
   onConfirmRollover,
   onWaiveRollover,
   onPost,
@@ -108,7 +115,7 @@ export function RepaymentsStep({
         const status = loan.status ?? "ACTIVE";
         const dueDate = loanDueDate(loan) ?? undefined;
         return {
-          key: `${meeting.id}-${row.member.id}-LOAN_REPAYMENT`,
+          key: collectionDraftKey(meeting.id, row.member.id, "LOAN_REPAYMENT", loan.id),
           memberId: row.member.id,
           memberName: row.member.name,
           membershipNumber: row.member.membershipNumber,
@@ -414,6 +421,23 @@ export function RepaymentsStep({
               use Waive only as a reasoned override.
             </p>
           </div>
+        </div>
+      ) : null}
+
+      {rolloverLoading ? (
+        <div className="rounded-xl border border-ink-200 bg-ink-50 p-4 text-sm text-ink-700">
+          Checking due rollovers before this step can be completed...
+        </div>
+      ) : null}
+      {rolloverLoadError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div>
+            <p className="font-semibold">Rollover check could not be loaded</p>
+            <p className="mt-1">{rolloverLoadError}. Repayments remain blocked until this check succeeds.</p>
+          </div>
+          <Button size="sm" variant="secondary" disabled={blocked} onClick={onRefreshRollovers}>
+            Retry check
+          </Button>
         </div>
       ) : null}
 

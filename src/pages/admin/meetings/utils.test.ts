@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canGoToStep, clampCeremonyStep, isCollectionsFinalized, isCorrectionMode, isEarlyCeremonyLocked, resolveAttendanceStatus } from './utils';
+import {
+  canGoToStep,
+  clampCeremonyStep,
+  collectionDraftKey,
+  isCollectionsFinalized,
+  isCorrectionMode,
+  isEarlyCeremonyLocked,
+  resolveAttendanceStatus,
+} from './utils';
 import type { MeetingRecord, MeetingRoster } from './types';
 
 const rosterStub = {
@@ -14,6 +22,18 @@ const rosterStub = {
     },
   }],
 } as MeetingRoster;
+
+describe('collectionDraftKey', () => {
+  it('isolates repayment drafts for separate active loans owned by one member', () => {
+    expect(collectionDraftKey('meeting-1', 'member-1', 'LOAN_REPAYMENT', 'loan-1'))
+      .not.toBe(collectionDraftKey('meeting-1', 'member-1', 'LOAN_REPAYMENT', 'loan-2'));
+  });
+
+  it('preserves contribution keys when no loan is supplied', () => {
+    expect(collectionDraftKey('meeting-1', 'member-1', 'WEEKLY_SAVINGS'))
+      .toBe('meeting-1-member-1-WEEKLY_SAVINGS');
+  });
+});
 
 describe('clampCeremonyStep', () => {
   it('uses server step when local storage is ahead of server progress', () => {

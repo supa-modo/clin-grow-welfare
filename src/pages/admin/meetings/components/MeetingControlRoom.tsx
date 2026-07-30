@@ -126,6 +126,7 @@ export function MeetingControlRoom({
     refreshWorkspace,
     workspaceSyncing,
     rolloverCandidates,
+    rolloverCandidatesStatus,
     unclaimedCarryover,
     confirmLoanRollover,
     waiveLoanRollover,
@@ -317,6 +318,9 @@ export function MeetingControlRoom({
             collectionDraft={collectionDraft}
             setCollectionDraft={setCollectionDraft}
             rolloverCandidates={rolloverCandidates}
+            rolloverLoading={rolloverCandidatesStatus.meetingId === m.id && rolloverCandidatesStatus.state === "loading"}
+            rolloverLoadError={rolloverCandidatesStatus.meetingId === m.id ? rolloverCandidatesStatus.error : null}
+            onRefreshRollovers={() => void loadRolloverCandidates(m.id)}
             onConfirmRollover={(loanId, periodNumber) =>
               void confirmLoanRollover(m.id, loanId, { periodNumber })
             }
@@ -406,7 +410,11 @@ export function MeetingControlRoom({
         pool={pool}
         disabled={false}
         collectionsReady={collectionsReadiness?.ready || collectionsOverride}
-        repaymentsReady={!rolloverCandidates.some((candidate) => candidate.status === "PENDING")}
+        repaymentsReady={
+          rolloverCandidatesStatus.meetingId === m.id
+          && rolloverCandidatesStatus.state === "loaded"
+          && !rolloverCandidates.some((candidate) => candidate.status === "PENDING")
+        }
       />
 
       <NotificationModal

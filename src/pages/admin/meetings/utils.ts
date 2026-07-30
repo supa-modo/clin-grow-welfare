@@ -4,6 +4,15 @@ const STEP_ORDER: MeetingStep[] = ['attendance', 'fines', 'collections', 'repaym
 
 const loanWindowStatuses = new Set(['LOAN_WINDOW_OPEN', 'RESOLUTIONS_OPEN', 'CLOSING_REVIEW', 'ONGOING']);
 
+export function collectionDraftKey(
+  meetingId: string,
+  memberId: string,
+  collectionType: string,
+  loanId?: string,
+) {
+  return [meetingId, memberId, collectionType, ...(loanId ? [loanId] : [])].join('-');
+}
+
 export function isCorrectionMode(meeting?: MeetingRecord | null) {
   return Boolean(meeting?.correctionModeAt);
 }
