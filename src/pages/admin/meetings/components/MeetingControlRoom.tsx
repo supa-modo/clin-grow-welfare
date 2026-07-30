@@ -127,6 +127,7 @@ export function MeetingControlRoom({
     workspaceSyncing,
     rolloverCandidates,
     rolloverCandidatesStatus,
+    loadRolloverCandidates,
     unclaimedCarryover,
     confirmLoanRollover,
     waiveLoanRollover,
