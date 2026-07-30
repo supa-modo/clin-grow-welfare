@@ -183,9 +183,9 @@ export function ContributionsPage() {
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={TbWallet} iconColor="#1f7a76" label="Records" value={stats.total} subtitle="Matching records" />
-        <StatCard icon={TbWallet} iconColor="#16a34a" label="Posted value" value={money(stats.totalPosted)} subtitle="All matching posted contributions" />
+        <StatCard icon={TbWallet} iconColor="#16a34a" label="Posted value" value={money(stats.totalPosted)} subtitle="Includes received advances for future periods" />
         <StatCard icon={TbTrendingDown} iconColor="#dc2626" label="Reversals" value={stats.reversed} subtitle={money(stats.reversedAmount)} />
-        <StatCard icon={TbScale} iconColor="#d97706" label="Net posted" value={money(stats.netPosted)} subtitle="All matching records" />
+        <StatCard icon={TbScale} iconColor="#d97706" label="Net posted" value={money(stats.netPosted)} subtitle="Received value after reversals" />
       </AdminPageStatsGrid>
 
       <AdminPageMain fillHeight>

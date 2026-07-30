@@ -260,7 +260,7 @@ export function ReportsPage() {
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={TbWallet} iconColor="#1f7a76" label="Member savings" value={money(overview.totalMemberSavings ?? 0)} subtitle="Share capital plus weekly savings" />
-        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Includes paid interest from completed loans" />
+        <StatCard icon={TbChartBar} iconColor="#16a34a" label="Distributable income" value={money(overview.totalDistributableIncome ?? 0)} subtitle="Completed-loan interest, fines, registration income, and Registration Fund" />
         <StatCard icon={TbFileAnalytics} iconColor="#d97706" label="Loans receivable" value={money(overview.totalOutstandingLoans ?? 0)} subtitle={`${aging.length} open loan account${aging.length === 1 ? '' : 's'}`} />
         <StatCard icon={TbScale} iconColor="#7c3aed" label="Pending interest" value={money(overview.pendingInterest ?? 0)} subtitle="Accrued and unpaid on open loans" />
       </AdminPageStatsGrid>
@@ -296,11 +296,12 @@ export function ReportsPage() {
                 <h3 className="text-sm font-extrabold text-ink-900">Loan portfolio position</h3>
                 <p className="text-xs font-medium text-ink-500">Open principal, unpaid charges, and the resulting receivable.</p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 {positionMetric('Outstanding principal', overview.totalOutstandingPrincipal, 'Unpaid principal on open loans')}
                 {positionMetric('Pending interest', overview.pendingInterest, 'Accrued and not yet paid', 'text-amber-700')}
                 {positionMetric('Pending penalties', overview.pendingPenalties, 'Assessed and not yet paid', 'text-rose-700')}
                 {positionMetric('Total loans receivable', overview.totalOutstandingLoans, 'Principal, interest, and penalties', 'text-brand-700')}
+                {positionMetric('Member loan credits', overview.loanOverpayments, 'Overpayments after waived charges', 'text-violet-700')}
               </div>
             </section>
 
@@ -309,7 +310,7 @@ export function ReportsPage() {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-extrabold text-ink-900">Fund snapshot</h3>
-                    <p className="text-xs font-medium text-ink-500">Merged into the financial position from posted journal lines.</p>
+                    <p className="text-xs font-medium text-ink-500">Posted journal balances, including cash received in advance for future member periods.</p>
                   </div>
                   <Badge tone="neutral">{funds.length} funds</Badge>
                 </div>
@@ -371,7 +372,7 @@ export function ReportsPage() {
           </div>
           <div className="grid gap-3 border-b border-ink-100 p-5 sm:grid-cols-2 xl:grid-cols-4">
             {positionMetric('Completed-loan interest', overview.interestFromClosedLoans, 'Realized interest included')}
-            {positionMetric('Other distributable income', Number(overview.totalDistributableIncome ?? 0) - Number(overview.interestFromClosedLoans ?? 0), 'Fines, registration, and suspense')}
+            {positionMetric('Other distributable income', Number(overview.totalDistributableIncome ?? 0) - Number(overview.interestFromClosedLoans ?? 0), 'Fines, registration income, and registration fund')}
             {positionMetric('Total allocation basis', distributionTotals.allocationBasis, 'Active member savings')}
             {positionMetric('Total estimated distribution', distributionTotals.estimatedDistribution, 'Must reconcile to distributable income', 'text-emerald-700')}
           </div>

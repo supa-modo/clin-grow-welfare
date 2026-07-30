@@ -19,6 +19,9 @@ export type ExecutiveReport = {
   totalContributions: number;
   totalFines: number;
   finesIncome: number;
+  registrationIncome: number;
+  registrationFundBalance: number;
+  completedLoanInterest: number;
   loanInterestIncome: number;
   distributableIncome: number;
   charts: ExecutiveCharts;
