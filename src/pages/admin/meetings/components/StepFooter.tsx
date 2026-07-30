@@ -22,6 +22,7 @@ type Props = {
   pool?: LoanPool | null;
   disabled?: boolean;
   collectionsReady?: boolean;
+  repaymentsReady?: boolean;
 };
 
 export function StepFooter({
@@ -33,6 +34,7 @@ export function StepFooter({
   pool,
   disabled,
   collectionsReady,
+  repaymentsReady,
 }: Props) {
   const back = prevStep(step);
   const forward = nextStep(step);
@@ -47,6 +49,11 @@ export function StepFooter({
         blockReason ??
         "Collections readiness: resolve dues or apply official override.";
     }
+  }
+  if (step === "repayments" && forward && !repaymentsReady) {
+    canNext = false;
+    blockReason =
+      "Confirm or waive every due rollover before completing repayments.";
   }
 
   return (

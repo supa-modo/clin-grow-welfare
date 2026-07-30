@@ -1,6 +1,8 @@
 import type { Loan } from "@/types/loan";
 
 export const DEFAULT_LOAN_PERIOD_DAYS = 28;
+export const MEETING_REPAYMENT_LOOKAHEAD_DAYS = 2;
+const NAIROBI_UTC_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 export type LoanDueInput = Pick<Loan, "disbursedAt" | "nextInterestDate"> & {
   status?: string;
@@ -20,20 +22,20 @@ export function loanDueDate(loan: Pick<Loan, "disbursedAt" | "nextInterestDate">
   return undefined;
 }
 
-export function meetingWeekRange(meetingDate: Date | string) {
-  const start = new Date(meetingDate);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
+export function meetingRepaymentWindow(meetingDate: Date | string) {
+  const shifted = new Date(new Date(meetingDate).getTime() + NAIROBI_UTC_OFFSET_MS);
+  const start = new Date(
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())
+    - NAIROBI_UTC_OFFSET_MS,
+  );
+  const end = new Date(
+    start.getTime() + (MEETING_REPAYMENT_LOOKAHEAD_DAYS + 1) * 86_400_000 - 1,
+  );
   return { start, end };
 }
 
-/** Extend due window through the meeting sitting day when it falls after the constitutional Thursday. */
 export function meetingRepaymentWindowEnd(meetingDate: Date | string) {
-  const { end } = meetingWeekRange(meetingDate);
-  const meeting = new Date(meetingDate);
-  meeting.setHours(23, 59, 59, 999);
-  return meeting > end ? meeting : end;
+  return meetingRepaymentWindow(meetingDate).end;
 }
 
 export function loanRepaymentBucket(
@@ -70,7 +72,7 @@ export function compareLoansForRepayment(
 
 export function isLoanOverdue(dueDate: string | undefined, meetingDate: Date | string) {
   if (!dueDate) return false;
-  const { start } = meetingWeekRange(meetingDate);
+  const { start } = meetingRepaymentWindow(meetingDate);
   return new Date(dueDate) < start;
 }
 

@@ -50,6 +50,23 @@ export interface LoanRepayment {
   reversedAt?: string | null;
 }
 
+export interface LoanMeetingRollover {
+  id: string;
+  loanId: string;
+  periodNumber: number;
+  meetingId: string;
+  proposedAmount: number;
+  confirmedAmount?: number | null;
+  status: 'PENDING' | 'CONFIRMED' | 'WAIVED';
+  confirmedAt?: string | null;
+  waiverReason?: string | null;
+  meeting?: {
+    id: string;
+    meetingNumber: string;
+    meetingDate: string;
+  };
+}
+
 export interface Loan {
   id: string;
   financialYearId: string;
@@ -88,6 +105,7 @@ export interface Loan {
   repayments?: LoanRepayment[];
   interestCharges?: LoanInterestCharge[];
   penalties?: LoanPenalty[];
+  meetingRollovers?: LoanMeetingRollover[];
 }
 
 export interface LoanStatement {
@@ -97,6 +115,30 @@ export interface LoanStatement {
   totalPenalties: number;
   totalRepaid: number;
   outstanding: number;
+}
+
+export interface LoanIntegrityIssue {
+  code: string;
+  severity: 'ERROR' | 'WARNING';
+  category: 'BALANCE' | 'DATES' | 'ROLLOVER' | 'STATUS' | 'LEDGER' | 'REPAYMENT';
+  loanId: string;
+  loanNumber: string;
+  memberName: string;
+  message: string;
+  expected?: string | number;
+  actual?: string | number;
+  repairable: boolean;
+}
+
+export interface LoanIntegrityResult {
+  generatedAt: string;
+  asOf: string;
+  checkedLoans: number;
+  issueCount: number;
+  errorCount: number;
+  warningCount: number;
+  healthy: boolean;
+  issues: LoanIntegrityIssue[];
 }
 
 export interface AgingBuckets {

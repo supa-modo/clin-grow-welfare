@@ -3,6 +3,7 @@ import {
   FiCheckCircle,
   FiDollarSign,
   FiFileText,
+  FiInfo,
   FiPlay,
   FiRefreshCw,
   FiSend,
@@ -13,7 +14,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
-import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { RefreshIconButton } from "@/components/ui/RefreshIconButton";
 import { tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingStep } from "../types";
@@ -35,8 +35,8 @@ import { SummaryStep } from "./steps/SummaryStep";
 import { LoanWindowStep } from "./steps/LoanWindowStep";
 import { CloseStep } from "./steps/CloseStep";
 import { ResolutionsStep } from "./steps/ResolutionsStep";
-import { StatCard } from "@/components/ui/StatCard";
 import { NotificationModal } from "@/components/ui/NotificationModal";
+import { MeetingDetailsModal } from "./MeetingDetailsModal";
 
 type Ceremony = ReturnType<typeof useMeetingCeremony>;
 
@@ -56,10 +56,8 @@ const workflowTabs = [
 
 export function MeetingControlRoom({
   ceremony,
-  money,
 }: {
   ceremony: Ceremony;
-  money: (amount: number) => string;
 }) {
   const {
     busy,
@@ -138,7 +136,7 @@ export function MeetingControlRoom({
     runPendingAction,
   } = ceremony;
 
-  const [agendaExpanded, setAgendaExpanded] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   if (!selectedMeeting) return null;
 
@@ -189,13 +187,20 @@ export function MeetingControlRoom({
               {new Date(m.meetingDate).toLocaleString()} -{" "}
               {m.venue ?? "Venue pending"}
             </p>
-            <p className="mt-2 max-w-3xl text-sm text-ink-600">{m.agenda}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <RefreshIconButton
               loading={workspaceSyncing}
               onClick={() => void refreshWorkspace()}
             />
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<FiInfo />}
+              onClick={() => setDetailsOpen(true)}
+            >
+              Meeting details
+            </Button>
             <Button
               size="sm"
               variant="secondary"
@@ -401,6 +406,7 @@ export function MeetingControlRoom({
         pool={pool}
         disabled={false}
         collectionsReady={collectionsReadiness?.ready || collectionsOverride}
+        repaymentsReady={!rolloverCandidates.some((candidate) => candidate.status === "PENDING")}
       />
 
       <NotificationModal
@@ -411,6 +417,13 @@ export function MeetingControlRoom({
         message={pendingAction?.message ?? ""}
         confirmText={pendingAction?.confirmText ?? "Confirm"}
         onConfirm={() => void runPendingAction()}
+      />
+      <MeetingDetailsModal
+        open={detailsOpen}
+        meeting={m}
+        roster={roster}
+        report={meetingReport}
+        onClose={() => setDetailsOpen(false)}
       />
     </Card>
   );

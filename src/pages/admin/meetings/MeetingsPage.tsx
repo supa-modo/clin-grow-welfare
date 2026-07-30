@@ -1,7 +1,6 @@
 import { FiClock, FiRefreshCw } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { money } from '@/pages/admin/shared/adminFormatters';
 import { StateBlock } from '@/pages/admin/shared/adminUi';
 import { useMeetingCeremony } from './hooks/useMeetingCeremony';
 import { MeetingListSidebar } from './components/MeetingListSidebar';
@@ -26,8 +25,6 @@ export function MeetingsPage() {
     selectedId,
     setSelectedId,
     deleteMeeting,
-    pool,
-    collectionTotals,
   } = ceremony;
 
   return (
@@ -47,9 +44,9 @@ export function MeetingsPage() {
 
       <StateBlock loading={loading && !data?.length} error={error} empty={!loading && !data?.length} />
       {data?.length ? (
-        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[380px_1fr]">
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
           <MeetingListSidebar meetings={data} selectedId={selectedMeeting?.id ?? selectedId} onSelect={setSelectedId} onDelete={deleteMeeting} />
-          <MeetingControlRoom ceremony={ceremony} money={money} />
+          <MeetingControlRoom ceremony={ceremony} />
         </div>
       ) : null}
 

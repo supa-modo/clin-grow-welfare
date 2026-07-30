@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FiAlertTriangle } from "react-icons/fi";
+import { FiAlertTriangle, FiChevronDown, FiChevronRight, FiRotateCcw } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
@@ -28,7 +28,10 @@ type RepaymentRow = {
   loanNumber: string;
   outstanding: number;
   status: string;
+  applicationDate?: string;
   dueDate?: string;
+  rolloverCount: number;
+  rolloverCandidate?: RolloverCandidate;
   bucket: LoanRepaymentBucket;
 };
 
@@ -87,6 +90,7 @@ export function RepaymentsStep({
   const [rolloverModal, setRolloverModal] = useState<RolloverCandidate | null>(null);
   const [waiveModal, setWaiveModal] = useState<RolloverCandidate | null>(null);
   const [waiveReason, setWaiveReason] = useState("");
+  const [advanceOpen, setAdvanceOpen] = useState(false);
   const blocked = !!busy || meeting.status === "CLOSED";
 
   const pendingRollovers = useMemo(
@@ -96,6 +100,9 @@ export function RepaymentsStep({
 
   const rows = useMemo<RepaymentRow[]>(() => {
     const meetingDate = meeting.meetingDate;
+    const candidateByLoan = new Map(
+      rolloverCandidates.map((candidate) => [candidate.loanId, candidate]),
+    );
     const built = (roster?.members ?? []).flatMap((row) =>
       row.expectations.loans.active.map((loan) => {
         const status = loan.status ?? "ACTIVE";
@@ -109,13 +116,16 @@ export function RepaymentsStep({
           loanNumber: loan.loanNumber ?? loan.id.slice(0, 8),
           outstanding: Number(loan.totalOutstanding ?? loan.outstandingPrincipal ?? 0),
           status,
+          applicationDate: loan.applicationDate,
           dueDate,
+          rolloverCount: loan.meetingRollovers?.length ?? loan.currentRolloverMonth ?? 0,
+          rolloverCandidate: candidateByLoan.get(loan.id),
           bucket: loanRepaymentBucket(loan, meetingDate),
         };
       }),
     );
     return built.sort(compareLoansForRepayment);
-  }, [meeting.id, meeting.meetingDate, roster]);
+  }, [meeting.id, meeting.meetingDate, rolloverCandidates, roster]);
 
   const dueRows = useMemo(
     () => filterRows(rows.filter((r) => r.bucket === "due"), search),
@@ -142,6 +152,11 @@ export function RepaymentsStep({
           </p>
         </button>
       ),
+    },
+    {
+      key: "applied",
+      header: "Applied",
+      render: (r) => formatLoanDate(r.applicationDate),
     },
     {
       key: "due",
@@ -171,6 +186,15 @@ export function RepaymentsStep({
           }
         >
           {r.status.toLowerCase().replace(/_/g, " ")}
+        </Badge>
+      ),
+    },
+    {
+      key: "rollovers",
+      header: "Rollovers",
+      render: (r) => (
+        <Badge tone={r.rolloverCount > 0 ? "warning" : "neutral"}>
+          {r.rolloverCount}
         </Badge>
       ),
     },
@@ -312,72 +336,47 @@ export function RepaymentsStep({
         const amount = Number(draft.amount || 0);
         const overLimit = amount > r.outstanding;
         return (
-          <Button
-            size="xs"
-            icon={<TbMoneybagMoveBack size={14} />}
-            disabled={blocked || amount <= 0 || overLimit}
-            isLoading={busy === `collect-${meeting.id}`}
-            onClick={() => onPost(r.memberId, r.loanId, amount)}
-          >
-            Post
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              size="xs"
+              icon={<TbMoneybagMoveBack size={14} />}
+              disabled={blocked || amount <= 0 || overLimit}
+              isLoading={busy === `collect-${meeting.id}`}
+              onClick={() => onPost(r.memberId, r.loanId, amount)}
+            >
+              Post payment
+            </Button>
+            {r.rolloverCandidate ? (
+              <>
+                <Button
+                  size="xs"
+                  variant="secondary2"
+                  icon={<FiRotateCcw size={13} />}
+                  disabled={blocked}
+                  onClick={() => setRolloverModal(r.rolloverCandidate ?? null)}
+                >
+                  {r.rolloverCandidate.chargeKind === "LATE_CHARGE" ? "Late charge" : "Rollover"}
+                </Button>
+                <RowActionsMenu
+                  ariaLabel={`Override actions for ${r.memberName}`}
+                  items={[
+                    {
+                      key: "waive",
+                      label: "Waive rollover",
+                      variant: "danger",
+                      disabled: blocked,
+                      onClick: () => {
+                        setWaiveModal(r.rolloverCandidate ?? null);
+                        setWaiveReason("");
+                      },
+                    },
+                  ]}
+                />
+              </>
+            ) : null}
+          </div>
         );
       },
-    },
-  ];
-
-  const rolloverColumns: Column<RolloverCandidate>[] = [
-    {
-      key: "loan",
-      header: "Loan",
-      render: (r) => (
-        <div>
-          <p className="font-semibold text-ink-900">{r.loanNumber}</p>
-          <p className="text-xs text-ink-500">{r.memberName} · {r.membershipNumber}</p>
-        </div>
-      ),
-    },
-    {
-      key: "period",
-      header: "Period",
-      render: (r) => `Period ${r.periodNumber}`,
-    },
-    {
-      key: "due",
-      header: "Due",
-      render: (r) => formatLoanDate(r.dueDate),
-    },
-    {
-      key: "amount",
-      header: "Rollover interest",
-      render: (r) => money(r.proposedAmount),
-    },
-    {
-      key: "actions",
-      header: "",
-      render: (r) => (
-        <RowActionsMenu
-          ariaLabel={`Rollover actions for ${r.memberName}`}
-          items={[
-            {
-              key: "confirm",
-              label: "Confirm rollover",
-              disabled: blocked,
-              onClick: () => setRolloverModal(r),
-            },
-            {
-              key: "waive",
-              label: "Waive rollover",
-              variant: "danger",
-              disabled: blocked,
-              onClick: () => {
-                setWaiveModal(r);
-                setWaiveReason("");
-              },
-            },
-          ]}
-        />
-      ),
     },
   ];
 
@@ -386,32 +385,35 @@ export function RepaymentsStep({
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-ink-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Due queue</p>
+          <p className="mt-1 text-2xl font-extrabold text-ink-900">{dueRows.length}</p>
+          <p className="text-xs text-ink-500">Overdue, due today, or due within 2 days</p>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Rollover decisions</p>
+          <p className="mt-1 text-2xl font-extrabold text-amber-900">{pendingRollovers.length}</p>
+          <p className="text-xs text-amber-700">Must be confirmed or waived</p>
+        </div>
+        <div className="rounded-xl border border-ink-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Other active loans</p>
+          <p className="mt-1 text-2xl font-extrabold text-ink-900">{advanceRows.length}</p>
+          <p className="text-xs text-ink-500">Available for advance repayment</p>
+        </div>
+      </div>
+
       {pendingRollovers.length > 0 ? (
         <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <FiAlertTriangle className="mt-0.5 shrink-0 text-lg" />
           <div>
             <p className="font-semibold">Loan rollovers awaiting confirmation</p>
             <p className="mt-1">
-              {pendingRollovers.length} loan(s) are due for rollover this meeting week.
-              Post any repayment first, then confirm rollover only on the balance that remains.
+              {pendingRollovers.length} loan(s) need a decision. Post the member&apos;s
+              repayment first. If no further payment is being made, use Rollover;
+              use Waive only as a reasoned override.
             </p>
           </div>
-        </div>
-      ) : null}
-
-      {rolloverCandidates.length > 0 ? (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-bold text-ink-900">Rollover due this meeting</h3>
-            <Badge tone="warning">{pendingRollovers.length} pending</Badge>
-          </div>
-          <DataTable
-            columns={rolloverColumns}
-            rows={rolloverCandidates}
-            getRowKey={(r) => `${r.loanId}-${r.periodNumber}`}
-            emptyTitle="No rollovers due"
-            emptyMessage="No loans require rollover confirmation this week."
-          />
         </div>
       ) : null}
 
@@ -431,9 +433,14 @@ export function RepaymentsStep({
       />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-ink-600">
-          Post repayments for loans due this meeting week first, or pay ahead on other active loans below.
-        </p>
+        <div>
+          <h3 className="text-base font-bold text-ink-900">Repayments due now</h3>
+          <p className="text-sm text-ink-600">
+            Clear overdue loans and loans due by {formatLoanDate(
+              new Date(new Date(meeting.meetingDate).getTime() + 2 * 86_400_000).toISOString(),
+            )} before moving to later loans.
+          </p>
+        </div>
         <input
           className="w-full max-w-xs rounded-lg border border-ink-200 px-3 py-2 text-sm sm:w-72"
           placeholder="Search loan or member"
@@ -443,37 +450,50 @@ export function RepaymentsStep({
       </div>
 
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-bold text-ink-900">Due this week / overdue</h3>
-          <Badge tone="warning">{dueRows.length}</Badge>
-        </div>
         <DataTable
           columns={columns}
           rows={dueRows}
           getRowKey={(r) => `due-${r.loanId}`}
           getRowClassName={rowClassName}
-          emptyTitle="No loans due this week"
-          emptyMessage="No overdue or due-this-week loans on the roster."
+          emptyTitle="No loans due now"
+          emptyMessage="No active loan is overdue or due within two days of this meeting."
         />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-bold text-ink-900">Other active loans (advance payment)</h3>
-          <Badge tone="neutral">{advanceRows.length}</Badge>
-        </div>
-        <DataTable
-          columns={columns}
-          rows={advanceRows}
-          getRowKey={(r) => `advance-${r.loanId}`}
-          emptyTitle="No other active loans"
-          emptyMessage="All active loans are due this week or overdue."
-        />
+      <div className="overflow-hidden rounded-xl border border-ink-200 bg-white">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-ink-50"
+          aria-expanded={advanceOpen}
+          onClick={() => setAdvanceOpen((value) => !value)}
+        >
+          <div>
+            <p className="text-sm font-bold text-ink-900">Other active loans</p>
+            <p className="text-xs text-ink-500">
+              Due on later dates; expand to record an advance payment.
+            </p>
+          </div>
+          <span className="flex items-center gap-2">
+            <Badge tone="neutral">{advanceRows.length}</Badge>
+            {advanceOpen ? <FiChevronDown /> : <FiChevronRight />}
+          </span>
+        </button>
+        {advanceOpen ? (
+          <div className="border-t border-ink-100 p-3">
+            <DataTable
+              columns={columns}
+              rows={advanceRows}
+              getRowKey={(r) => `advance-${r.loanId}`}
+              emptyTitle="No other active loans"
+              emptyMessage="All active loans are in the due queue."
+            />
+          </div>
+        ) : null}
       </div>
 
       <Modal
         open={Boolean(rolloverModal)}
-        title="Confirm loan rollover"
+        title={rolloverModal?.chargeKind === "LATE_CHARGE" ? "Confirm constitutional late charge" : "Confirm loan rollover"}
         subtitle="The server will recalculate interest from the balance remaining after today's repayment."
         onClose={() => setRolloverModal(null)}
         footer={(
@@ -500,9 +520,13 @@ export function RepaymentsStep({
         {rolloverModal ? (
           <div className="space-y-3 text-sm">
             <p><span className="font-semibold">Loan:</span> {rolloverModal.loanNumber} — {rolloverModal.memberName}</p>
+            <p><span className="font-semibold">Applied:</span> {formatLoanDate(rolloverModal.applicationDate)} · Disbursed {formatLoanDate(rolloverModal.disbursedAt)}</p>
             <p><span className="font-semibold">Period:</span> {rolloverModal.periodNumber} · Due {formatLoanDate(rolloverModal.dueDate)}</p>
+            <p><span className="font-semibold">Current outstanding:</span> {money(rolloverModal.outstandingBalance)} · {rolloverModal.rolloverCount} prior rollover(s)</p>
             <p>
-              <span className="font-semibold">Calculated rollover interest:</span>{' '}
+              <span className="font-semibold">
+                {rolloverModal.chargeKind === "LATE_CHARGE" ? "Calculated one-time late charge:" : "Calculated rollover interest:"}
+              </span>{' '}
               {money(rolloverModal.proposedAmount)}
             </p>
             <p className="text-xs text-ink-500">

@@ -1,10 +1,18 @@
 import { api } from './api';
-import type { Loan, LoanEligibility, LoanStatement, AgingBuckets } from '@/types/loan';
+import type { Loan, LoanEligibility, LoanStatement, AgingBuckets, LoanIntegrityResult } from '@/types/loan';
 
 export const loanApi = {
   async list(params?: { page?: number; pageSize?: number; search?: string; status?: string }) {
     const { data } = await api.get('/loans', { params });
-    return data as { data: Loan[]; meta: any };
+    return data as {
+      data: Loan[];
+      meta: {
+        page: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+      };
+    };
   },
 
   async get(id: string) {
@@ -81,6 +89,20 @@ export const loanApi = {
   async waiveInterestCharge(loanId: string, chargeId: string, reason: string) {
     const { data } = await api.post(`/loans/${loanId}/interest-charges/${chargeId}/waive`, { reason });
     return data.charge;
+  },
+
+  async auditIntegrity(id: string) {
+    const { data } = await api.post(`/loans/${id}/integrity-audit`);
+    return data.data as LoanIntegrityResult;
+  },
+
+  async repairIntegrity(id: string, reason: string) {
+    const { data } = await api.post(`/loans/${id}/integrity-repair`, { reason });
+    return data.data as {
+      before: LoanIntegrityResult;
+      after: LoanIntegrityResult;
+      repairedCodes: string[];
+    };
   },
 
   async downloadStatement(id: string, filename?: string) {

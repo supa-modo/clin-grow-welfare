@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/services/api';
-import { loanApi } from '@/services/loanApi';
 import { useUiStore } from '@/store/uiStore';
 import { getApiError } from '@/pages/admin/shared/adminFormatters';
 import { mapDisburseError } from '@/components/loans/LoanDisbursementPanel';
@@ -166,12 +165,18 @@ export function useMeetingCeremony() {
     await api.patch(`/meetings/${meetingId}/ceremony-step`, { step: next });
   }, [selectedMeeting?.status, selectedMeeting?.correctionModeAt]);
 
-  const setCeremonyStepWithSync = useCallback((next: MeetingStep) => {
-    setStep(next);
-    if (selectedMeeting?.id) {
-      void syncCeremonyStepToServer(selectedMeeting.id, next).catch(() => undefined);
+  const setCeremonyStepWithSync = useCallback(async (next: MeetingStep) => {
+    if (!selectedMeeting?.id) {
+      setStep(next);
+      return;
     }
-  }, [selectedMeeting?.id, syncCeremonyStepToServer]);
+    try {
+      await syncCeremonyStepToServer(selectedMeeting.id, next);
+      setStep(next);
+    } catch (error) {
+      toastError('Cannot advance meeting step', getApiError(error));
+    }
+  }, [selectedMeeting?.id, syncCeremonyStepToServer, toastError]);
 
   const loadPool = useCallback(async (meetingId: string) => {
     try {

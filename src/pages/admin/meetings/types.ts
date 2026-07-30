@@ -99,8 +99,12 @@ export type RosterMember = {
         outstandingPrincipal?: number;
         totalOutstanding?: number;
         status?: string;
+        applicationDate?: string;
         disbursedAt?: string;
         nextInterestDate?: string;
+        currentRolloverMonth?: number;
+        lastInterestPeriod?: number;
+        meetingRollovers?: Array<{ id: string }>;
       }>;
       outstandingTotal: number;
     };
@@ -140,6 +144,11 @@ export type RolloverCandidate = {
   periodNumber: number;
   dueDate: string;
   proposedAmount: number;
+  applicationDate: string;
+  disbursedAt: string;
+  outstandingBalance: number;
+  rolloverCount: number;
+  chargeKind: 'ROLLOVER_INTEREST' | 'LATE_CHARGE';
   status: string;
   rolloverId?: string;
 };
