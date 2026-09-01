@@ -362,7 +362,7 @@ export function RepaymentsStep({
                   disabled={blocked}
                   onClick={() => setRolloverModal(r.rolloverCandidate ?? null)}
                 >
-                  {r.rolloverCandidate.chargeKind === "LATE_CHARGE" ? "Late charge" : "Rollover"}
+                  {r.rolloverCandidate.chargeKind === "LATE_CHARGE" ? "Default charge" : "Rollover"}
                 </Button>
                 <RowActionsMenu
                   ariaLabel={`Override actions for ${r.memberName}`}
@@ -517,7 +517,7 @@ export function RepaymentsStep({
 
       <Modal
         open={Boolean(rolloverModal)}
-        title={rolloverModal?.chargeKind === "LATE_CHARGE" ? "Confirm constitutional late charge" : "Confirm loan rollover"}
+        title={rolloverModal?.chargeKind === "LATE_CHARGE" ? "Confirm default-period charge" : "Confirm loan rollover"}
         subtitle="The server will recalculate interest from the balance remaining after today's repayment."
         onClose={() => setRolloverModal(null)}
         footer={(
@@ -549,7 +549,7 @@ export function RepaymentsStep({
             <p><span className="font-semibold">Current outstanding:</span> {money(rolloverModal.outstandingBalance)} · {rolloverModal.rolloverCount} prior rollover(s)</p>
             <p>
               <span className="font-semibold">
-                {rolloverModal.chargeKind === "LATE_CHARGE" ? "Calculated one-time late charge:" : "Calculated rollover interest:"}
+                {rolloverModal.chargeKind === "LATE_CHARGE" ? "Calculated 10% interest + 20% penalty (30% total):" : "Calculated rollover interest:"}
               </span>{' '}
               {money(rolloverModal.proposedAmount)}
             </p>
