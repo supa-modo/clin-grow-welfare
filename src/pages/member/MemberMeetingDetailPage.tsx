@@ -181,7 +181,7 @@ export function MemberMeetingDetailPage() {
       if (mode === "download") {
         await downloadBlobResponse(
           response,
-          `meeting-summary-${data.meeting.meetingNumber.replace(/\s+/g, "-")}.pdf`,
+          `meeting-minutes-${data.meeting.meetingNumber.replace(/\s+/g, "-")}.pdf`,
         );
       } else {
         const blob = response.data instanceof Blob

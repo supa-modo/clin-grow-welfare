@@ -214,7 +214,7 @@ export function CloseStep({
       </div>
       <Card className="p-4">
         <p className="font-bold text-ink-900">Reports</p>
-        <p className="mt-1 text-sm text-ink-600">Closing generates the official meeting summary with attendance, collections, repayments, and loan applications.</p>
+        <p className="mt-1 text-sm text-ink-600">Closing generates the official meeting minutes with attendance, collections, repayments, and loan applications.</p>
         <div className="mt-3 grid gap-2">
           {isClosed && canAdminOverride && onAdminReopen ? (
             <Button
@@ -232,7 +232,7 @@ export function CloseStep({
             </p>
           ) : null}
           <Button icon={<FiCheckCircle />} disabled={blocked} onClick={onCloseMeeting}>Close meeting</Button>
-          <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-summary', 'pdf', { meetingId: meeting.id })}>Meeting summary PDF</Button>
+          <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-summary', 'pdf', { meetingId: meeting.id })}>Meeting minutes PDF</Button>
           <Button variant="secondary" icon={<FiDownload />} onClick={() => void downloadReport('meeting-collections', 'pdf', { meetingId: meeting.id })}>Collections PDF</Button>
           {isClosed ? (
             <Button variant="secondary2" icon={<FiSend />} disabled={!!busy} onClick={onSendSummary}>

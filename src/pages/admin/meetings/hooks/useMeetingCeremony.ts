@@ -835,6 +835,29 @@ export function useMeetingCeremony() {
     });
   };
 
+  const reopenCollections = (meetingId: string, reason: string) => {
+    confirmAction({
+      key: 'collections-reopen',
+      title: 'Reopen collections?',
+      message: 'The meeting moves into correction mode so collections can be reversed or posted again. You must finalize collections afterwards.',
+      confirmText: 'Reopen collections',
+      run: async () => {
+        setBusy('collections-reopen');
+        try {
+          const res = await api.post(`/meetings/${meetingId}/collections/reopen`, { reason });
+          mergeMeetingFromResponse(res.data.meeting as MeetingRecord);
+          setCeremonyStepWithSync('collections');
+          void loadCollectionsReadiness(meetingId);
+          toastSuccess('Collections reopened', 'Post or reverse entries, then finalize collections again.');
+        } catch (err) {
+          toastError('Reopen collections failed', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
+  };
+
   const reverseCollectionItem = async (meetingId: string, itemId: string, reason: string) => {
     setBusy(`reverse-item-${itemId}`);
     try {
@@ -901,6 +924,37 @@ export function useMeetingCeremony() {
     } finally {
       setBusy('');
     }
+  };
+
+  const bulkWaiveWeeklySavings = (meetingId: string, weeklyWaived: boolean) => {
+    confirmAction({
+      key: 'collection-waivers-bulk',
+      title: weeklyWaived ? 'Waive weekly savings for all members?' : 'Restore weekly savings for all members?',
+      message: weeklyWaived
+        ? 'Weekly savings stop being expected from every active member for this meeting. Loan repayments, fines and welfare are unaffected.'
+        : 'Weekly savings become expected again from every active member for this meeting.',
+      confirmText: weeklyWaived ? 'Waive for all' : 'Restore for all',
+      run: async () => {
+        setBusy('collection-waivers-bulk');
+        try {
+          const res = await api.post(`/meetings/${meetingId}/collection-waivers/bulk`, {
+            weeklyWaived,
+            memberScope: 'ALL',
+          });
+          const meeting = res.data.meeting as MeetingRecord | undefined;
+          if (meeting) mergeMeetingFromResponse(meeting);
+          void loadCollectionsReadiness(meetingId);
+          toastSuccess(
+            weeklyWaived ? 'Weekly savings waived' : 'Weekly savings restored',
+            `Applied to ${res.data.memberCount ?? 0} active members.`,
+          );
+        } catch (err) {
+          toastError('Bulk waiver failed', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
   };
 
   const deferFine = (fineId: string) => {
@@ -1365,8 +1419,8 @@ export function useMeetingCeremony() {
   const sendSummaryToMembers = (meetingId: string) => {
     confirmAction({
       key: 'send-summary',
-      title: 'Send meeting summary to all active members?',
-      message: 'The official meeting summary PDF will be emailed to every active member with an email address on file.',
+      title: 'Send meeting minutes to all active members?',
+      message: 'The official meeting minutes PDF will be emailed to every active member with an email address on file.',
       confirmText: 'Send summary',
       run: async () => {
         setBusy('send-summary');
@@ -1378,7 +1432,7 @@ export function useMeetingCeremony() {
             toastError('No emails sent', 'No members with a valid email address were found. Check portal user emails and try again.');
             return;
           }
-          toastSuccess('Summary sent', `Meeting summary emailed to ${sent} member(s).`);
+          toastSuccess('Minutes sent', `Meeting minutes emailed to ${sent} member(s).`);
         } catch (err) {
           toastError('Send failed', getApiError(err));
         } finally {
@@ -1506,7 +1560,9 @@ export function useMeetingCeremony() {
     setCollectionsOverride,
     loadCollectionsReadiness,
     finalizeCollections,
+    reopenCollections,
     updateCollectionWaiver,
+    bulkWaiveWeeklySavings,
     reverseCollectionItem,
     adjustCollectionItem,
     reviewApology,

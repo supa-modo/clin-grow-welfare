@@ -102,7 +102,9 @@ export function MeetingControlRoom({
     setCollectionsOverride,
     loadCollectionsReadiness,
     finalizeCollections,
+    reopenCollections,
     updateCollectionWaiver,
+    bulkWaiveWeeklySavings,
     reviewApology,
     notifyFine,
     collect,
@@ -307,6 +309,8 @@ export function MeetingControlRoom({
               void collect(m, memberId, { type, amount, periodDate })
             }
             onFinalize={() => finalizeCollections(m.id)}
+            onReopen={(reason) => reopenCollections(m.id, reason)}
+            onBulkWaiveWeekly={(weeklyWaived) => bulkWaiveWeeklySavings(m.id, weeklyWaived)}
             onReverseItem={(itemId, reason) => void reverseCollectionItem(m.id, itemId, reason)}
             onAdjustItem={(itemId, amount, reason) => void adjustCollectionItem(m.id, itemId, amount, reason)}
           />

@@ -58,6 +58,8 @@ type Props = {
   onWaiver: (memberId: string, patch: { weeklyWaived?: boolean; welfareWaived?: boolean }) => void;
   onPost: (memberId: string, type: string, amount: number, periodDate?: string) => void;
   onFinalize: () => void;
+  onReopen?: (reason: string) => void;
+  onBulkWaiveWeekly?: (weeklyWaived: boolean) => void;
   onReverseItem?: (itemId: string, reason: string) => void;
   onAdjustItem?: (itemId: string, amount: number, reason: string) => void;
 };
@@ -83,12 +85,16 @@ export function CollectionsStep({
   onWaiver,
   onPost,
   onFinalize,
+  onReopen,
+  onBulkWaiveWeekly,
   onReverseItem,
   onAdjustItem,
 }: Props) {
   const [search, setSearch] = useState('');
   const [collectionTab, setCollectionTab] = useState<CollectionTab>('weekly');
   const [showWaivers, setShowWaivers] = useState(false);
+  const [showReopen, setShowReopen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
   const [selectedWaiverMemberId, setSelectedWaiverMemberId] = useState('');
   const location = useLocation();
   const finalized = Boolean(meeting.collectionsFinalizedAt);
@@ -107,6 +113,7 @@ export function CollectionsStep({
     value: row.memberId,
     label: `${row.membershipNumber} - ${row.name}`,
   }));
+  const allWeeklyWaived = waiverRows.length > 0 && waiverRows.every((row) => row.weeklyWaived);
 
   const memberRows = useMemo<MemberRow[]>(() => {
     return (roster?.members ?? []).map((row) => ({
@@ -336,6 +343,30 @@ export function CollectionsStep({
             </Badge>
             <Button size="sm" variant="secondary" disabled={!!busy} onClick={onRefreshReadiness}>Refresh</Button>
             <Button size="sm" variant="secondary" disabled={!!busy || !waiverOptions.length} onClick={() => setShowWaivers(true)}>Manage waivers</Button>
+            {onBulkWaiveWeekly ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={blocked}
+                isLoading={busy === 'collection-waivers-bulk'}
+                loadingText="Applying..."
+                onClick={() => onBulkWaiveWeekly(!allWeeklyWaived)}
+              >
+                {allWeeklyWaived ? 'Restore weekly savings for all' : 'Waive weekly savings for all'}
+              </Button>
+            ) : null}
+            {finalized && onReopen ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!!busy || meeting.status === 'CLOSED'}
+                isLoading={busy === 'collections-reopen'}
+                loadingText="Reopening..."
+                onClick={() => { setReopenReason(''); setShowReopen(true); }}
+              >
+                Reopen collections
+              </Button>
+            ) : null}
             {!finalized ? (
               <Button
                 size="sm"
@@ -438,6 +469,41 @@ export function CollectionsStep({
           ) : (
             <p className="rounded-xl border border-ink-100 bg-ink-50 p-4 text-sm text-ink-600">No waiver candidates found.</p>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={showReopen}
+        title="Reopen collections"
+        subtitle="Corrects a finalized collections stage without closing the meeting."
+        onClose={() => setShowReopen(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-600">
+            The meeting enters correction mode so posted items can be reversed and missed payments captured.
+            Finalize collections again afterwards so the loan window uses the corrected pool.
+          </p>
+          <label className="block text-sm font-semibold text-ink-700">
+            Reason (recorded in the audit log)
+            <textarea
+              className="mt-1 w-full rounded-xl border border-ink-200 p-3 text-sm"
+              rows={3}
+              value={reopenReason}
+              onChange={(event) => setReopenReason(event.target.value)}
+              placeholder="e.g. Reverse contributions posted to the wrong member and capture a missed weekly payment"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setShowReopen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              variant="secondary2"
+              disabled={!!busy || reopenReason.trim().length < 5}
+              onClick={() => { setShowReopen(false); onReopen?.(reopenReason.trim()); }}
+            >
+              Reopen collections
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>
