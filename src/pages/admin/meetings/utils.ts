@@ -61,12 +61,14 @@ export function stepIndex(step: MeetingStep) {
   return STEP_ORDER.indexOf(step);
 }
 
-export function nextStep(step: MeetingStep): MeetingStep | null {
+export function nextStep(step: MeetingStep, recovery = false): MeetingStep | null {
+  if (recovery && step === 'summary') return 'close';
   const idx = stepIndex(step);
   return idx >= 0 && idx < STEP_ORDER.length - 1 ? STEP_ORDER[idx + 1] : null;
 }
 
-export function prevStep(step: MeetingStep): MeetingStep | null {
+export function prevStep(step: MeetingStep, recovery = false): MeetingStep | null {
+  if (recovery && step === 'close') return 'summary';
   const idx = stepIndex(step);
   return idx > 0 ? STEP_ORDER[idx - 1] : null;
 }
@@ -127,7 +129,10 @@ export function advanceBlockReason(
         && ['SCHEDULED', 'NOTICE_SENT', 'ATTENDANCE_RECORDING'].includes(meeting.status)) {
         return 'Complete attendance and open collections.';
       }
-      if (!isCollectionsFinalized(meeting)) return 'Finalize collections before moving to repayments.';
+      if (!isCollectionsFinalized(meeting)) {
+        if (roster?.collectionsPaused) return null;
+        return 'Finalize collections before moving to repayments.';
+      }
       return null;
     case 'repayments':
       if (['SCHEDULED', 'NOTICE_SENT', 'ATTENDANCE_RECORDING'].includes(meeting.status)) return 'Complete earlier ceremony steps first.';
@@ -164,23 +169,27 @@ export function canGoToStep(
   pool?: LoanPool | null,
 ): boolean {
   if (!meeting || meeting.status === 'CLOSED') return target === 'close';
+  if (target === 'loans' && (roster?.lendingClosed || roster?.collectionsPaused || pool?.lendingClosed) && !hasOpenLoanWindow(meeting)) return false;
   if (isCorrectionMode(meeting)) return true;
   if (target === 'attendance') return true;
   if (target === 'fines') return canAdvanceStep('attendance', meeting, roster, pool);
   if (target === 'collections') return canAdvanceStep('attendance', meeting, roster, pool) && canAdvanceStep('fines', meeting, roster, pool);
   if (target === 'repayments') {
+    const collectionsPaused = Boolean(roster?.collectionsPaused);
     return canGoToStep('collections', meeting, roster, pool)
-      && isCollectionsFinalized(meeting);
+      && (isCollectionsFinalized(meeting) || collectionsPaused);
   }
   if (target === 'summary') {
+    const collectionsPaused = Boolean(roster?.collectionsPaused);
     return canGoToStep('repayments', meeting, roster, pool)
-      && isCollectionsFinalized(meeting);
+      && (isCollectionsFinalized(meeting) || collectionsPaused);
   }
   if (target === 'loans') {
+    const collectionsPaused = Boolean(roster?.collectionsPaused);
     return canGoToStep('summary', meeting, roster, pool)
-      && isCollectionsFinalized(meeting);
+      && (isCollectionsFinalized(meeting) || collectionsPaused);
   }
-  if (target === 'close') return canGoToStep('loans', meeting, roster, pool) && canLeaveLoansStep(meeting);
+  if (target === 'close') return canGoToStep('summary', meeting, roster, pool) && isCollectionsFinalized(meeting) && canLeaveLoansStep(meeting);
   return false;
 }
 

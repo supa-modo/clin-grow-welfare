@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   canGoToStep,
+  nextStep,
+  prevStep,
   clampCeremonyStep,
   collectionDraftKey,
   isCollectionsFinalized,
@@ -94,6 +96,12 @@ describe('collections finalize gating', () => {
       collectionsFinalizedAt: '2026-06-02',
     }, rosterStub)).toBe(true);
   });
+
+  it('allows repayments without finalize when collections are constitutionally paused', () => {
+    const pausedRoster = { ...rosterStub, collectionsPaused: true } as MeetingRoster;
+    expect(canGoToStep('repayments', openCollectionsMeeting, pausedRoster)).toBe(true);
+    expect(canGoToStep('loans', openCollectionsMeeting, pausedRoster)).toBe(false);
+  });
 });
 
 describe('isEarlyCeremonyLocked', () => {
@@ -126,5 +134,34 @@ describe('correction mode navigation', () => {
     expect(canGoToStep('attendance', meeting, rosterStub)).toBe(true);
     expect(canGoToStep('repayments', meeting, rosterStub)).toBe(true);
     expect(canGoToStep('loans', meeting, rosterStub)).toBe(true);
+  });
+});
+
+
+describe('AGM recovery meeting navigation', () => {
+  const meeting = {
+    id: 'meeting-recovery', meetingNumber: 'MTG-RECOVERY', meetingType: 'ORDINARY',
+    meetingDate: '2026-11-05T12:00:00Z', status: 'COLLECTIONS_OPEN',
+    attendanceFinalizedAt: '2026-11-05T12:00:00Z', collectionsFinalizedAt: '2026-11-05T12:00:00Z',
+    loanWindows: [],
+  } as MeetingRecord;
+  const roster = { ...rosterStub, collectionsPaused: true, lendingClosed: true };
+  it('goes from summary directly to close and back without a loan window', () => {
+    expect(nextStep('summary', true)).toBe('close');
+    expect(prevStep('close', true)).toBe('summary');
+    expect(canGoToStep('close', meeting, roster)).toBe(true);
+    expect(canGoToStep('loans', meeting, roster)).toBe(false);
+  });
+  it('keeps an existing open window accessible for release and closure', () => {
+    const existing = { ...meeting, loanWindows: [{ id: 'window', status: 'OPEN' }] };
+    expect(canGoToStep('loans', existing, roster)).toBe(true);
+    expect(canGoToStep('close', existing, roster)).toBe(false);
+  });
+  it('still requires finalizing the savings skip before closure', () => {
+    expect(canGoToStep('close', { ...meeting, collectionsFinalizedAt: null }, roster)).toBe(false);
+  });
+  it('preserves the ordinary meeting sequence', () => {
+    expect(nextStep('summary')).toBe('loans');
+    expect(prevStep('close')).toBe('loans');
   });
 });

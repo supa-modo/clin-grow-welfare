@@ -18,9 +18,10 @@ type Props = {
   collectionTotals: Record<string, number>;
   pool: LoanPool | null;
   unclaimedCarryover?: number;
+  lendingClosed?: boolean;
 };
 
-export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryover = 0 }: Props) {
+export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryover = 0, lendingClosed = false }: Props) {
   const [tab, setTab] = useState<'contributions' | 'fines' | 'repayments'>('contributions');
   const [search, setSearch] = useState('');
 
@@ -61,7 +62,7 @@ export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryove
 
   return (
     <div className="space-y-4">
-      {unclaimedCarryover > 0.01 ? (
+      {unclaimedCarryover > 0.01 && !lendingClosed ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <p className="font-semibold">Unclaimed carryover available</p>
           <p className="mt-1">
@@ -74,6 +75,13 @@ export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryove
         {Object.entries(collectionTotals).map(([key, value]) => (
           <StatCard key={key} label={key.replace(/_/g, ' ')} value={money(value)} />
         ))}
+        {lendingClosed ? (
+          <StatCard
+            label="Retained recovery receipts"
+            value={money((collectionTotals.FINE_PAYMENT ?? 0) + (collectionTotals.LOAN_REPAYMENT ?? 0))}
+            detail="Added to welfare cash; unavailable for new loans"
+          />
+        ) : (
         <StatCard
           label="Loanable for this meeting"
           value={money(pool?.totalLoanablePool ?? 0)}
@@ -84,6 +92,7 @@ export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryove
             'welfare excluded',
           ].filter(Boolean).join(' · ')}
         />
+        )}
       </div>
       <SegmentedTabs
         tabs={[

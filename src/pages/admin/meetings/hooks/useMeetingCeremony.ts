@@ -96,6 +96,8 @@ export function useMeetingCeremony() {
   const [collectionsReadiness, setCollectionsReadiness] = useState<{
     ready: boolean;
     lastMeetingOfMonth: boolean;
+    collectionsPaused?: boolean;
+    savingsStopDate?: string | null;
     rows: Array<{
       memberId: string;
       name: string;
@@ -152,6 +154,14 @@ export function useMeetingCeremony() {
   const collectionTotals = useMemo(() => collectionTotalsFromMeeting(selectedMeeting), [selectedMeeting]);
 
   useEffect(() => {
+    if (step === 'loans' && (roster?.lendingClosed || roster?.collectionsPaused || pool?.lendingClosed)
+      && !selectedMeeting?.loanWindows?.some((window) => window.status === 'OPEN')) {
+      setStep(selectedMeeting?.status === 'CLOSED' ? 'close' : 'summary');
+    }
+  }, [step, roster?.lendingClosed, roster?.collectionsPaused, pool?.lendingClosed, selectedMeeting]);
+
+
+  useEffect(() => {
     if (!selectedId && data?.[0]?.id) setSelectedId(data[0].id);
   }, [data, selectedId]);
 
@@ -181,13 +191,46 @@ export function useMeetingCeremony() {
       setStep(next);
       return;
     }
+    const collectionsPaused = Boolean(
+      roster?.collectionsPaused || collectionsReadiness?.collectionsPaused,
+    );
+    const shouldSkipCollections = collectionsPaused
+      && !selectedMeeting.collectionsFinalizedAt
+      && Boolean(selectedMeeting.attendanceFinalizedAt)
+      && (next === 'collections' || next === 'repayments' || next === 'summary' || next === 'loans' || next === 'close');
+
+    // Auto-skip collections when constitutionally paused and the target is past fines.
+    if (shouldSkipCollections) {
+      setBusy('collections-skip');
+      try {
+        const res = await api.post(`/meetings/${selectedMeeting.id}/collections/skip`);
+        if (res.data.meeting) mergeMeetingIntoList(res.data.meeting as MeetingRecord);
+        const landOn = next === 'collections' ? 'repayments' : next;
+        await syncCeremonyStepToServer(selectedMeeting.id, landOn);
+        setStep(landOn);
+        toastSuccess('Collections skipped', 'Weekly savings are paused for AGM / loan recovery. Continue with repayments.');
+      } catch (error) {
+        toastError('Could not skip collections', getApiError(error));
+      } finally {
+        setBusy('');
+      }
+      return;
+    }
     try {
       await syncCeremonyStepToServer(selectedMeeting.id, next);
       setStep(next);
     } catch (error) {
       toastError('Cannot advance meeting step', getApiError(error));
     }
-  }, [selectedMeeting?.id, syncCeremonyStepToServer, toastError]);
+  }, [
+    selectedMeeting,
+    syncCeremonyStepToServer,
+    toastError,
+    toastSuccess,
+    roster?.collectionsPaused,
+    collectionsReadiness?.collectionsPaused,
+    mergeMeetingIntoList,
+  ]);
 
   const loadPool = useCallback(async (meetingId: string) => {
     try {
@@ -307,6 +350,28 @@ export function useMeetingCeremony() {
   const mergeMeetingFromResponse = useCallback((meeting: MeetingRecord) => {
     mergeMeetingIntoList(meeting);
   }, [mergeMeetingIntoList]);
+
+  const skipCollections = (meetingId: string) => {
+    confirmAction({
+      key: 'collections-skip',
+      title: 'Skip collections?',
+      message: 'Weekly savings are stopped for AGM / loan recovery. Collections will be marked finalized with no postings and you will continue to repayments.',
+      confirmText: 'Skip collections',
+      run: async () => {
+        setBusy('collections-skip');
+        try {
+          const res = await api.post(`/meetings/${meetingId}/collections/skip`);
+          mergeMeetingFromResponse(res.data.meeting as MeetingRecord);
+          setStep('repayments');
+          toastSuccess('Collections skipped', 'Continue with loan repayments.');
+        } catch (err) {
+          toastError('Skip collections failed', getApiError(err));
+        } finally {
+          setBusy('');
+        }
+      },
+    });
+  };
 
   const patchLoanWindow = useCallback((
     loanWindow: NonNullable<MeetingRecord['loanWindows']>[number],
@@ -1561,6 +1626,7 @@ export function useMeetingCeremony() {
     loadCollectionsReadiness,
     finalizeCollections,
     reopenCollections,
+    skipCollections,
     updateCollectionWaiver,
     bulkWaiveWeeklySavings,
     reverseCollectionItem,

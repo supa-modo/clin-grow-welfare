@@ -65,7 +65,7 @@ const groups: Array<{
   },
   {
     title: "Financial year",
-    description: "Controls the open operating period and AGM/end-year dates.",
+    description: "Controls the open operating period and AGM/end-year dates. On or after the savings stop date, meetings collect fines and loan repayments only. Lending stays closed until the next financial year opens.",
     fields: [
       ["startDate", "Start date", "date"],
       ["endDate", "End date", "date"],
@@ -376,6 +376,11 @@ export function SystemSettingsPage() {
                         onChange={(event) => setField(field, event.target.value, type)}
                         className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-800 outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600 disabled:bg-ink-50"
                       />
+                      {field === "savingsStopDate" ? (
+                        <span className="mt-1 block text-[11px] font-medium text-ink-500">
+                          Meetings on/after this date skip weekly savings and new lending. Continue with fines, repayments, summary and AOB, then close.
+                        </span>
+                      ) : null}
                     </label>
                   );
                 })}

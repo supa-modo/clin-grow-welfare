@@ -56,9 +56,6 @@ type Props = {
     label: string,
     runner: () => Promise<unknown>,
   ) => void;
-  aobDraft: string;
-  onAobChange: (value: string) => void;
-  onSaveAob: () => void;
 };
 
 export function LoanWindowStep({
@@ -82,9 +79,6 @@ export function LoanWindowStep({
   onRefreshPool,
   unclaimedCarryover = 0,
   onLoanAction,
-  aobDraft,
-  onAobChange,
-  onSaveAob,
 }: Props) {
   const user = useAuthStore((s) => s.user);
   const permissions = user?.permissions ?? [];
@@ -95,6 +89,7 @@ export function LoanWindowStep({
     isSystemAdmin(user) ||
     permissions.includes("officialsPortal.meetings.adminOverride");
   const blocked = !!busy || meeting.status === "CLOSED";
+  const lendingClosed = Boolean(roster?.lendingClosed || roster?.collectionsPaused || pool?.lendingClosed);
   const windowOpen =
     activeLoanWindow &&
     (activeLoanWindow as { status: string }).status === "OPEN";
@@ -202,7 +197,7 @@ export function LoanWindowStep({
             size="sm"
               variant="secondary"
               icon={<FiPlay />}
-              disabled={blocked || !collectionsFinalized}
+              disabled={blocked || lendingClosed || !collectionsFinalized}
               isLoading={busy === "loan-window/open"}
               loadingText="Opening..."
               onClick={onOpenWindow}
@@ -215,7 +210,7 @@ export function LoanWindowStep({
               size="sm"
               variant="secondary"
               icon={<FiPlay />}
-              disabled={blocked}
+              disabled={blocked || lendingClosed}
               onClick={() => onReopenWindow((activeLoanWindow as { id: string }).id)}
             >
               Reopen window
@@ -227,7 +222,7 @@ export function LoanWindowStep({
               size="sm"
                 variant="secondary"
                 icon={<FiSend />}
-                disabled={blocked}
+                disabled={blocked || lendingClosed}
                 onClick={() => setShowReserveModal(true)}
               >
                 Official reserve
@@ -238,7 +233,7 @@ export function LoanWindowStep({
                 icon={<FiXCircle />}
                 disabled={!!busy}
                 onClick={() => {
-                  setCarryOverOnClose((pool?.remainingAmount ?? 0) > 0);
+                  setCarryOverOnClose(!lendingClosed && (pool?.remainingAmount ?? 0) > 0);
                   setShowCloseModal(true);
                 }}
               >
@@ -253,7 +248,7 @@ export function LoanWindowStep({
           Finalize collections on the Collections step before opening the loan window.
         </p>
       ) : null}
-      {unclaimedCarryover > 0.01 && !windowOpen ? (
+      {unclaimedCarryover > 0.01 && !windowOpen && !lendingClosed ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span className="font-semibold">{money(unclaimedCarryover)} carried forward</span> from a previous meeting is available.
           Open the loan window to include it in the pool.
@@ -335,7 +330,7 @@ export function LoanWindowStep({
                     <Button
                       size="sm"
                       variant="secondary"
-                      disabled={!!busy || reservation.status !== "RESERVED"}
+                      disabled={!!busy || lendingClosed || reservation.status !== "RESERVED"}
                       onClick={() => onUpdateReservation(reservation)}
                     >
                       Edit amount
@@ -350,7 +345,7 @@ export function LoanWindowStep({
                     </Button>
                   </div>
                 </div>
-                {loan ? (
+                {loan && !lendingClosed ? (
                   <div className="flex max-w-xl flex-wrap justify-end gap-2">
                     {loan.status === "SUBMITTED" && canVerify ? (
                       <Button
@@ -461,7 +456,7 @@ export function LoanWindowStep({
                   </div>
                 ) : null}
               </div>
-              {loan ? (
+              {loan && !lendingClosed ? (
                 <LoanDisbursementPanel
                   loan={loan}
                   busy={!!busy}
@@ -487,32 +482,6 @@ export function LoanWindowStep({
         Disbursement requires treasurer verification, member acknowledgement, and chair or secretary approval.
       </p>
 
-      {meeting.loanStageReachedAt ? (
-        <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-ink-900">Any other business (AOB)</h3>
-          <p className="mt-1 text-sm text-ink-600">
-            Record any other business raised after loan disbursements before closing the meeting.
-          </p>
-          <textarea
-            className="mt-3 min-h-[120px] w-full rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-800"
-            value={aobDraft}
-            onChange={(e) => onAobChange(e.target.value)}
-            placeholder="Type any other business for this sitting..."
-            disabled={!!busy || meeting.status === "CLOSED"}
-          />
-          <div className="mt-3 flex justify-end">
-            <Button
-              size="sm"
-              variant="secondary2"
-              disabled={!!busy || meeting.status === "CLOSED"}
-              isLoading={busy === "aob"}
-              onClick={onSaveAob}
-            >
-              Save AOB
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       <Modal
         open={showReserveModal}
@@ -576,7 +545,7 @@ export function LoanWindowStep({
           <p className="text-sm text-ink-600">
             Remaining pool: <span className="font-bold text-ink-900">{money(pool?.remainingAmount ?? 0)}</span>
           </p>
-          {(pool?.remainingAmount ?? 0) > 0 ? (
+          {!lendingClosed && (pool?.remainingAmount ?? 0) > 0 ? (
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
               <input
                 type="checkbox"

@@ -36,8 +36,10 @@ export function StepFooter({
   collectionsReady,
   repaymentsReady,
 }: Props) {
-  const back = prevStep(step);
-  const forward = nextStep(step);
+  const recovery = Boolean(roster?.lendingClosed || roster?.collectionsPaused || pool?.lendingClosed)
+    && !meeting?.loanWindows?.some((window) => window.status === 'OPEN');
+  const back = prevStep(step, recovery);
+  const forward = nextStep(step, recovery);
   let canNext = forward ? canAdvanceStep(step, meeting, roster, pool) : false;
   let blockReason = forward
     ? advanceBlockReason(step, meeting, roster, pool)

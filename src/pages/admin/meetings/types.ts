@@ -113,6 +113,9 @@ export type RosterMember = {
 
 export type MeetingRoster = {
   meeting: MeetingRecord;
+  lendingClosed?: boolean;
+  collectionsPaused?: boolean;
+  savingsStopDate?: string | null;
   settings: {
     lateFine: number;
     absentWithApologyFine: number;
@@ -127,6 +130,8 @@ export type MeetingRoster = {
 };
 
 export type LoanPool = {
+  lendingClosed?: boolean;
+  retainedCollectionsPosted?: number;
   totalLoanablePool: number;
   reservedAmount: number;
   committedAmount?: number;

@@ -33,6 +33,8 @@ type MemberRow = {
 type Readiness = {
   ready: boolean;
   lastMeetingOfMonth: boolean;
+  collectionsPaused?: boolean;
+  savingsStopDate?: string | null;
   rows: Array<{
     memberId: string;
     name: string;
@@ -59,6 +61,7 @@ type Props = {
   onPost: (memberId: string, type: string, amount: number, periodDate?: string) => void;
   onFinalize: () => void;
   onReopen?: (reason: string) => void;
+  onSkip?: () => void;
   onBulkWaiveWeekly?: (weeklyWaived: boolean) => void;
   onReverseItem?: (itemId: string, reason: string) => void;
   onAdjustItem?: (itemId: string, amount: number, reason: string) => void;
@@ -86,6 +89,7 @@ export function CollectionsStep({
   onPost,
   onFinalize,
   onReopen,
+  onSkip,
   onBulkWaiveWeekly,
   onReverseItem,
   onAdjustItem,
@@ -98,10 +102,12 @@ export function CollectionsStep({
   const [selectedWaiverMemberId, setSelectedWaiverMemberId] = useState('');
   const location = useLocation();
   const finalized = Boolean(meeting.collectionsFinalizedAt);
+  const collectionsPaused = Boolean(roster?.collectionsPaused || readiness?.collectionsPaused);
   const blocked = !!busy || meeting.status === 'CLOSED' || (finalized && !isCorrectionMode(meeting));
+  const weeklyPaused = collectionsPaused && !isCorrectionMode(meeting);
   const canFinalize = !finalized
     && meeting.status !== 'CLOSED'
-    && Boolean(readiness?.ready || constitutionalOverride);
+    && Boolean(readiness?.ready || constitutionalOverride || collectionsPaused);
   const monthly = roster?.settings?.monthlyWelfareContribution ?? 250;
   const defaultWeekDate = todayIso();
   const defaultWelfareMonthDate = monthStartIso(new Date(meeting.meetingDate));
@@ -270,13 +276,18 @@ export function CollectionsStep({
           />
           <Button
             size="sm"
-            disabled={blocked || shareDisabled || weeklyBlocked || welfareBlocked || Number(draft.amount) <= 0}
+            disabled={blocked || (collectionsPaused && !isCorrectionMode(meeting)) || shareDisabled || weeklyBlocked || welfareBlocked || (kind === 'week' && weeklyPaused) || Number(draft.amount) <= 0}
             onClick={() => onPost(row.memberId, type, Number(draft.amount), periodDate)}
           >
             Post
           </Button>
         </div>
-        {kind === 'week' ? (
+        {kind === 'week' && weeklyPaused ? (
+          <p className="mt-2 text-xs font-semibold text-amber-700">
+            Weekly savings paused for AGM / loan recovery.
+          </p>
+        ) : null}
+        {kind === 'week' && !weeklyPaused ? (
           <p className={`mt-2 text-xs ${weeklyBlocked ? 'font-semibold text-emerald-700' : 'text-ink-500'}`}>
             {weeklyBlocked ? 'Week complete.' : `${money(selectedWeekRemaining)} remaining for selected week.`}
           </p>
@@ -327,23 +338,56 @@ export function CollectionsStep({
         />
       ) : null}
 
+      {collectionsPaused && !finalized ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="font-bold text-ink-900">Collections paused for AGM / loan recovery</p>
+          <p className="mt-1 text-sm text-ink-600">
+            Weekly savings stopped
+            {roster?.savingsStopDate || readiness?.savingsStopDate
+              ? ` from ${new Date(roster?.savingsStopDate || readiness?.savingsStopDate || '').toLocaleDateString('en-KE')}`
+              : ''}
+            . Skip savings collections to continue with loan repayments. Fines remain collectible until the meeting closes.
+          </p>
+          {onSkip ? (
+            <div className="mt-3">
+              <Button
+                size="sm"
+                variant="secondary2"
+                disabled={!!busy || meeting.status === 'CLOSED' || !meeting.attendanceFinalizedAt}
+                isLoading={busy === 'collections-skip'}
+                loadingText="Skipping..."
+                onClick={onSkip}
+              >
+                Skip collections
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="rounded-xl border border-ink-100 bg-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-bold text-ink-900">Collections readiness</p>
             <p className="text-sm text-ink-600">
-              {readiness?.ready || constitutionalOverride
-                ? 'Collections are cleared for the next stage.'
-                : `${dueWaiverRows.filter((row) => !row.ready).length} member(s) still need payment or waiver review.`}
+              {collectionsPaused
+                ? 'Weekly savings are not due. You can skip collections and continue to repayments.'
+                : readiness?.ready || constitutionalOverride
+                  ? 'Collections are cleared for the next stage.'
+                  : `${dueWaiverRows.filter((row) => !row.ready).length} member(s) still need payment or waiver review.`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Badge tone={readiness?.ready || constitutionalOverride ? 'success' : 'warning'}>
-              {readiness?.ready || constitutionalOverride ? 'Ready to proceed' : 'Action required'}
+            <Badge tone={readiness?.ready || constitutionalOverride || collectionsPaused ? 'success' : 'warning'}>
+              {collectionsPaused
+                ? 'Paused — skip allowed'
+                : readiness?.ready || constitutionalOverride
+                  ? 'Ready to proceed'
+                  : 'Action required'}
             </Badge>
             <Button size="sm" variant="secondary" disabled={!!busy} onClick={onRefreshReadiness}>Refresh</Button>
-            <Button size="sm" variant="secondary" disabled={!!busy || !waiverOptions.length} onClick={() => setShowWaivers(true)}>Manage waivers</Button>
-            {onBulkWaiveWeekly ? (
+            <Button size="sm" variant="secondary" disabled={!!busy || !waiverOptions.length || collectionsPaused} onClick={() => setShowWaivers(true)}>Manage waivers</Button>
+            {onBulkWaiveWeekly && !collectionsPaused ? (
               <Button
                 size="sm"
                 variant="secondary"
@@ -365,6 +409,18 @@ export function CollectionsStep({
                 onClick={() => { setReopenReason(''); setShowReopen(true); }}
               >
                 Reopen collections
+              </Button>
+            ) : null}
+            {!finalized && onSkip && collectionsPaused ? (
+              <Button
+                size="sm"
+                variant="secondary2"
+                disabled={!!busy || !meeting.attendanceFinalizedAt}
+                isLoading={busy === 'collections-skip'}
+                loadingText="Skipping..."
+                onClick={onSkip}
+              >
+                Skip collections
               </Button>
             ) : null}
             {!finalized ? (

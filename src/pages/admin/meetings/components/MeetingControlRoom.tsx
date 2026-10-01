@@ -26,6 +26,7 @@ import {
   nextStep,
 } from "../utils";
 import { useMeetingCeremony } from "../hooks/useMeetingCeremony";
+import { AobSection } from "./AobSection";
 import { StepFooter } from "./StepFooter";
 import { AttendanceStep } from "./steps/AttendanceStep";
 import { FinesStep } from "./steps/FinesStep";
@@ -62,7 +63,6 @@ export function MeetingControlRoom({
   const {
     busy,
     step,
-    setStep,
     setCeremonyStepWithSync,
     roster,
     pool,
@@ -103,6 +103,7 @@ export function MeetingControlRoom({
     loadCollectionsReadiness,
     finalizeCollections,
     reopenCollections,
+    skipCollections,
     updateCollectionWaiver,
     bulkWaiveWeeklySavings,
     reviewApology,
@@ -145,12 +146,17 @@ export function MeetingControlRoom({
   if (!selectedMeeting) return null;
 
   const m = selectedMeeting;
-  const guardedTabs = workflowTabs.map((tab) => ({
+  const collectionsPaused = Boolean(roster?.collectionsPaused || collectionsReadiness?.collectionsPaused);
+  const lendingClosed = Boolean(collectionsPaused || roster?.lendingClosed || pool?.lendingClosed);
+  const guardedTabs = workflowTabs.filter((tab) => tab.value !== 'loans' || !lendingClosed || m.loanWindows?.some((window) => window.status === 'OPEN')).map((tab) => ({
     ...tab,
+    label: tab.value === "collections" && collectionsPaused && !m.collectionsFinalizedAt
+      ? "Collections (paused)"
+      : tab.label,
     disabled: !canGoToStep(tab.value, m, roster, pool),
   }));
   const setGuardedStep = (next: MeetingStep) => {
-    if (canGoToStep(next, m, roster, pool)) setStep(next);
+    if (canGoToStep(next, m, roster, pool)) void setCeremonyStepWithSync(next);
   };
   const canClose = canCloseMeeting(m, roster, pool);
   const meetingStarted = isMeetingStarted(m);
@@ -165,6 +171,11 @@ export function MeetingControlRoom({
   return (
     <Card className="flex min-h-0 flex-col overflow-hidden p-0">
       <div className="shrink-0 p-5 pb-0">
+        {lendingClosed ? (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong>Lending closed for AGM recovery.</strong> Collect fines and loan repayments, record AOB, and close the meeting. Receipts remain in the welfare's cash balance.
+          </div>
+        ) : null}
         {isCorrectionMode(m) ? (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             Correction mode — changes post with meeting date{" "}
@@ -310,6 +321,7 @@ export function MeetingControlRoom({
             }
             onFinalize={() => finalizeCollections(m.id)}
             onReopen={(reason) => reopenCollections(m.id, reason)}
+            onSkip={() => skipCollections(m.id)}
             onBulkWaiveWeekly={(weeklyWaived) => bulkWaiveWeeklySavings(m.id, weeklyWaived)}
             onReverseItem={(itemId, reason) => void reverseCollectionItem(m.id, itemId, reason)}
             onAdjustItem={(itemId, amount, reason) => void adjustCollectionItem(m.id, itemId, amount, reason)}
@@ -350,6 +362,14 @@ export function MeetingControlRoom({
               collectionTotals={collectionTotals}
               pool={pool}
               unclaimedCarryover={unclaimedCarryover}
+              lendingClosed={lendingClosed}
+            />
+            <AobSection
+              meeting={m}
+              busy={busy}
+              value={aobDraft[m.id] ?? m.anyOtherBusiness ?? ''}
+              onChange={(value) => setAobDraft((prev) => ({ ...prev, [m.id]: value }))}
+              onSave={() => void saveAob(m)}
             />
             <ResolutionsStep
               meeting={m}
@@ -383,12 +403,17 @@ export function MeetingControlRoom({
             onLoanAction={(loan, label, runner) =>
               void runLoanAction(loan, label, runner)
             }
-            aobDraft={aobDraft[m.id] ?? m.anyOtherBusiness ?? ''}
-            onAobChange={(value) => setAobDraft((prev) => ({ ...prev, [m.id]: value }))}
-            onSaveAob={() => void saveAob(m)}
           />
         ) : null}
         {step === "close" ? (
+          <div className="space-y-4">
+            <AobSection
+              meeting={m}
+              busy={busy}
+              value={aobDraft[m.id] ?? m.anyOtherBusiness ?? ''}
+              onChange={(value) => setAobDraft((prev) => ({ ...prev, [m.id]: value }))}
+              onSave={() => void saveAob(m)}
+            />
           <CloseStep
             meeting={m}
             busy={busy}
@@ -403,6 +428,7 @@ export function MeetingControlRoom({
             onAdminReopen={(input) => void adminReopenMeeting(m.id, input)}
             canClose={canClose}
           />
+          </div>
         ) : null}
       </div>
 
@@ -414,7 +440,7 @@ export function MeetingControlRoom({
         roster={roster}
         pool={pool}
         disabled={false}
-        collectionsReady={collectionsReadiness?.ready || collectionsOverride}
+        collectionsReady={collectionsReadiness?.ready || collectionsOverride || collectionsPaused}
         repaymentsReady={
           rolloverCandidatesStatus.meetingId === m.id
           && rolloverCandidatesStatus.state === "loaded"
