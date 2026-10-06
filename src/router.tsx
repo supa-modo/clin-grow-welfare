@@ -1,3 +1,4 @@
+import { AgmDistributionPage } from '@/pages/admin/finance/AgmDistributionPage';
 import { createBrowserRouter, Outlet } from "react-router-dom";
 import {
   PermissionGate,
@@ -131,6 +132,10 @@ export const router = createBrowserRouter([
                     ),
                   },
                   {
+                    path: "ledger/agm-distribution",
+                    element: <PermissionGate permission="officialsPortal.reports.view"><AgmDistributionPage /></PermissionGate>,
+                  },
+                  {
                     path: "ledger/financial-years",
                     element: (
                       <PermissionGate permission="financialYears.view">
@@ -253,6 +258,10 @@ export const router = createBrowserRouter([
                     element: (
                       <Navigate to="/officials/ledger?tab=accounts" replace />
                     ),
+                  },
+                  {
+                    path: "ledger/agm-distribution",
+                    element: <PermissionGate permission="officialsPortal.reports.view"><AgmDistributionPage /></PermissionGate>,
                   },
                   {
                     path: "ledger/financial-years",

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { WelfareExpensesPanel } from './WelfareExpensesPanel';
 import { FiCheckCircle, FiRefreshCw, FiSend, FiXCircle } from 'react-icons/fi';
 import { TbHeartHandshake, TbHourglass, TbReceiptRefund, TbWallet } from 'react-icons/tb';
 import { api } from '@/services/api';
@@ -137,7 +138,7 @@ export function WelfarePage() {
   ];
 
   return (
-    <AdminPageLayout fillHeight>
+    <AdminPageLayout>
       <PageHeader
         title="Welfare Claims"
         subtitle="Committee-controlled welfare support with constitutional benefit limits and welfare-fund-only payment."
@@ -163,7 +164,8 @@ export function WelfarePage() {
 
       <StateBlock loading={loading && !data} error={error} />
 
-      <AdminPageMain fillHeight>
+      <WelfareExpensesPanel />
+      <AdminPageMain>
         <DataTable
           columns={columns}
           rows={filteredClaims}

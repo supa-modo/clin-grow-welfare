@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation } from 'react-router-dom';
 import { FiPlus, FiSettings, FiLock } from "react-icons/fi";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -31,10 +32,13 @@ function defaultFinancialYearForm(years: FinancialYear[] = []) {
     name: `FY-${year}`,
     startDate: `${year}-01-01`,
     endDate: `${year}-12-20`,
+    agmDate: `${year}-12-20`,
+    savingsStopDate: `${year}-10-31`,
   };
 }
 
 export function FinancialYearsPage() {
+  const prefix=useLocation().pathname.startsWith('/officials')?'/officials':'/dashboard';
   const user = useAuthStore((s) => s.user);
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
@@ -42,6 +46,7 @@ export function FinancialYearsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [editingYear,setEditingYear]=useState<FinancialYear|null>(null);
   const [showSettings, setShowSettings] = useState<FinancialYear | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(defaultFinancialYearForm());
@@ -51,10 +56,12 @@ export function FinancialYearsPage() {
     | { kind: "create" }
     | { kind: "saveSettings" }
     | { kind: "close"; fy: FinancialYear }
+    | { kind: "activate"; fy: FinancialYear }
   >(null);
 
   const permissions = user?.permissions ?? [];
   const canCreateYear = permissions.includes("financialYears.create");
+  const canEditYear = permissions.includes('financialYears.update');
   const canCloseYear = permissions.includes("financialYears.close");
   const canEditSettings = Boolean(
     user?.roles.some((role) =>
@@ -69,6 +76,7 @@ export function FinancialYearsPage() {
   const settingsReadOnly =
     !canEditSettings ||
     showSettings?.status === "CLOSED" ||
+    showSettings?.status === "CLOSING" ||
     showSettings?.status === "AUDITED";
 
   const load = () => {
@@ -112,15 +120,19 @@ export function FinancialYearsPage() {
   const submitNew = async () => {
     setSaving(true);
     try {
-      await ledgerApi.createFinancialYear({
+      const calendar={
         name: form.name,
         startDate: form.startDate,
         endDate: form.endDate,
-      });
+        agmDate: form.agmDate || undefined,
+        savingsStopDate: form.savingsStopDate || undefined,
+      };
+      if(editingYear)await ledgerApi.updateFinancialYear(editingYear.id,calendar);else await ledgerApi.createFinancialYear(calendar);
       setShowNew(false);
       setConfirm(null);
       setForm(defaultFinancialYearForm(years));
-      toastSuccess("Financial year created.");
+      toastSuccess(editingYear?'Financial year dates updated.':'Financial year planned.');
+      setEditingYear(null);
       load();
     } catch (e: any) {
       toastError(
@@ -188,6 +200,7 @@ export function FinancialYearsPage() {
             <Button
               icon={<FiPlus />}
               onClick={() => {
+                setEditingYear(null);
                 setForm(defaultFinancialYearForm(years));
                 setShowNew(true);
               }}
@@ -197,6 +210,7 @@ export function FinancialYearsPage() {
           ) : null
         }
       />
+      <p className="rounded-lg border bg-white p-4 text-sm">New years are saved as planned. Activate them from their start date after the previous year’s payouts are complete. <Link className="text-brand-700 underline" to={`${prefix}/ledger/agm-distribution`}>Open AGM distribution register</Link></p>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
@@ -267,7 +281,9 @@ export function FinancialYearsPage() {
                       ? "Settings"
                       : "View"}
                   </Button>
-                  {fy.status === "OPEN" && canCloseYear ? (
+                  {canEditYear&&['OPEN','PLANNED'].includes(fy.status)&&<Button size="sm" variant="ghost" onClick={()=>{const date=(v:string|null|undefined)=>v?new Date(new Date(v).getTime()+10800000).toISOString().slice(0,10):'';setEditingYear(fy);setForm({name:fy.name,startDate:date(fy.startDate),endDate:date(fy.endDate),agmDate:date(fy.agmDate),savingsStopDate:date(fy.savingsStopDate)});setShowNew(true);}}>Edit dates</Button>}
+                  {fy.status === "PLANNED" && canEditYear ? <Button size="sm" variant="secondary" disabled={saving || years.some(y=>['OPEN','CLOSING'].includes(y.status)) || new Date(fy.startDate)>new Date()} onClick={()=>setConfirm({kind:'activate',fy})}>Activate year</Button> : null}
+                  {fy.status === "CLOSING" && canCloseYear ? (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -290,7 +306,7 @@ export function FinancialYearsPage() {
       {/* New FY Modal */}
       <Modal
         open={showNew}
-        title="New Financial Year"
+        title={editingYear?`Edit calendar — ${editingYear.name}`:'New Financial Year'}
         onClose={() => setShowNew(false)}
         footer={
           <div className="flex justify-end gap-2 px-5 py-3">
@@ -301,9 +317,9 @@ export function FinancialYearsPage() {
               onClick={() => setConfirm({ kind: "create" })}
               isLoading={saving}
               loadingText="Creating..."
-              disabled={!canCreateYear}
+              disabled={editingYear?!canEditYear:!canCreateYear}
             >
-              Create
+              {editingYear?'Save dates':'Plan year'}
             </Button>
           </div>
         }
@@ -346,6 +362,7 @@ export function FinancialYearsPage() {
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">{(['agmDate','savingsStopDate'] as const).map(field=><label key={field} className="text-sm font-semibold">{field==='agmDate'?'AGM date':'Savings cutoff date'}<input type="date" className="mt-1 w-full rounded-lg border p-2" value={form[field]} onChange={e=>setForm({...form,[field]:e.target.value})}/></label>)}</div>
         </div>
       </Modal>
 
@@ -445,28 +462,29 @@ export function FinancialYearsPage() {
         isOpen={Boolean(confirm)}
         onClose={() => setConfirm(null)}
         title={
-          confirm?.kind === "create"
-            ? "Create financial year?"
+          confirm?.kind === 'activate' ? 'Activate planned year?' : confirm?.kind === "create"
+            ? (editingYear?'Update financial year dates?':'Plan financial year?')
             : confirm?.kind === "saveSettings"
               ? "Save financial year settings?"
               : "Close financial year?"
         }
         message={
-          confirm?.kind === "create"
-            ? "This will create a new financial year using the selected dates."
+          confirm?.kind === 'activate' ? 'Open this year for contributions, meetings and loans. The previous year must be closed and all payouts complete.' : confirm?.kind === "create"
+            ? (editingYear?'Update this year’s start, end, AGM and savings cutoff dates. Existing records must remain within the selected period.':'Save the year as planned with the selected dates. It opens after the previous year closes and its start date arrives.')
             : confirm?.kind === "saveSettings"
               ? "These settings are used by contribution validation, meeting workflows, fines, and loan calculations."
               : `This will close ${confirm?.kind === "close" ? confirm.fy.name : "the financial year"} and block new postings.`
         }
         confirmText={
-          confirm?.kind === "create"
-            ? "Create"
+          confirm?.kind === 'activate' ? 'Activate year' : confirm?.kind === "create"
+            ? (editingYear?'Save dates':'Plan year')
             : confirm?.kind === "saveSettings"
               ? "Save Settings"
               : "Close Year"
         }
         type={confirm?.kind === "close" ? "delete" : "confirm"}
         onConfirm={() => {
+          if(confirm?.kind==='activate'){setSaving(true);void ledgerApi.activateFinancialYear(confirm.fy.id).then(()=>{setConfirm(null);toastSuccess('Financial year activated');load();}).catch(e=>toastError(e.response?.data?.error??'Unable to activate year')).finally(()=>setSaving(false));}
           if (confirm?.kind === "create") void submitNew();
           if (confirm?.kind === "saveSettings") void saveSettings();
           if (confirm?.kind === "close") void closeFY(confirm.fy);

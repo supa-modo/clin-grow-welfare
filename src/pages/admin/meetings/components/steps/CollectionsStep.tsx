@@ -95,6 +95,9 @@ export function CollectionsStep({
   onAdjustItem,
 }: Props) {
   const [search, setSearch] = useState('');
+  const [registrationMember,setRegistrationMember]=useState('');
+  const registrationKey=`${meeting.id}-${registrationMember}-REGISTRATION`;
+  const registrationDraft=collectionDraft[registrationKey]??{type:'REGISTRATION',amount:String(roster?.settings.registrationFeeAmount??1000),reference:'',paymentMethod:'CASH'};
   const [collectionTab, setCollectionTab] = useState<CollectionTab>('weekly');
   const [showWaivers, setShowWaivers] = useState(false);
   const [showReopen, setShowReopen] = useState(false);
@@ -328,6 +331,7 @@ export function CollectionsStep({
 
   return (
     <div className="space-y-4">
+      {(roster?.registrationMembers?.length??0)>0&&!collectionsPaused&&<section className="rounded-xl border bg-white p-4 space-y-3"><div><h3 className="font-bold">New member registration fees</h3><p className="text-sm text-ink-600">Collect the one-time joining fee at this meeting. It becomes distributable registration income. Pending members can pay before activation.</p></div><div className="flex flex-wrap gap-3"><label className="text-sm">Member<select aria-label="Registration member" value={registrationMember} onChange={e=>setRegistrationMember(e.target.value)} className="block rounded-lg border p-2"><option value="">Select member</option>{roster?.registrationMembers?.map(m=><option key={m.id} value={m.id}>{m.membershipNumber} · {m.name}</option>)}</select></label><label className="text-sm">Fee<input readOnly value={money(roster?.settings.registrationFeeAmount??1000)} className="block w-36 rounded-lg border p-2 bg-ink-50"/></label><label className="text-sm">Payment method<select aria-label="Registration payment method" className="block rounded-lg border p-2" value={registrationDraft.paymentMethod??'CASH'} onChange={e=>setCollectionDraft(d=>({...d,[registrationKey]:{...registrationDraft,paymentMethod:e.target.value}}))}>{PAYMENT_METHODS.map(m=><option key={m}>{m}</option>)}</select></label><label className="text-sm">Reference<input aria-label="Registration payment reference" className="block rounded-lg border p-2" value={registrationDraft.reference} onChange={e=>setCollectionDraft(d=>({...d,[registrationKey]:{...registrationDraft,reference:e.target.value}}))}/></label><Button disabled={blocked||!registrationMember} onClick={()=>onPost(registrationMember,'REGISTRATION',roster?.settings.registrationFeeAmount??1000,meeting.meetingDate.slice(0,10))}>Collect registration fee</Button></div></section>}
       {onReverseItem && onAdjustItem ? (
         <PostedItemsCorrectionPanel
           meeting={meeting}

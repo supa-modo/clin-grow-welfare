@@ -72,7 +72,10 @@ export const adminNavItems: NavItemDef[] = [
     permission: "officialsPortal.meetings.view",
   },
   {
-    path: "/dashboard/ledger/financial-years",
+    path: "/dashboard/ledger/agm-distribution", label: "AGM Distribution", icon: TbReportMoney, permission: "officialsPortal.reports.view",
+    },
+    {
+      path: "/dashboard/ledger/financial-years",
     label: "Financial Years",
     icon: TbChartBar,
     permission: "financialYears.view",
@@ -143,7 +146,10 @@ export const officialsNavItems: NavItemDef[] = [
     permission: "officialsPortal.meetings.view",
   },
   {
-    path: "/officials/ledger/financial-years",
+    path: "/officials/ledger/agm-distribution", label: "AGM Distribution", icon: TbReportMoney, permission: "officialsPortal.reports.view",
+    },
+    {
+      path: "/officials/ledger/financial-years",
     label: "Financial Years",
     icon: TbChartBar,
     permission: "financialYears.view",

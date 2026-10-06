@@ -112,11 +112,13 @@ export type RosterMember = {
 };
 
 export type MeetingRoster = {
+  registrationMembers?: Array<{id:string;name:string;membershipNumber:string}>;
   meeting: MeetingRecord;
   lendingClosed?: boolean;
   collectionsPaused?: boolean;
   savingsStopDate?: string | null;
   settings: {
+    registrationFeeAmount?: number;
     lateFine: number;
     absentWithApologyFine: number;
     absentWithoutApologyFine: number;

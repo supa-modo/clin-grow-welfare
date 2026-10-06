@@ -1,4 +1,4 @@
-export type FinancialYearStatus = 'OPEN' | 'CLOSING' | 'CLOSED' | 'AUDITED';
+export type FinancialYearStatus = 'PLANNED' | 'OPEN' | 'CLOSING' | 'CLOSED' | 'AUDITED';
 export type JournalStatus = 'DRAFT' | 'POSTED' | 'REVERSED';
 export type LedgerAccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE';
 
