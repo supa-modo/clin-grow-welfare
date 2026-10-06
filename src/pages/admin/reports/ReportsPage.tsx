@@ -45,6 +45,8 @@ type DistributionRow = {
   allocationBasis: number;
   allocationPercentage: number;
   estimatedDistribution: number;
+  projectedDistribution?: number;
+  projectedGrossTotal?: number;
 };
 
 type AgingRow = {
@@ -62,6 +64,7 @@ type AgingRow = {
 };
 
 const reportRows: ReportRow[] = [
+  { key: 'audit-pack', title: 'Audit book of accounts', category: 'audit', cadence: 'Auditor review', formats: ['pdf', 'xlsx', 'csv'] },
   { key: 'welfare-accounts-overview', title: 'Welfare accounts overview', category: 'yearEnd', cadence: 'Member transparency', formats: ['pdf', 'xlsx'], shareWithMembers: true },
   { key: 'executive', title: 'Executive dashboard', category: 'finance', cadence: 'Board pack', formats: ['pdf', 'csv'] },
   { key: 'fund-balances', title: 'Fund balances', category: 'finance', cadence: 'Daily close', formats: ['pdf', 'csv'] },
@@ -235,8 +238,10 @@ export function ReportsPage() {
       allocationBasis: totals.allocationBasis + Number(row.allocationBasis ?? 0),
       allocationPercentage: totals.allocationPercentage + Number(row.allocationPercentage ?? 0),
       estimatedDistribution: totals.estimatedDistribution + Number(row.estimatedDistribution ?? 0),
+      projectedDistribution: totals.projectedDistribution + Number(row.projectedDistribution ?? 0),
+      projectedGrossTotal: totals.projectedGrossTotal + Number(row.projectedGrossTotal ?? 0),
     }),
-    { shareCapital: 0, weeklySavings: 0, allocationBasis: 0, allocationPercentage: 0, estimatedDistribution: 0 },
+    { shareCapital: 0, weeklySavings: 0, allocationBasis: 0, allocationPercentage: 0, estimatedDistribution: 0, projectedDistribution: 0, projectedGrossTotal: 0 },
   );
   const agingTotals = aging.reduce(
     (totals, loan) => ({
@@ -372,14 +377,18 @@ export function ReportsPage() {
           </div>
           <div className="grid gap-3 border-b border-ink-100 p-5 sm:grid-cols-2 xl:grid-cols-4">
             {positionMetric('Completed-loan interest', overview.interestFromClosedLoans, 'Realized interest included')}
-            {positionMetric('Other distributable income', Number(overview.totalDistributableIncome ?? 0) - Number(overview.interestFromClosedLoans ?? 0), 'Fines, registration income, and registration fund')}
+            {positionMetric('Other net distributable income', Number(overview.totalDistributableIncome ?? 0) - Number(overview.interestFromClosedLoans ?? 0), 'Fines and registration balances less expenses')}
             {positionMetric('Total allocation basis', distributionTotals.allocationBasis, 'Active member savings')}
             {positionMetric('Total estimated distribution', distributionTotals.estimatedDistribution, 'Must reconcile to distributable income', 'text-emerald-700')}
+            {positionMetric('Surplus if fully collected', overview.projectedDistributableIncome, 'Includes recorded open-loan interest')}
+            {positionMetric('Capital plus final surplus', distributionTotals.projectedGrossTotal, 'Gross total before personal loan offsets')}
           </div>
           <div className="overflow-x-auto p-5">
+            <p className="mb-3 text-sm text-ink-600">{overview.projectionNote}</p>
+            {(overview.distributionWarnings ?? []).map((warning: string) => <p key={warning} className="mb-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">{warning}</p>)}
             <table className="min-w-full divide-y divide-ink-100 rounded-xl border border-ink-100 text-sm">
               <thead className="bg-ink-50 text-left text-xs font-bold uppercase text-ink-500">
-                <tr><th className="px-4 py-3">Member</th><th className="px-4 py-3 text-right">Share capital</th><th className="px-4 py-3 text-right">Weekly savings</th><th className="px-4 py-3 text-right">Basis</th><th className="px-4 py-3 text-right">Share</th><th className="px-4 py-3 text-right">Estimated amount</th></tr>
+                <tr><th className="px-4 py-3">Member</th><th className="px-4 py-3 text-right">Share capital</th><th className="px-4 py-3 text-right">Weekly savings</th><th className="px-4 py-3 text-right">Basis</th><th className="px-4 py-3 text-right">Share</th><th className="px-4 py-3 text-right">Current surplus</th><th className="px-4 py-3 text-right">Surplus if fully repaid</th><th className="px-4 py-3 text-right">Capital + final surplus</th></tr>
               </thead>
               <tbody className="divide-y divide-ink-100 bg-white">
                 {distribution.map((row) => (
@@ -390,6 +399,8 @@ export function ReportsPage() {
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{money(row.allocationBasis)}</td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{Number(row.allocationPercentage).toFixed(2)}%</td>
                     <td className="px-4 py-3 text-right font-extrabold tabular-nums text-brand-700">{money(row.estimatedDistribution)}</td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums">{money(row.projectedDistribution ?? 0)}</td>
+                    <td className="px-4 py-3 text-right font-extrabold tabular-nums">{money(row.projectedGrossTotal ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -401,6 +412,8 @@ export function ReportsPage() {
                   <th className="px-4 py-3 text-right font-extrabold tabular-nums">{money(distributionTotals.allocationBasis)}</th>
                   <th className="px-4 py-3 text-right font-extrabold tabular-nums">{distributionTotals.allocationBasis > 0 ? '100.00%' : '0.00%'}</th>
                   <th className="px-4 py-3 text-right font-extrabold tabular-nums text-brand-700">{money(distributionTotals.estimatedDistribution)}</th>
+                  <th className="px-4 py-3 text-right font-extrabold tabular-nums">{money(distributionTotals.projectedDistribution)}</th>
+                  <th className="px-4 py-3 text-right font-extrabold tabular-nums">{money(distributionTotals.projectedGrossTotal)}</th>
                 </tr>
               </tfoot>
             </table>
