@@ -1,11 +1,13 @@
 import { api } from './api';
 import type { Loan, LoanEligibility, LoanStatement, AgingBuckets, LoanIntegrityResult } from '@/types/loan';
+export type LoanPortfolioSummary = { total: number; totalOutstanding: number; activeCount: number; approvalQueue: number; atRisk: number };
 
 export const loanApi = {
   async list(params?: { page?: number; pageSize?: number; search?: string; status?: string }) {
     const { data } = await api.get('/loans', { params });
     return data as {
       data: Loan[];
+      summary: LoanPortfolioSummary;
       meta: {
         page: number;
         pageSize: number;

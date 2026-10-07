@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FiCheck, FiX, FiDollarSign, FiEye, FiDownload, FiAlertTriangle, FiFileText } from 'react-icons/fi';
 import { TbCash, TbClock, TbCreditCard, TbTrendingUp } from 'react-icons/tb';
 import { AdminPageLayout, AdminPageMain, AdminPageStatsGrid } from '@/layouts/AdminPageLayout';
@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Badge';
 import { NotificationModal } from '@/components/ui/NotificationModal';
 import StatCard from '@/components/ui/StatCard';
-import { loanApi } from '@/services/loanApi';
+import { loanApi, type LoanPortfolioSummary } from '@/services/loanApi';
 import type { Loan, LoanStatus } from '@/types/loan';
 import { formatLoanDate, loanDueDate } from '@/lib/loanDates';
 
@@ -65,6 +65,8 @@ export function LoansPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>(null);
+  const [stats, setStats] = useState<LoanPortfolioSummary | null>(null);
+  const loadSequence = useRef(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [filterValue, setFilterValue] = useState<MultiFilterValue>({ status: [] });
@@ -85,10 +87,13 @@ export function LoansPage() {
   const showError = (title: string, message: string) => setErrorNotice({ title, message });
 
   const load = () => {
+    const request = ++loadSequence.current;
     setLoading(true);
+    setStats(null);
     loanApi.list({ page, search: search || undefined, status: statusFilter || undefined })
-      .then(({ data, meta }) => { setLoans(data); setMeta(meta); })
-      .finally(() => setLoading(false));
+      .then(({ data, meta, summary }) => { if (request !== loadSequence.current) return; setLoans(data); setMeta(meta); setStats(summary ?? null); })
+      .catch((e) => { if (request !== loadSequence.current) return; setStats(null); showError('Unable to load portfolio', getApiError(e, 'Portfolio balances could not be loaded. Please refresh.')); })
+      .finally(() => { if (request === loadSequence.current) setLoading(false); });
   };
 
   useEffect(() => { load(); }, [page, search, statusFilter]);
@@ -253,20 +258,6 @@ export function LoansPage() {
     },
   ];
 
-  const stats = useMemo(() => {
-    const totalOutstanding = loans.reduce((sum, loan) => sum + Number(loan.totalOutstanding ?? loan.outstandingPrincipal ?? 0), 0);
-    const activeCount = loans.filter((loan) => ['ACTIVE', 'PARTIALLY_PAID', 'IN_ROLLOVER', 'OVERDUE'].includes(loan.status)).length;
-    const approvalQueue = loans.filter((loan) => ['SUBMITTED', 'UNDER_REVIEW', 'PENDING_MEETING_APPROVAL'].includes(loan.status)).length;
-    const atRisk = loans.filter((loan) => ['OVERDUE', 'DEFAULTED'].includes(loan.status)).length;
-    return {
-      total: meta?.total ?? loans.length,
-      totalOutstanding,
-      activeCount,
-      approvalQueue,
-      atRisk,
-    };
-  }, [loans, meta]);
-
   return (
     <AdminPageLayout fillHeight>
       <PageHeader
@@ -284,10 +275,10 @@ export function LoansPage() {
       />
 
       <AdminPageStatsGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={TbCreditCard} iconColor="#1f7a76" label="Total loans" value={stats.total} subtitle="Portfolio records" />
-        <StatCard icon={TbCash} iconColor="#dc2626" label="Outstanding" value={money(stats.totalOutstanding)} subtitle="Current page balance" />
-        <StatCard icon={TbTrendingUp} iconColor="#16a34a" label="Active loans" value={stats.activeCount} subtitle="Repayment in progress" />
-        <StatCard icon={TbClock} iconColor="#d97706" label="Approval queue" value={stats.approvalQueue} subtitle={`${stats.atRisk} at risk`} />
+        <StatCard icon={TbCreditCard} iconColor="#1f7a76" label="Total loans" value={stats?.total ?? '—'} subtitle={search || statusFilter ? 'All matching records' : 'Full portfolio records'} />
+        <StatCard icon={TbCash} iconColor="#dc2626" label="Outstanding" value={stats ? money(stats.totalOutstanding) : '—'} subtitle={search || statusFilter ? 'All matching disbursed loans' : 'Full disbursed portfolio balance'} />
+        <StatCard icon={TbTrendingUp} iconColor="#16a34a" label="Active loans" value={stats?.activeCount ?? '—'} subtitle="All matching loans in repayment" />
+        <StatCard icon={TbClock} iconColor="#d97706" label="Approval queue" value={stats?.approvalQueue ?? '—'} subtitle={stats ? `${stats.atRisk} at risk across matching loans` : 'Portfolio stats unavailable'} />
       </AdminPageStatsGrid>
 
       {tab === 'portfolio' && (
