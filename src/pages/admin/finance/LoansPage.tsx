@@ -64,6 +64,7 @@ export function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [meta, setMeta] = useState<any>(null);
   const [stats, setStats] = useState<LoanPortfolioSummary | null>(null);
   const loadSequence = useRef(0);
@@ -90,13 +91,13 @@ export function LoansPage() {
     const request = ++loadSequence.current;
     setLoading(true);
     setStats(null);
-    loanApi.list({ page, search: search || undefined, status: statusFilter || undefined })
+    loanApi.list({ page, pageSize, search: search || undefined, status: statusFilter || undefined })
       .then(({ data, meta, summary }) => { if (request !== loadSequence.current) return; setLoans(data); setMeta(meta); setStats(summary ?? null); })
       .catch((e) => { if (request !== loadSequence.current) return; setStats(null); showError('Unable to load portfolio', getApiError(e, 'Portfolio balances could not be loaded. Please refresh.')); })
       .finally(() => { if (request === loadSequence.current) setLoading(false); });
   };
 
-  useEffect(() => { load(); }, [page, search, statusFilter]);
+  useEffect(() => { load(); }, [page, pageSize, search, statusFilter]);
 
   useEffect(() => {
     const nextStatus = String(filterValue.status?.[0] ?? '');
@@ -307,6 +308,8 @@ export function LoansPage() {
             currentPage={page}
             totalPages={meta?.totalPages ?? 1}
             onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
             fillContainer
             containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
             emptyTitle="No loans found"

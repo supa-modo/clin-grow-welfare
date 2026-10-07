@@ -171,7 +171,7 @@ export function MembersPage() {
   } | null>(null);
   const [filters, setFilters] = useState<MemberFilters>({
     page: 1,
-    pageSize: 20,
+    pageSize: 50,
     search: "",
     status: "",
     complianceStatus: "",
@@ -431,7 +431,7 @@ export function MembersPage() {
   };
 
   const page = filters.page ?? 1;
-  const pageSize = filters.pageSize ?? 20;
+  const pageSize = filters.pageSize ?? 50;
   const totalPages = meta?.totalPages ?? 1;
   const totalItems = meta?.total ?? filteredMembers.length;
   const startIndex = totalItems > 0 ? (page - 1) * pageSize + 1 : 0;

@@ -31,6 +31,7 @@ export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [meta, setMeta] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -54,12 +55,12 @@ export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
 
   const load = () => {
     setLoading(true);
-    ledgerApi.listJournals({ page, search: search || undefined, status: statusFilter || undefined })
+    ledgerApi.listJournals({ page, pageSize, search: search || undefined, status: statusFilter || undefined })
       .then(({ data, meta }) => { setJournals(data); setMeta(meta); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [page, search, statusFilter]);
+  useEffect(() => { load(); }, [page, pageSize, search, statusFilter]);
   useEffect(() => {
     const nextStatus = String(filterValue.status?.[0] ?? '');
     setStatusFilter((current) => {
@@ -166,6 +167,8 @@ export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
         currentPage={page}
         totalPages={meta?.totalPages ?? 1}
         onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
         emptyTitle="No journal entries"
         emptyMessage="Posted and reversed journal entries will appear here."
       />

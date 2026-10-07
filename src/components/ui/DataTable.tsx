@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
-import { FiFileText } from "react-icons/fi";
+import { FiFileText, FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
 import { HiArrowsUpDown } from "react-icons/hi2";
 import MultiFilterDropdown, {
   type MultiFilterSection,
@@ -155,33 +155,6 @@ function compareValues(
   });
 }
 
-function defaultPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 5)
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-
-  if (currentPage <= 3) {
-    return [1, 2, 3, 4, 5, "...", totalPages] as Array<number | string>;
-  }
-
-  if (currentPage >= totalPages - 2) {
-    return [
-      1,
-      "...",
-      ...Array.from({ length: 5 }, (_, index) => totalPages - 4 + index),
-    ] as Array<number | string>;
-  }
-
-  return [
-    1,
-    "...",
-    currentPage - 1,
-    currentPage,
-    currentPage + 1,
-    "...",
-    totalPages,
-  ] as Array<number | string>;
-}
-
 export function DataTableToolbar({
   bulkActions,
   selectedCount,
@@ -275,7 +248,7 @@ export function DataTable<T>({
   totalPages = 1,
   onPageChange,
   pageSize,
-  pageSizeOptions = [25, 50, 100],
+  pageSizeOptions = [10, 20, 25, 50, 100, 200],
   onPageSizeChange,
   isAllSelected = false,
   onToggleAll,
@@ -320,11 +293,25 @@ export function DataTable<T>({
     null,
   );
 
+  const [localPage, setLocalPage] = useState(1);
+  const [localPageSize, setLocalPageSize] = useState(50);
+  const serverPagination = Boolean(onPageChange);
+  const effectivePageSize = pageSize ?? localPageSize;
+  const effectiveTotalPages = serverPagination ? Math.max(1, totalPages) : Math.max(1, Math.ceil(rows.length / effectivePageSize));
+  const effectivePage = serverPagination ? currentPage : Math.min(localPage, effectiveTotalPages);
+  const changePage = (next: number) => {
+    const bounded = Math.min(effectiveTotalPages, Math.max(1, next));
+    if (serverPagination) onPageChange?.(bounded); else setLocalPage(bounded);
+  };
+  useEffect(() => { setLocalPage(1); }, [searchValue, filterValue, rows.length]);
+  const effectiveStartIndex = serverPagination ? startIndex : rows.length ? (effectivePage - 1) * effectivePageSize + 1 : 0;
+  const options = [...new Set([...pageSizeOptions, effectivePageSize])].sort((a, b) => a - b);
+
   const resolvedShowCheckboxes =
     showCheckboxes ?? Boolean(onToggleRow || onToggleAll);
   const resolvedTotalItems = totalItems ?? rows.length;
   const resolvedEndIndex =
-    endIndex ?? (rows.length ? startIndex + rows.length - 1 : 0);
+    serverPagination ? (endIndex ?? (rows.length ? startIndex + rows.length - 1 : 0)) : Math.min(effectivePage * effectivePageSize, rows.length);
   const colSpan =
     columns.length +
     (resolvedShowCheckboxes ? 1 : 0) +
@@ -374,9 +361,12 @@ export function DataTable<T>({
     setSortDirection(null);
   }
 
-  const pageNumbers = defaultPageNumbers(currentPage, totalPages);
-  const hasPagination =
-    Boolean(onPageChange) && totalPages > 1 && sortedRows.length > 0;
+  const visibleRows = serverPagination ? sortedRows : sortedRows.slice((effectivePage - 1) * effectivePageSize, effectivePage * effectivePageSize);
+  const commitPageInput = (input: HTMLInputElement) => {
+    const next = Number(input.value);
+    if (Number.isInteger(next) && next >= 1) changePage(next);
+    input.value = String(Number.isInteger(next) && next >= 1 ? Math.min(next, effectiveTotalPages) : effectivePage);
+  };
 
   return (
     <div
@@ -548,7 +538,8 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              sortedRows.map((row, rowIndex) => {
+              visibleRows.map((row, visibleIndex) => {
+                const rowIndex = serverPagination ? visibleIndex : (effectivePage - 1) * effectivePageSize + visibleIndex;
                 const rowId = resolveRowId(row);
                 const selected =
                   isRowSelected?.(row) ??
@@ -584,7 +575,7 @@ export function DataTable<T>({
 
                     {showAutoNumber ? (
                       <td className="py-3 pl-3 text-sm font-medium text-gray-600 lg:pl-4 lg:py-4">
-                        {startIndex > 0 ? startIndex + rowIndex : rowIndex + 1}.
+                        {effectiveStartIndex > 0 ? effectiveStartIndex + visibleIndex : visibleIndex + 1}.
                       </td>
                     ) : null}
 
@@ -623,80 +614,32 @@ export function DataTable<T>({
         </table>
       </div>
 
-      <div className="flex flex-col items-start justify-between gap-4 px-2 pb-4 pt-2.5 sm:flex-row sm:items-center md:px-3 lg:px-6 lg:pb-6 lg:pt-4">
-        <div className="flex items-center gap-4">
-          <span className="text-xs tracking-tight text-gray-500 lg:text-[0.83rem]">
-            {resolvedTotalItems > 0
-              ? `Showing ${startIndex} to ${resolvedEndIndex} of ${resolvedTotalItems}`
-              : "Showing 0 to 0 of 0"}
-          </span>
-          {onPageSizeChange ? (
-            <div className="flex items-center gap-2">
-              <label className="text-xs tracking-tight text-gray-500 lg:text-[0.83rem]">
-                Per Page
-              </label>
-              <select
-                value={pageSize ?? pageSizeOptions[0]}
-                onChange={(event) => {
-                  onPageSizeChange(Number(event.target.value));
-                  if (onPageChange) onPageChange(1);
-                }}
-                className="rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-700 transition-colors hover:border-secondary-600/30 focus:border-secondary-500 focus:outline-none focus:ring-1 focus:ring-secondary-500 lg:text-[0.83rem]"
-              >
-                {pageSizeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-        </div>
-
-        {hasPagination ? (
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-slate-200 bg-white px-5 py-2 text-sm text-[#16365d]">
+        <span className="text-xs text-slate-500" role="status">
+          {resolvedTotalItems > 0 ? `Showing ${effectiveStartIndex} to ${resolvedEndIndex} of ${resolvedTotalItems}` : 'Showing 0 to 0 of 0'}
+        </span>
+        <nav aria-label="Table pagination" className="flex flex-wrap items-center gap-4 py-0.5">
+          <label className="flex items-center gap-2.5 whitespace-nowrap">
+            <span>Rows per page</span>
+            <select aria-label="Rows per page" value={effectivePageSize} disabled={tableLoading || (serverPagination && !onPageSizeChange)}
+              onChange={event => { const size = Number(event.target.value); if (onPageSizeChange) onPageSizeChange(size); else setLocalPageSize(size); changePage(1); }}
+              className="h-8 w-[72px] rounded-lg border border-[#bcc5d1] bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50">
+              {options.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          <span aria-hidden className="h-5 w-px bg-slate-200" />
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onPageChange?.(currentPage - 1)}
-              disabled={currentPage === 1 || resolvedTotalItems === 0}
-              className="rounded-lg border border-gray-300 bg-white px-3.5 py-1 text-xs font-bold text-gray-600 transition-colors hover:border-secondary-600/60 hover:bg-secondary-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-1">
-              {pageNumbers.map((pageNumber, index) =>
-                pageNumber === "..." ? (
-                  <span key={`ellipsis-${index}`} className="px-2 text-gray-600">
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    onClick={() => onPageChange?.(Number(pageNumber))}
-                    disabled={resolvedTotalItems === 0}
-                    className={clsx(
-                      "rounded-lg px-3 py-1 font-google text-[0.7rem] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                      currentPage === pageNumber
-                        ? "bg-secondary-700 text-white"
-                        : "border border-gray-200 bg-white text-gray-700 hover:border-secondary-600/60 hover:bg-secondary-50",
-                    )}
-                  >
-                    {pageNumber}
-                  </button>
-                ),
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => onPageChange?.(currentPage + 1)}
-              disabled={currentPage === totalPages || resolvedTotalItems === 0}
-              className="rounded-lg border border-gray-300 bg-white px-3.5 py-1 text-xs font-bold text-gray-600 transition-colors hover:border-secondary-600/60 hover:bg-secondary-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
+            <button type="button" aria-label="First page" onClick={() => changePage(1)} disabled={tableLoading || effectivePage <= 1 || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronsLeft className="h-4 w-4" /></button>
+            <button type="button" aria-label="Previous" onClick={() => changePage(effectivePage - 1)} disabled={tableLoading || effectivePage <= 1 || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronLeft className="h-4 w-4" /></button>
+            <input key={effectivePage} aria-label="Page number" inputMode="numeric" defaultValue={effectivePage} disabled={tableLoading || !resolvedTotalItems}
+              onBlur={event => commitPageInput(event.currentTarget)}
+              onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { event.currentTarget.value = String(effectivePage); event.currentTarget.blur(); } }}
+              className="h-8 w-16 rounded-lg border border-[#bcc5d1] bg-white px-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50" />
+            <span className="whitespace-nowrap">of <span className="ml-1">{effectiveTotalPages}</span></span>
+            <button type="button" aria-label="Next" onClick={() => changePage(effectivePage + 1)} disabled={tableLoading || effectivePage >= effectiveTotalPages || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronRight className="h-4 w-4" /></button>
+            <button type="button" aria-label="Last page" onClick={() => changePage(effectiveTotalPages)} disabled={tableLoading || effectivePage >= effectiveTotalPages || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronsRight className="h-4 w-4" /></button>
           </div>
-        ) : null}
+        </nav>
       </div>
     </div>
   );

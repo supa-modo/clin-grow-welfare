@@ -41,7 +41,7 @@ export function FinesPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(50);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -138,7 +138,7 @@ export function FinesPage() {
             {(['PENDING', 'DEFERRED', 'PAID', 'WAIVED', 'REVERSED'] as FineStatus[]).map((value) => <option key={value} value={value}>{value.replace(/_/g, ' ')}</option>)}
           </select>
         </div>
-        <DataTable columns={columns} rows={rows} getRowKey={(row) => row.id} tableLoading={loading} search searchValue={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} searchPlaceholder="Search member, fine type, or reason" currentPage={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} showAutoNumber emptyTitle="No fines found" emptyMessage="No fine records match the selected filters." />
+        <DataTable columns={columns} rows={rows} getRowKey={(row) => row.id} tableLoading={loading} search searchValue={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} searchPlaceholder="Search member, fine type, or reason" currentPage={page} totalPages={totalPages} totalItems={total} startIndex={total ? (page - 1) * pageSize + 1 : 0} endIndex={Math.min(page * pageSize, total)} pageSize={pageSize} pageSizeOptions={[10, 20, 25, 50, 100]} onPageChange={setPage} onPageSizeChange={setPageSize} showAutoNumber emptyTitle="No fines found" emptyMessage="No fine records match the selected filters." />
       </AdminPageMain>
 
       <Modal open={action === 'pay'} title="Mark fine as paid" subtitle={selected ? `${selected.member.name} · ${money(selected.amount)}` : undefined} onClose={() => !busy && closeAction()} footer={<div className="flex justify-end gap-2"><Button variant="secondary" disabled={busy} onClick={closeAction}>Cancel</Button><Button isLoading={busy} onClick={() => void markPaid()}>Post payment</Button></div>}>

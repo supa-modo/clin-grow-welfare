@@ -51,6 +51,7 @@ export function ContributionsPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [meta, setMeta] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -68,12 +69,12 @@ export function ContributionsPage() {
 
   const load = () => {
     setLoading(true);
-    contributionApi.list({ page, search: search || undefined, status: statusFilter || undefined, type: typeFilter || undefined })
+    contributionApi.list({ page, pageSize, search: search || undefined, status: statusFilter || undefined, type: typeFilter || undefined })
       .then(({ data, meta, summary }) => { setContributions(data); setMeta(meta); setSummary(summary); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [page, search, statusFilter, typeFilter]);
+  useEffect(() => { load(); }, [page, pageSize, search, statusFilter, typeFilter]);
 
   useEffect(() => {
     const nextStatus = String(filterValue.status?.[0] ?? '');
@@ -211,6 +212,8 @@ export function ContributionsPage() {
           currentPage={page}
           totalPages={meta?.totalPages ?? 1}
           onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
           fillContainer
           containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
           emptyTitle="No contributions found"
