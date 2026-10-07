@@ -2,19 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useMeetingRealtime } from "@/hooks/useMeetingRealtime";
 import { loanApi } from "@/services/loanApi";
 import type { LoanEligibility } from "@/types/loan";
-import { FiCreditCard, FiDollarSign, FiDownload, FiExternalLink, FiFileText, FiSend, FiUsers } from "react-icons/fi";
+import { FiCalendar, FiMapPin, FiCreditCard, FiDollarSign, FiDownload, FiExternalLink, FiFileText, FiSend, FiUsers } from "react-icons/fi";
 import { api } from "@/services/api";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, Spinner } from "@/components/ui/Feedback";
-import { StatCell } from "@/components/member/MemberFinancePrimitives";
-import {
-  MemberSectionCard,
-  MemberWelcomeHeader,
-} from "@/components/member/MemberPortalUi";
+import { MemberContentSection, MemberContentHeader, MemberSummaryMetric, MeetingDateTile } from "@/components/member/MemberContentUi";
 import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { downloadBlobResponse } from "@/pages/admin/shared/adminFormatters";
 
 type DetailResponse = {
@@ -96,7 +92,7 @@ export function MemberMeetingDetailPage() {
   const [loanPurpose, setLoanPurpose] = useState("");
   const [summaryBusy, setSummaryBusy] = useState<"view" | "download" | "">("");
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!id) return;
     const [res, elig] = await Promise.all([
       api.get<DetailResponse>(`/member-portal/meetings/${id}`),
@@ -104,15 +100,18 @@ export function MemberMeetingDetailPage() {
     ]);
     setData(res.data);
     setEligibility(elig);
-  }
+  }, [id]);
 
   const refresh = useCallback(() => {
     void load().catch(() => undefined);
-  }, [id]);
+  }, [load]);
 
   useEffect(() => {
-    void load().finally(() => setLoading(false));
-  }, [id]);
+    const timer = window.setTimeout(() => {
+      void load().catch((error: unknown) => toastError("Could not load meeting", getApiError(error))).finally(() => setLoading(false));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load, toastError]);
 
   useMeetingRealtime(id, {
     onPool: refresh,
@@ -222,24 +221,22 @@ export function MemberMeetingDetailPage() {
   const isClosed = ["CLOSED", "COMPLETED"].includes(meeting.status);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
-      <MemberWelcomeHeader
-        greeting={humanizeStatus(meeting.meetingType)}
-        name={meeting.meetingNumber}
-        membershipNumber={new Date(meeting.meetingDate).toLocaleString()}
-        statusLabel={meeting.venue ?? humanizeStatus(meeting.status)}
-        backTo="/member/meetings"
-      />
+    <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 pb-8">
+      <MemberContentHeader eyebrow={humanizeStatus(meeting.meetingType)} title={meeting.meetingNumber} backTo="/member/meetings"
+        description="Your session overview, personal activity and official meeting records."
+        action={<><Badge tone={isClosed ? "success" : meeting.status === "CANCELLED" ? "danger" : "neutral"}>{humanizeStatus(meeting.status)}</Badge>{openLoanWindow && <Badge tone="success">Loan window open</Badge>}</>} />
+      <div className="flex items-center gap-4 rounded-2xl bg-white p-4 sm:p-6">
+        <MeetingDateTile date={meeting.meetingDate} />
+        <div className="min-w-0 space-y-2 text-sm text-ink-600">
+          <p className="flex items-start gap-2"><FiCalendar className="mt-1 shrink-0 text-brand-600" /><span>{new Date(meeting.meetingDate).toLocaleString("en-KE", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })}</span></p>
+          <p className="flex items-start gap-2 break-words"><FiMapPin className="mt-1 shrink-0 text-brand-600" /><span>{meeting.venue || "Venue to be confirmed"}</span></p>
+        </div>
+      </div>
 
-      <MemberSectionCard
-        title="Meeting status"
-        subtitle="Live session information"
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Badge>{humanizeStatus(meeting.status)}</Badge>
-            {openLoanWindow ? <Badge tone="success">Loan window open</Badge> : null}
-          </div>
-        }
+      <MemberContentSection
+        title="Agenda & session overview"
+        subtitle="What to expect from this meeting"
+
       >
         {meeting.agenda ? (
           <p className="text-sm leading-relaxed text-ink-600">{meeting.agenda}</p>
@@ -251,102 +248,39 @@ export function MemberMeetingDetailPage() {
             Loan pool available: {money(pool.remainingAmount)} of {money(pool.totalLoanablePool)}
           </p>
         ) : null}
-      </MemberSectionCard>
+      </MemberContentSection>
 
-      <MemberSectionCard title="Your summary" subtitle="Attendance, fines, and collections">
-        <div className="grid grid-cols-2 gap-0 divide-x divide-y divide-ink-100 rounded-xl border border-ink-100 sm:grid-cols-4 sm:divide-y-0">
-          <StatCell label="Attendance" value={humanizeStatus(attendance)} icon={<FiUsers size={14} />} />
-          <StatCell label="Apology" value={apology?.status ? humanizeStatus(apology.status) : "None"} icon={<FiFileText size={14} />} />
-          <StatCell label="Fines" value={money(fines.reduce((sum, fine) => sum + Number(fine.amount), 0))} icon={<FiCreditCard size={14} />} />
-          <StatCell label="Collections" value={money(collections.reduce((sum, row) => sum + Number(row.amount), 0))} icon={<FiDollarSign size={14} />} />
+      <MemberContentSection title="Your summary" subtitle="Attendance, fines, and collections">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MemberSummaryMetric label="Attendance" value={humanizeStatus(attendance)} icon={<FiUsers size={14} />} />
+          <MemberSummaryMetric label="Apology" value={apology?.status ? humanizeStatus(apology.status) : "None"} icon={<FiFileText size={14} />} />
+          <MemberSummaryMetric label="Fines" value={money(fines.reduce((sum, fine) => sum + Number(fine.amount), 0))} icon={<FiCreditCard size={14} />} />
+          <MemberSummaryMetric label="Collections" value={money(collections.reduce((sum, row) => sum + Number(row.amount), 0))} icon={<FiDollarSign size={14} />} />
         </div>
-      </MemberSectionCard>
+      </MemberContentSection>
 
-      {!apology &&
-      !startedStatuses.has(meeting.status) &&
-      !["CANCELLED"].includes(meeting.status) ? (
-        <MemberSectionCard title="Submit apology" subtitle="If you will be absent, notify officials">
-          <textarea
-            className="min-h-[4.5rem] w-full rounded-xl border border-ink-200 px-3 py-2.5 text-sm"
-            rows={3}
-            value={apologyReason}
-            onChange={(e) => setApologyReason(e.target.value)}
-            placeholder="Reason for absence…"
-          />
-          <Button
-            className="mt-3 w-full sm:w-auto"
-            variant="secondary"
-            icon={submitting ? <Spinner /> : <FiSend />}
-            disabled={submitting}
-            onClick={() => void submitApology()}
-          >
-            Submit apology
-          </Button>
-        </MemberSectionCard>
-      ) : apology ? (
-        <MemberSectionCard title="Apology on record" subtitle="Submitted for official review">
-          <p className="text-sm text-ink-800">
-            Status: <span className="font-semibold">{humanizeStatus(apology.status)}</span>
-            {apology.reviewComment ? ` — ${apology.reviewComment}` : ""}
-          </p>
-        </MemberSectionCard>
-      ) : null}
-
-      {openLoanWindow ? (
-        <MemberSectionCard
-          title="Apply for a loan"
-          subtitle={
-            eligibility
-              ? `You may apply for up to ${money(eligibility.maxEligible)}`
-              : "Live meeting loan window"
-          }
-        >
-          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,8rem)_1fr_auto] sm:items-center">
-            <input
-              className="min-h-10 w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm"
-              inputMode="numeric"
-              placeholder="Amount"
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(e.target.value)}
-            />
-            <input
-              className="min-h-10 w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm"
-              placeholder="Purpose"
-              value={loanPurpose}
-              onChange={(e) => setLoanPurpose(e.target.value)}
-            />
-            <Button
-              className="w-full sm:w-auto"
-              icon={<FiSend />}
-              disabled={submitting}
-              onClick={() => void applyForLoan(openLoanWindow.id)}
-            >
-              Apply
-            </Button>
-          </div>
-        </MemberSectionCard>
-      ) : null}
-
-      <MemberSectionCard title="My meeting activity" subtitle="Collections, fines, and reservations">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-5">
+      <MemberContentSection title="My meeting activity" subtitle="Collections, fines, and reservations">
         <div className="divide-y divide-ink-100 text-sm">
           {collections.map((row) => (
-            <div key={`${row.collectionType}-${row.createdAt}`} className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div key={`${row.collectionType}-${row.createdAt}`} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <span className="text-ink-700">{humanizeStatus(row.collectionType)}</span>
-              <span className="font-extrabold text-ink-900">{money(row.amount)}</span>
+              <span className="break-words font-semibold text-ink-900">{money(row.amount)}</span>
             </div>
           ))}
           {fines.map((fine) => (
-            <div key={fine.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div key={fine.id} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <span className="text-ink-700">{humanizeStatus(fine.fineType)} fine</span>
-              <span className="font-extrabold text-ink-900">
+              <span className="break-words font-semibold text-ink-900">
                 {money(fine.amount)} · {humanizeStatus(fine.status)}
               </span>
             </div>
           ))}
           {reservation ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <span className="text-ink-700">{reservation.loan?.loanNumber ?? "Loan reservation"}</span>
-              <span className="font-extrabold text-ink-900">
+              <span className="break-words font-semibold text-ink-900">
                 {money(reservation.amount)} · {humanizeStatus(reservation.loan?.status ?? reservation.status)}
               </span>
             </div>
@@ -355,10 +289,10 @@ export function MemberMeetingDetailPage() {
             <p className="py-8 text-center text-sm text-ink-500">No activity recorded for you yet.</p>
           ) : null}
         </div>
-      </MemberSectionCard>
+      </MemberContentSection>
 
       {reportSummary && typeof reportSummary === "object" ? (
-        <MemberSectionCard
+        <MemberContentSection
           title="Meeting report"
           subtitle="Official closed-session summary"
           action={isClosed ? (
@@ -385,7 +319,7 @@ export function MemberMeetingDetailPage() {
             </div>
           ) : undefined}
         >
-          <ul className="list-inside list-disc space-y-1 text-sm text-ink-600">
+          <ul className="space-y-3 text-sm text-ink-600 [&>li]:rounded-xl [&>li]:bg-ink-50 [&>li]:p-3">
             {"quorumMet" in reportSummary ? (
               <li>Quorum: {(reportSummary as { quorumMet?: boolean }).quorumMet ? "Met" : "Not met"}</li>
             ) : null}
@@ -402,27 +336,106 @@ export function MemberMeetingDetailPage() {
               </li>
             ) : null}
           </ul>
-        </MemberSectionCard>
+        </MemberContentSection>
       ) : null}
 
       {meeting.minutesPublishedAt && meeting.resolutions?.length ? (
-        <MemberSectionCard title="Published resolutions" subtitle="Official meeting decisions">
+        <MemberContentSection title="Published resolutions" subtitle="Official meeting decisions">
           <ul className="space-y-2 text-sm">
             {meeting.resolutions.map((row) => (
-              <li key={row.id} className="rounded-xl bg-ink-50 px-3 py-2">
+              <li key={row.id} className="rounded-xl bg-ink-50 p-4">
                 <p className="font-semibold text-ink-900">
                   {row.resolutionNumber ? `${row.resolutionNumber} — ` : ""}
                   {row.title}
                 </p>
-                <p className="text-ink-600">
+                <p className="mt-2 break-words text-sm leading-6 text-ink-600">
                   {row.decision}
                   {row.description ? ` · ${row.description}` : ""}
                 </p>
               </li>
             ))}
           </ul>
-        </MemberSectionCard>
+        </MemberContentSection>
       ) : null}
+      </div>
+      <aside className="order-first min-w-0 space-y-5 xl:order-last" aria-label="Meeting actions">
+      {!apology &&
+      !startedStatuses.has(meeting.status) &&
+      !["CANCELLED"].includes(meeting.status) ? (
+        <MemberContentSection title="Submit apology" subtitle="If you will be absent, notify officials">
+          <label htmlFor="meeting-apology" className="mb-2 block text-sm font-semibold text-ink-700">Reason for absence</label>
+          <textarea id="meeting-apology"
+            className="min-h-[4.5rem] w-full rounded-xl border border-ink-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+            rows={3}
+            value={apologyReason}
+            onChange={(e) => setApologyReason(e.target.value)}
+            placeholder="Reason for absence…"
+          />
+          <Button
+            className="mt-3 min-h-11 w-full focus-visible:ring-2 focus-visible:ring-brand-500"
+            variant="secondary"
+            icon={submitting ? <Spinner /> : <FiSend />}
+            disabled={submitting} isLoading={submitting}
+            onClick={() => void submitApology()}
+          >
+            Submit apology
+          </Button>
+        </MemberContentSection>
+      ) : apology ? (
+        <MemberContentSection title="Apology on record" subtitle="Submitted for official review">
+          <p className="mb-3 break-words text-sm leading-6 text-ink-500">{apology.reason}</p>
+          <p className="text-sm text-ink-800">
+            Status: <span className="font-semibold">{humanizeStatus(apology.status)}</span>
+            {apology.reviewComment ? ` — ${apology.reviewComment}` : ""}
+          </p>
+        </MemberContentSection>
+      ) : null}
+
+      {openLoanWindow ? (
+        <MemberContentSection
+          title="Apply for a loan"
+          subtitle={
+            eligibility
+              ? `You may apply for up to ${money(eligibility.maxEligible)}`
+              : "Live meeting loan window"
+          }
+        >
+          <div className="space-y-4">
+            <label className="block text-sm font-semibold text-ink-700">Amount (KES)
+            <input
+              className="mt-2 min-h-12 w-full rounded-xl bg-ink-50 px-3 py-2 text-sm font-normal outline-none focus:ring-2 focus:ring-brand-500"
+              inputMode="decimal"
+              placeholder="Amount"
+              value={loanAmount}
+              onChange={(e) => setLoanAmount(e.target.value)}
+            />
+            </label>
+            <label className="block text-sm font-semibold text-ink-700">Purpose
+            <input
+              className="mt-2 min-h-12 w-full rounded-xl bg-ink-50 px-3 py-2 text-sm font-normal outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="Purpose"
+              value={loanPurpose}
+              onChange={(e) => setLoanPurpose(e.target.value)}
+            />
+            </label>
+            <Button
+              className="min-h-11 w-full focus-visible:ring-2 focus-visible:ring-brand-500"
+              icon={<FiSend />}
+              disabled={submitting} isLoading={submitting}
+              onClick={() => void applyForLoan(openLoanWindow.id)}
+            >
+              Submit loan request
+            </Button>
+          </div>
+        </MemberContentSection>
+      ) : null}
+
+        <MemberContentSection title="Meeting documents" subtitle="Keep a copy of your official records">
+          <p className="text-sm leading-6 text-ink-500">Published minutes and meeting summaries are available in your document library.</p>
+          <Link to="/member/downloads" className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-50 px-4 text-sm font-semibold text-brand-800 hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-brand-600"><FiDownload /> Browse downloads</Link>
+        </MemberContentSection>
+      </aside>
+      </div>
     </div>
   );
 }

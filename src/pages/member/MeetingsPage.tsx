@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Feedback";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { SetupState } from "@/components/member/MemberCards";
-import { MemberWelcomeHeader } from "@/components/member/MemberPortalUi";
+import { MemberContentHeader, MemberSummaryMetric, MeetingDateTile } from "@/components/member/MemberContentUi";
 import { useUiStore } from "@/store/uiStore";
 import clsx from "clsx";
 import { TbCalendarDot } from "react-icons/tb";
@@ -187,7 +187,7 @@ function MeetingPaymentBreakdown({ items }: { items: CollectionItem[] }) {
   const groups = groupCollectionsByType(items);
   if (!groups.length) {
     return (
-      <p className="rounded-xl border border-dashed border-ink-200 bg-ink-50/80 px-3 py-2.5 text-xs text-ink-500">
+      <p className="leading-5 text-xs text-ink-500">
         No payments recorded for this meeting yet.
       </p>
     );
@@ -198,7 +198,7 @@ function MeetingPaymentBreakdown({ items }: { items: CollectionItem[] }) {
       {groups.map(([type, amount]) => (
         <span
           key={type}
-          className="inline-flex items-center gap-1.5 rounded-full border border-primary-600/60 bg-primary-50 px-3 py-0.5 lg:py-1 text-[0.7rem] lg:text-xs font-semibold text-brand-900"
+          className="inline-flex flex-wrap items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-900"
         >
           <span className="text-brand-700">{humanizeStatus(type)}</span>
           <span className="font-extrabold">{money(amount)}</span>
@@ -228,104 +228,32 @@ function MeetingCard({
   );
 
   return (
-    <article
-      className={clsx(
-        "overflow-hidden relative rounded-3xl border bg-white shadow-sm transition hover:shadow-md",
-        isLive ? "border-brand-200 ring-1 ring-brand-100" : "border-ink-100",
-      )}
-    >
-       <div className="absolute top-3 right-4 flex flex-wrap gap-2">
-            {isLive ? <Badge tone="warning">Live now</Badge> : null}
-            <Badge tone={statusTone(meeting.status)}>
-              {humanizeStatus(meeting.status)}
-            </Badge>
-            {openLoanWindow ? (
-              <Badge tone="success">Loan window open</Badge>
-            ) : null}
-          </div>
-      <div className="border-b border-ink-100 px-4 pt-4 pb-2 sm:px-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-google text-[0.9rem] md:text-base font-extrabold tracking-tight text-ink-950 lg:text-lg">
-                {meeting.meetingNumber}
-              </h2>
-              <span className="text-xs font-medium text-ink-500">
-                {humanizeType(meeting.meetingType)}
-              </span>
-            </div>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-500">
-              <span className="inline-flex items-center gap-1">
-                <TbCalendarDot
-                  className="shrink-0 text-primary-700"
-                  size={14}
-                />
-                {formatMeetingDate(meeting.meetingDate)}
-              </span>
-              {meeting.venue ? (
-                <span className="inline-flex items-center gap-1">
-                  <PiMapPinAreaDuotone
-                    className="shrink-0 text-primary-700"
-                    size={14}
-                  />
-                  {meeting.venue}
-                </span>
-              ) : null}
-            </p>
-          </div>
-         
-        </div>
-        {meeting.agenda ? (
-          <p className="mt-3 line-clamp-2 text-[0.8rem] md:text-sm leading-relaxed text-ink-600">
-            {meeting.agenda}
-          </p>
-        ) : null}
+    <article className={clsx("flex min-w-0 flex-col rounded-2xl bg-white p-4 sm:p-5", isLive && "ring-1 ring-brand-200")}>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {isLive ? <Badge tone="success">Live now</Badge> : null}
+        <Badge tone={statusTone(meeting.status)}>{humanizeStatus(meeting.status)}</Badge>
+        {openLoanWindow && <Badge tone="success">Loan window open</Badge>}
       </div>
-
-      <div className="space-y-4 px-4 py-4 sm:px-5">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">
-              Your Attendance:
-            </span>
-            <span className="text-sm font-bold text-gray-900">
-              {humanizeStatus(attendance)}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Apology:</span>
-            <span className="text-sm font-bold text-gray-900">
-              {apology?.status ? humanizeStatus(apology.status) : "None"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">
-              Paid this week:
-            </span>
-            <span className="text-sm font-bold text-gray-900">
-              {money(paidTotal)}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Fines:</span>
-            <span className="text-sm font-bold text-gray-900">
-              {money(finesTotal)}
-            </span>
-          </div>
+      <div className="flex items-start gap-3 sm:gap-4">
+        <MeetingDateTile date={meeting.meetingDate} />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-ink-500">{humanizeType(meeting.meetingType)}</p>
+          <h3 className="mt-1 break-words font-google text-base font-bold tracking-tight text-ink-950 sm:text-lg">{meeting.meetingNumber}</h3>
+          <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-ink-500"><TbCalendarDot className="mt-0.5 shrink-0 text-brand-600" size={15} />{formatMeetingDate(meeting.meetingDate)}</p>
+          {meeting.venue && <p className="mt-1 flex items-start gap-1.5 break-words text-xs leading-5 text-ink-500"><PiMapPinAreaDuotone className="mt-0.5 shrink-0 text-brand-600" size={15} />{meeting.venue}</p>}
         </div>
-
-        <div>
-          <MeetingPaymentBreakdown items={collections} />
-        </div>
-
-        <Link
-          className="flex min-h-9 md:min-h-10 lg:min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-[0.75rem] md:text-[0.8rem] lg:text-sm font-bold text-white transition hover:bg-brand-800"
-          to={`/member/meetings/${meeting.id}`}
-        >
-          View meeting details
-          <FiArrowRight size={14} />
-        </Link>
       </div>
+      {meeting.agenda && <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink-600">{meeting.agenda}</p>}
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <MemberSummaryMetric label="Your attendance" value={humanizeStatus(attendance)} />
+        <MemberSummaryMetric label="Apology" value={apology?.status ? humanizeStatus(apology.status) : "None"} />
+        <MemberSummaryMetric label="Meeting payments" value={money(paidTotal)} />
+        <MemberSummaryMetric label="Fines" value={money(finesTotal)} />
+      </div>
+      <div className="mt-4 mb-5"><MeetingPaymentBreakdown items={collections} /></div>
+      <Link className="group mt-auto flex min-h-11 items-center justify-between gap-3 rounded-xl bg-brand-50 px-4 text-sm font-semibold text-brand-800 transition hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-brand-600" to={`/member/meetings/${meeting.id}`} aria-label={`View meeting ${meeting.meetingNumber}`}>
+        View meeting <FiArrowRight className="shrink-0 transition group-hover:translate-x-1" size={16} />
+      </Link>
     </article>
   );
 }
@@ -338,7 +266,7 @@ export function MemberMeetingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [eligibility, setEligibility] = useState<LoanEligibility | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [meetingsRes, finesRes, elig] = await Promise.all([
       api.get<{ meetings: MeetingRecord[] }>("/member-portal/meetings"),
       api.get<{ fines: FineRecord[] }>("/member-portal/fines"),
@@ -347,17 +275,18 @@ export function MemberMeetingsPage() {
     setMeetings(meetingsRes.data.meetings ?? []);
     setFines(finesRes.data.fines ?? []);
     setEligibility(elig);
-  };
+  }, []);
 
   useEffect(() => {
-    load()
-      .catch(() => toastError("Could not load meetings"))
-      .finally(() => setLoading(false));
-  }, []);
+    const timer = window.setTimeout(() => {
+      void load().catch(() => toastError("Could not load meetings")).finally(() => setLoading(false));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load, toastError]);
 
   const onLiveMeeting = useCallback(() => {
     void load().catch(() => undefined);
-  }, []);
+  }, [load]);
 
   useMeetingsLiveRefresh(onLiveMeeting);
 
@@ -393,22 +322,15 @@ export function MemberMeetingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 pb-6">
-      <MemberWelcomeHeader
-        greeting=""
-        name="Sessions & weekly payments"
-        membershipNumber="Track attendance, contributions, and loan windows"
-        statusLabel={
-          eligibility
-            ? `Loan eligible up to ${money(eligibility.maxEligible)}`
-            : "Member meetings"
-        }
-      />
+    <div className="mx-auto w-full max-w-7xl min-w-0 space-y-7 pb-8">
+      <MemberContentHeader eyebrow="Your member calendar" title="Meetings" description="Stay connected. Follow upcoming sessions, your attendance and meeting contributions."
+        action={eligibility ? <span className="rounded-xl bg-brand-50 px-4 py-3 text-xs font-semibold text-brand-800">Loan eligible up to {money(eligibility.maxEligible)}</span> : undefined} />
 
       <SearchBar
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search by date (e.g. 21 May, May) or meeting reference…"
+        placeholder="Search by date or meeting reference…"
+        inputClassName="min-h-12 border-0 bg-white focus:ring-2"
         aria-label="Search meetings by date or reference"
         wrapperClassName="max-w-none w-full"
       />
@@ -424,30 +346,20 @@ export function MemberMeetingsPage() {
           message={`Nothing found for “${searchQuery.trim()}”. Try a month name, day and month (e.g. 21 May), or a meeting reference.`}
         />
       ) : (
-        <div className="space-y-6">
-          {liveMeetings.length > 0 ? (
-            <div className="space-y-4">
-              {liveMeetings.map((meeting) => (
-                <MeetingCard key={meeting.id} meeting={meeting} fines={fines} />
-              ))}
+        <div className="space-y-8">
+          {[
+            { title: "Happening now", description: "Follow the live session and open loan windows.", rows: liveMeetings },
+            { title: "Upcoming meetings", description: "Plan ahead for your next session.", rows: upcomingMeetings },
+            { title: "Meeting history", description: "Your previous sessions and recorded activity.", rows: pastMeetings },
+          ].filter((group) => group.rows.length > 0).map((group) => <section key={group.title} aria-label={group.title}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div><h2 className="text-base font-bold text-ink-900">{group.title}</h2><p className="mt-1 text-sm text-ink-500">{group.description}</p></div>
+              <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-ink-500">{group.rows.length}</span>
             </div>
-          ) : null}
-
-          {upcomingMeetings.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingMeetings.map((meeting) => (
-                <MeetingCard key={meeting.id} meeting={meeting} fines={fines} />
-              ))}
+            <div className="grid gap-4 xl:grid-cols-2">
+              {group.rows.map((meeting) => <MeetingCard key={meeting.id} meeting={meeting} fines={fines} />)}
             </div>
-          ) : null}
-
-          {pastMeetings.length > 0 ? (
-            <div className="space-y-4">
-              {pastMeetings.map((meeting) => (
-                <MeetingCard key={meeting.id} meeting={meeting} fines={fines} />
-              ))}
-            </div>
-          ) : null}
+          </section>)}
         </div>
       )}
     </div>
