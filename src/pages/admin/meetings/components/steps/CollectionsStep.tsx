@@ -203,6 +203,8 @@ export function CollectionsStep({
     const welfareFullyPaid = kind === 'welfare' && selectedMonthRemaining <= 0;
     const welfareBlocked = kind === 'welfare' && (welfareOverpay || welfareFullyPaid);
     const weeklyBlocked = kind === 'week' && selectedWeekRemaining <= 0;
+    const recoveryKitty = kind === 'welfare' && collectionsPaused;
+    const postingBlocked = !!busy || ['CLOSED', 'CANCELLED', 'SCHEDULED', 'NOTICE_SENT', 'OPEN'].includes(meeting.status) || !meeting.attendanceFinalizedAt || (finalized && !isCorrectionMode(meeting) && !recoveryKitty);
 
     return (
       <div className="min-w-0">
@@ -279,7 +281,7 @@ export function CollectionsStep({
           />
           <Button
             size="sm"
-            disabled={blocked || (collectionsPaused && !isCorrectionMode(meeting)) || shareDisabled || weeklyBlocked || welfareBlocked || (kind === 'week' && weeklyPaused) || Number(draft.amount) <= 0}
+            disabled={postingBlocked || (collectionsPaused && kind !== 'welfare' && !isCorrectionMode(meeting)) || shareDisabled || weeklyBlocked || welfareBlocked || (kind === 'week' && weeklyPaused) || !Number.isFinite(Number(draft.amount)) || Number(draft.amount) <= 0}
             onClick={() => onPost(row.memberId, type, Number(draft.amount), periodDate)}
           >
             Post
@@ -350,7 +352,7 @@ export function CollectionsStep({
             {roster?.savingsStopDate || readiness?.savingsStopDate
               ? ` from ${new Date(roster?.savingsStopDate || readiness?.savingsStopDate || '').toLocaleDateString('en-KE')}`
               : ''}
-            . Skip savings collections to continue with loan repayments. Fines remain collectible until the meeting closes.
+            . Skip savings collections to continue with loan repayments. Welfare kitty and fines remain collectible until the meeting closes.
           </p>
           {onSkip ? (
             <div className="mt-3">
@@ -443,7 +445,7 @@ export function CollectionsStep({
         </div>
         {finalized ? (
           <p className="mt-3 text-xs font-semibold text-brand-700">
-            Collections finalized {new Date(meeting.collectionsFinalizedAt!).toLocaleString()}. Post repayments on the Repayments step.
+            Collections finalized {new Date(meeting.collectionsFinalizedAt!).toLocaleString()}. {collectionsPaused ? 'Welfare kitty remains collectible; post repayments on the Repayments step.' : 'Post repayments on the Repayments step.'}
           </p>
         ) : null}
         <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink-700">
