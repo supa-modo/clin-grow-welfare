@@ -53,19 +53,23 @@ function readStoredStep(meetingId: string): MeetingStep | null {
   }
 }
 
-export function useMeetingCeremony() {
+export function useMeetingCeremony(meetingId?: string) {
   const toastSuccess = useUiStore((s) => s.toastSuccess);
   const toastError = useUiStore((s) => s.toastError);
   const { data, loading, error, reload, patchData } = useLoad(async () => {
+    if (meetingId) {
+      const res = await api.get(`/meetings/${meetingId}`, { params: { view: 'ceremony' } });
+      return [res.data.meeting] as MeetingRecord[];
+    }
     const res = await api.get('/meetings', { params: { page: 1, pageSize: 20, view: 'summary' } });
     return (res.data.data ?? []) as MeetingRecord[];
-  }, []);
+  }, [meetingId]);
 
   const [busy, setBusy] = useState('');
   const [workspaceSyncing, setWorkspaceSyncing] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [step, setStep] = useState<MeetingStep>('attendance');
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedId, setSelectedId] = useState(meetingId ?? '');
   const [roster, setRoster] = useState<MeetingRoster | null>(null);
   const [pool, setPool] = useState<LoanPool | null>(null);
   const [rolloverCandidates, setRolloverCandidates] = useState<RolloverCandidate[]>([]);
@@ -147,8 +151,8 @@ export function useMeetingCeremony() {
   }, [pendingAction]);
 
   const selectedMeeting = useMemo(
-    () => data?.find((meeting) => meeting.id === selectedId) ?? data?.[0],
-    [data, selectedId],
+    () => meetingId ? data?.find((meeting) => meeting.id === meetingId) : data?.find((meeting) => meeting.id === selectedId) ?? data?.[0],
+    [data, selectedId, meetingId],
   );
   const activeLoanWindow = selectedMeeting?.loanWindows?.find((w) => w.status === 'OPEN') ?? selectedMeeting?.loanWindows?.[0];
   const collectionTotals = useMemo(() => collectionTotalsFromMeeting(selectedMeeting), [selectedMeeting]);
@@ -162,8 +166,9 @@ export function useMeetingCeremony() {
 
 
   useEffect(() => {
+    if (meetingId) { setSelectedId(meetingId); return; }
     if (!selectedId && data?.[0]?.id) setSelectedId(data[0].id);
-  }, [data, selectedId]);
+  }, [data, selectedId, meetingId]);
 
   useEffect(() => {
     if (!selectedMeeting?.id) return;
