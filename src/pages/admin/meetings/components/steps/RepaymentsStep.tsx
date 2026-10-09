@@ -58,7 +58,7 @@ type Props = {
   rolloverLoadError?: string | null;
   onRefreshRollovers?: () => void;
   onConfirmRollover: (loanId: string, periodNumber: number) => void;
-  onWaiveRollover: (loanId: string, periodNumber: number, reason: string) => void;
+  onWaiveRollover: (loanId: string, periodNumber: number, reason: string, component?: 'INTEREST' | 'PENALTY' | 'BOTH') => void;
   onPost: (memberId: string, loanId: string, amount: number) => void;
   onReverseItem?: (itemId: string, reason: string) => void;
   onAdjustItem?: (itemId: string, amount: number, reason: string) => void;
@@ -97,6 +97,8 @@ export function RepaymentsStep({
   const [rolloverModal, setRolloverModal] = useState<RolloverCandidate | null>(null);
   const [waiveModal, setWaiveModal] = useState<RolloverCandidate | null>(null);
   const [waiveReason, setWaiveReason] = useState("");
+  const [waiveInterest, setWaiveInterest] = useState(false);
+  const [waivePenalty, setWaivePenalty] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const blocked = !!busy || meeting.status === "CLOSED";
 
@@ -369,12 +371,14 @@ export function RepaymentsStep({
                   items={[
                     {
                       key: "waive",
-                      label: "Waive rollover",
+                      label: r.rolloverCandidate.chargeKind === 'LATE_CHARGE' ? 'Waive interest / penalty' : 'Waive rollover',
                       variant: "danger",
                       disabled: blocked,
                       onClick: () => {
                         setWaiveModal(r.rolloverCandidate ?? null);
                         setWaiveReason("");
+                        setWaiveInterest(false);
+                        setWaivePenalty(false);
                       },
                     },
                   ]}
@@ -553,6 +557,7 @@ export function RepaymentsStep({
               </span>{' '}
               {money(rolloverModal.proposedAmount)}
             </p>
+            {rolloverModal.chargeKind === 'LATE_CHARGE' ? <div className="grid gap-2 rounded-lg bg-ink-50 p-3 sm:grid-cols-2"><p>{rolloverModal.interestRate ?? 10}% interest: <strong>{money(rolloverModal.interestAmount ?? 0)}</strong></p><p>{rolloverModal.penaltyRate ?? 20}% penalty: <strong>{money(rolloverModal.penaltyAmount ?? 0)}</strong></p></div> : null}
             <p className="text-xs text-ink-500">
               This preview is refreshed after repayments. The final amount is recalculated and locked by the server when you confirm.
             </p>
@@ -562,23 +567,23 @@ export function RepaymentsStep({
 
       <Modal
         open={Boolean(waiveModal)}
-        title="Waive loan rollover"
-        subtitle="Provide a reason if rollover was applied in error."
+        title={waiveModal?.chargeKind === 'LATE_CHARGE' ? 'Interest and penalty waiver' : 'Waive loan rollover'}
+        subtitle="Record the charges members agreed to waive and the reason for their decision."
         onClose={() => setWaiveModal(null)}
         footer={(
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setWaiveModal(null)}>Cancel</Button>
             <Button
               variant="danger"
-              disabled={blocked || !waiveModal || waiveReason.trim().length < 3}
+              disabled={blocked || !waiveModal || waiveReason.trim().length < 3 || (waiveModal.chargeKind === 'LATE_CHARGE' && !waiveInterest && !waivePenalty)}
               isLoading={busy === `rollover-waive-${waiveModal?.loanId}`}
               onClick={() => {
                 if (!waiveModal) return;
-                onWaiveRollover(waiveModal.loanId, waiveModal.periodNumber, waiveReason.trim());
+                onWaiveRollover(waiveModal.loanId, waiveModal.periodNumber, waiveReason.trim(), waiveModal.chargeKind === 'LATE_CHARGE' ? waiveInterest && waivePenalty ? 'BOTH' : waiveInterest ? 'INTEREST' : 'PENALTY' : 'INTEREST');
                 setWaiveModal(null);
               }}
             >
-              Waive rollover
+              Record waiver
             </Button>
           </div>
         )}
@@ -586,6 +591,12 @@ export function RepaymentsStep({
         {waiveModal ? (
           <div className="space-y-3 text-sm">
             <p><span className="font-semibold">Loan:</span> {waiveModal.loanNumber} — {waiveModal.memberName}</p>
+            {waiveModal.chargeKind === 'LATE_CHARGE' ? <div className="space-y-3 rounded-xl border border-ink-200 p-4">
+              <label className="flex items-center gap-3"><input type="checkbox" checked={waiveInterest} onChange={e => setWaiveInterest(e.target.checked)} />Waive {waiveModal.interestRate ?? 10}% interest — {money(waiveModal.interestAmount ?? 0)}</label>
+              <label className="flex items-center gap-3"><input type="checkbox" checked={waivePenalty} onChange={e => setWaivePenalty(e.target.checked)} />Waive {waiveModal.penaltyRate ?? 20}% penalty — {money(waiveModal.penaltyAmount ?? 0)}</label>
+              <p className="border-t border-ink-100 pt-3 font-semibold">Charge remaining: {money((waiveInterest ? 0 : waiveModal.interestAmount ?? 0) + (waivePenalty ? 0 : waiveModal.penaltyAmount ?? 0))}</p>
+              <p className="text-xs text-ink-500">Only selected components are waived. The remaining charge is confirmed for this period.</p>
+            </div> : null}
             <label className="block text-xs font-semibold text-ink-600">
               Waiver reason (required)
               <textarea

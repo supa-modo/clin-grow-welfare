@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { MeetingRescheduleModal } from './MeetingRescheduleModal';
+import { hasPermission } from '@/components/ProtectedRoute';
+import { useAuthStore } from '@/store/auth';
 import {
   FiCheckCircle,
   FiDollarSign,
@@ -142,6 +145,8 @@ export function MeetingControlRoom({
   } = ceremony;
 
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const canReschedule = hasPermission(useAuthStore(s => s.user), 'officialsPortal.meetings.create');
 
   if (!selectedMeeting) return null;
 
@@ -208,6 +213,7 @@ export function MeetingControlRoom({
               loading={workspaceSyncing}
               onClick={() => void refreshWorkspace()}
             />
+            {canReschedule && ['SCHEDULED', 'NOTICE_SENT', 'OPEN'].includes(m.status) && !m.ceremonyStep && !m.attendanceFinalizedAt && !m.collectionsFinalizedAt && !m.loanStageReachedAt ? <Button size="sm" variant="secondary" disabled={Boolean(busy)} onClick={() => setRescheduleOpen(true)}>Reschedule</Button> : null}
             <Button
               size="sm"
               variant="secondary"
@@ -341,8 +347,8 @@ export function MeetingControlRoom({
             onConfirmRollover={(loanId, periodNumber) =>
               void confirmLoanRollover(m.id, loanId, { periodNumber })
             }
-            onWaiveRollover={(loanId, periodNumber, reason) =>
-              void waiveLoanRollover(m.id, loanId, { periodNumber, reason })
+            onWaiveRollover={(loanId, periodNumber, reason, component) =>
+              void waiveLoanRollover(m.id, loanId, { periodNumber, reason, component })
             }
             onPost={(memberId, loanId, amount) =>
               void collect(m, memberId, {
@@ -464,6 +470,7 @@ export function MeetingControlRoom({
         report={meetingReport}
         onClose={() => setDetailsOpen(false)}
       />
+      <MeetingRescheduleModal open={rescheduleOpen} meeting={m} onClose={() => setRescheduleOpen(false)} onSaved={refreshWorkspace} />
     </Card>
   );
 }

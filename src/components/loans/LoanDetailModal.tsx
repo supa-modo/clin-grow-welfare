@@ -205,8 +205,8 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
     },
     {
       key: 'amount',
-      header: 'Interest',
-      render: (row) => money(row.confirmedAmount ?? row.proposedAmount),
+      header: 'Retained charge',
+      render: (row) => money(row.status === 'WAIVED' ? 0 : row.confirmedAmount ?? row.proposedAmount),
     },
     {
       key: 'status',
@@ -216,6 +216,8 @@ export function LoanDetailModal({ loanId, open, onClose }: Props) {
           <Badge tone={row.status === 'CONFIRMED' ? 'warning' : row.status === 'WAIVED' ? 'neutral' : 'danger'}>
             {row.status.toLowerCase()}
           </Badge>
+          {row.chargeDecision?.waiveInterest ? <p className="mt-1 text-xs text-ink-600">Interest waived: {money(row.chargeDecision.interestAmount)}</p> : null}
+          {row.chargeDecision?.waivePenalty ? <p className="mt-1 text-xs text-ink-600">Penalty waived: {money(row.chargeDecision.penaltyAmount)}</p> : null}
           {row.waiverReason ? <p className="mt-1 max-w-xs text-xs text-ink-500">{row.waiverReason}</p> : null}
         </div>
       ),

@@ -51,6 +51,7 @@ export interface LoanRepayment {
 }
 
 export interface LoanMeetingRollover {
+  chargeDecision?: { interestAmount: number; penaltyAmount: number; waiveInterest: boolean; waivePenalty: boolean; retainedAmount: number; reason?: string | null } | null;
   id: string;
   loanId: string;
   periodNumber: number;

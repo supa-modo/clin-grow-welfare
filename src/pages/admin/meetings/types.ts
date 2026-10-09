@@ -6,6 +6,7 @@ export type MeetingRecord = {
   meetingType: string;
   meetingDate: string;
   venue?: string;
+  virtualLink?: string;
   agenda?: string;
   status: string;
   minutes?: string;
@@ -151,6 +152,10 @@ export type RolloverCandidate = {
   periodNumber: number;
   dueDate: string;
   proposedAmount: number;
+  interestAmount?: number;
+  penaltyAmount?: number;
+  interestRate?: number;
+  penaltyRate?: number;
   applicationDate: string;
   disbursedAt: string;
   outstandingBalance: number;

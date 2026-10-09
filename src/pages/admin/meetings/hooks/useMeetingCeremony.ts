@@ -1105,13 +1105,13 @@ export function useMeetingCeremony() {
   const waiveLoanRollover = async (
     meetingId: string,
     loanId: string,
-    input: { periodNumber: number; reason: string },
+    input: { periodNumber: number; reason: string; component?: 'INTEREST' | 'PENALTY' | 'BOTH' },
   ) => {
     setBusy(`rollover-waive-${loanId}`);
     try {
       await api.post(`/meetings/${meetingId}/loans/${loanId}/rollover/waive`, input);
       await Promise.all([loadRolloverCandidates(meetingId), loadRoster(meetingId)]);
-      toastSuccess('Rollover waived', 'No rollover interest will apply for this period.');
+      toastSuccess('Waiver recorded', input.component === 'PENALTY' ? 'The penalty was waived; interest remains payable.' : input.component === 'INTEREST' ? 'Interest was waived; the penalty remains payable.' : 'The selected charges were waived for this period.');
     } catch (err) {
       toastError('Could not waive rollover', getApiError(err));
     } finally {
