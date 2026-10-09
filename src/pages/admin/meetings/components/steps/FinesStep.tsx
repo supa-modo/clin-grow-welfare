@@ -238,6 +238,7 @@ export function FinesStep({
         searchPlaceholder="Search member or fine type"
         emptyTitle="No fines"
         emptyMessage={finesLocked ? 'No fines for this meeting yet. Use Add manual fine for in-meeting offences.' : 'Generate attendance fines or add a manual fine.'}
+        clientPagination={false}
       />
 
       <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">

@@ -213,7 +213,7 @@ export function ContributionsPage() {
           totalPages={meta?.totalPages ?? 1}
           onPageChange={setPage}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={value => { setPageSize(value); setPage(1); }}
           fillContainer
           containerClassName="h-full rounded-[1.3rem] border-gray-500/40 shadow-sm"
           emptyTitle="No contributions found"

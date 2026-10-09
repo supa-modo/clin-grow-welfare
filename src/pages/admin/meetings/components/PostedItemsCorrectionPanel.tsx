@@ -107,6 +107,7 @@ export function PostedItemsCorrectionPanel({
           emptyTitle="No posted items"
           emptyMessage="No posted collection items for this step."
           showAutoNumber
+          clientPagination={false}
         />
       </div>
 

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiBookOpen, FiDownload, FiFileText, FiRefreshCw, FiSearch, FiGrid, FiList } from 'react-icons/fi';
+import { FiBookOpen, FiDownload, FiFileText, FiRefreshCw, FiGrid, FiList } from 'react-icons/fi';
 import { TbFileDescription } from 'react-icons/tb';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/Button';
+import { SearchBar } from '@/components/ui/SearchBar';
 import { EmptyState, Spinner } from '@/components/ui/Feedback';
 import { MemberContentHeader } from '@/components/member/MemberContentUi';
 import { useUiStore } from '@/store/uiStore';
@@ -102,11 +103,13 @@ export function MemberDownloadsPage() {
         action={<Button variant="ghost" className="min-h-11 focus-visible:ring-2 focus-visible:ring-brand-500" icon={<FiRefreshCw />} disabled={loading} onClick={() => void load()}>Refresh</Button>} />
       <section aria-label="Document library" className="min-w-0 rounded-2xl bg-white p-4 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <label className="relative block min-w-0 lg:w-full lg:max-w-md">
-            <span className="sr-only">Search documents</span>
-            <FiSearch className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by title or meeting…" className="min-h-12 w-full rounded-xl bg-ink-50 py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 focus:ring-brand-500" />
-          </label>
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by title or meeting…"
+            aria-label="Search documents"
+            wrapperClassName="min-w-0 w-full max-w-none lg:max-w-md"
+          />
           <div className="flex min-w-0 items-center gap-3">
             <label className="min-w-0 flex-1"><span className="sr-only">Document category</span>
               <select value={category} onChange={(event) => setCategory(event.target.value as DownloadCategory | 'ALL')} className="min-h-11 w-full rounded-xl bg-ink-50 px-3 text-sm text-ink-700 outline-none focus:ring-2 focus:ring-brand-500">

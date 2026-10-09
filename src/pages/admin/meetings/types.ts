@@ -9,6 +9,9 @@ export type MeetingRecord = {
   virtualLink?: string;
   agenda?: string;
   status: string;
+  scheduledBy?: string | null;
+  createdAt?: string;
+  changeReason?: string | null;
   minutes?: string;
   ceremonyStep?: MeetingStep | string | null;
   attendanceFinalizedAt?: string | null;

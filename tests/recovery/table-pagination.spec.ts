@@ -21,19 +21,19 @@ test('page size, arrows and page input request the correct backend slice', async
     await route.fulfill({ json: body });
   });
   await page.goto('/officials/loans');
-  const footer = page.getByRole('navigation', { name: 'Table pagination' });
+  const footer = page.getByRole('navigation', { name: 'Table pagination' }).locator('..');
   await expect(footer.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('50');
   await expect(page.getByText('Showing 1 to 50 of 87', { exact: true })).toBeVisible();
   await expect(footer.getByRole('button', { name: 'First page' })).toBeDisabled();
   await footer.getByRole('combobox').selectOption('10');
   await expect.poll(() => lastQuery).toEqual({ page: 1, pageSize: 10 });
   await expect(page.locator('tbody tr')).toHaveCount(10);
-  await footer.getByRole('button', { name: 'Next', exact: true }).click();
+  await footer.getByRole('button', { name: 'Next page', exact: true }).click();
   await expect(page.getByText('Showing 11 to 20 of 87', { exact: true })).toBeVisible();
   await footer.getByRole('button', { name: 'Last page' }).click();
   await expect.poll(() => lastQuery).toEqual({ page: 9, pageSize: 10 });
   await expect(page.getByText('Showing 81 to 87 of 87', { exact: true })).toBeVisible();
-  await expect(footer.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+  await expect(footer.getByRole('button', { name: 'Next page', exact: true })).toBeDisabled();
   await footer.getByRole('textbox', { name: 'Page number' }).fill('3');
   await footer.getByRole('textbox', { name: 'Page number' }).press('Enter');
   await expect.poll(() => lastQuery).toEqual({ page: 3, pageSize: 10 });
@@ -45,7 +45,7 @@ test('page size, arrows and page input request the correct backend slice', async
   await footer.screenshot({ path: '../outputs/table-pagination-20261007.png' });
   await page.getByPlaceholder('Search member or loan number').fill('no-match');
   await expect(page.getByText('Showing 0 to 0 of 0', { exact: true })).toBeVisible();
-  await expect(footer.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+  await expect(footer.getByRole('button', { name: 'Next page', exact: true })).toBeDisabled();
 });
 
 test('tables with fully loaded records paginate locally and reset after filtering', async ({ page }) => {
@@ -59,10 +59,10 @@ test('tables with fully loaded records paginate locally and reset after filterin
     await route.fulfill({ json: body });
   });
   await page.goto('/officials/ledger?tab=accounts');
-  const footer = page.getByRole('navigation', { name: 'Table pagination' });
+  const footer = page.getByRole('navigation', { name: 'Table pagination' }).locator('..');
   await expect(page.getByText('Showing 1 to 50 of 65', { exact: true })).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(50);
-  await footer.getByRole('button', { name: 'Next', exact: true }).click();
+  await footer.getByRole('button', { name: 'Next page', exact: true }).click();
   await expect(page.getByText('Showing 51 to 65 of 65', { exact: true })).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(15);
   await footer.getByRole('combobox').selectOption('10');
@@ -72,5 +72,5 @@ test('tables with fully loaded records paginate locally and reset after filterin
   await page.getByPlaceholder('Search account code, name, type, or fund').fill('Account 65');
   await expect(page.getByText('Showing 1 to 1 of 1', { exact: true })).toBeVisible();
   await expect(footer.getByRole('textbox', { name: 'Page number' })).toHaveValue('1');
-  await expect(footer.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+  await expect(footer.getByRole('button', { name: 'Next page', exact: true })).toBeDisabled();
 });

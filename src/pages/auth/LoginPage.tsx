@@ -164,9 +164,7 @@ export function LoginPage() {
         <h2 className="text-base md:text-[1.1rem] font-extrabold font-google text-brand-700 mb-1">
           Member Self Service Portal.
         </h2>
-        <p className="text-xs md:text-[0.8rem] lg:text-[0.85rem] ">
-          Enter your login credentials to access your account
-        </p>
+
       </div>
 
       {apiError ? <AuthErrorBanner message={apiError} /> : null}
@@ -174,7 +172,7 @@ export function LoginPage() {
         <AuthErrorBanner message="Your session has expired. Please sign in again." />
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-1 lg:px-4">
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-1 lg:px-4 justify-center">
         <RadioGroup<WorkspaceKey>
           name="workspace"
           value={workspace}

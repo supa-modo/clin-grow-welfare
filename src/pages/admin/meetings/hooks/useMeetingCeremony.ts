@@ -86,6 +86,7 @@ export function useMeetingCeremony(meetingId?: string) {
     meetingType: 'ORDINARY',
     meetingDate: '',
     venue: 'CREATES Meeting Room',
+    virtualLink: '',
     agenda: 'Attendance, collections, loan window, welfare claims, resolutions',
     notifyMembersByEmail: true,
   });
@@ -634,6 +635,7 @@ export function useMeetingCeremony(meetingId?: string) {
         meetingType: scheduleForm.meetingType,
         meetingDate: new Date(scheduleForm.meetingDate).toISOString(),
         venue: scheduleForm.venue,
+        virtualLink: scheduleForm.virtualLink,
         agenda: scheduleForm.agenda,
         notifyMembersByEmail: scheduleForm.notifyMembersByEmail,
       });

@@ -1,7 +1,4 @@
-import {
-  type KeyboardEventHandler,
-  type ReactNode,
-} from "react";
+import { type KeyboardEventHandler, type ReactNode } from "react";
 import clsx from "clsx";
 export type SegmentedTab<T extends string> = {
   value: T;
@@ -46,7 +43,8 @@ export function SegmentedTabs<T extends string>({
         if (next) onChange(next.value);
       } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
         event.preventDefault();
-        const next = available[(index - 1 + available.length) % available.length];
+        const next =
+          available[(index - 1 + available.length) % available.length];
         if (next) onChange(next.value);
       } else if (event.key === "Home") {
         event.preventDefault();
@@ -103,12 +101,13 @@ export function SegmentedTabs<T extends string>({
           onClick={() => onChange(tab.value)}
           onKeyDown={handleTabKeyDown(tab)}
           className={clsx(
-            "shrink-0 border-b-2 px-2 text-sm font-medium transition-all duration-200 focus:outline-none md:px-3",
-            compact ? "py-1.5" : "py-2.5",
+            "shrink-0 border-b-2 px-2 text-sm font-semibold transition-all duration-200 focus:outline-none md:px-3",
+            compact ? "py-2" : "py-2.5",
             selected
               ? "border-brand-600 text-brand-700"
               : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800",
-            tab.disabled && "cursor-not-allowed opacity-50 hover:border-transparent hover:text-slate-500",
+            tab.disabled &&
+              "cursor-not-allowed opacity-50 hover:border-transparent hover:text-slate-500",
           )}
         >
           {content}
@@ -130,7 +129,7 @@ export function SegmentedTabs<T extends string>({
           "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.4rem] px-2 text-[0.7rem] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:px-3 md:text-xs lg:text-sm",
           compact ? "py-1" : "py-1.5",
           selected
-            ? "bg-white font-bold text-secondary-700 shadow-md"
+            ? "bg-white font-bold text-primary-700 shadow-md"
             : "font-semibold text-slate-500 hover:text-slate-800",
           tab.disabled && "cursor-not-allowed opacity-50 hover:text-slate-500",
         )}
@@ -167,4 +166,3 @@ export function SegmentedTabs<T extends string>({
     </div>
   );
 }
-

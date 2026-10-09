@@ -68,8 +68,9 @@ export function AttendanceStep({
   const [editingIds, setEditingIds] = useState<Record<string, boolean>>({});
 
   const finalized = Boolean(meeting.attendanceFinalizedAt);
-  const needsStart = ["SCHEDULED", "NOTICE_SENT"].includes(meeting.status);
-  const blocked = !!busy || meeting.status === "CLOSED" || (finalized && !isCorrectionMode(meeting));
+  const needsStart = ["SCHEDULED", "NOTICE_SENT", "OPEN"].includes(meeting.status);
+  const attendanceLocked = ["CLOSED", "COMPLETED", "CANCELLED"].includes(meeting.status) || (finalized && !isCorrectionMode(meeting));
+  const blocked = !!busy || attendanceLocked;
 
   const rows = useMemo<AttendanceRow[]>(() => {
     return (roster?.members ?? []).map((row) => {
@@ -131,10 +132,10 @@ export function AttendanceStep({
           {needsStart
             ? "Start the meeting before recording attendance."
             : finalized
-              ? "Attendance is finalized and locked for this meeting."
+              ? isCorrectionMode(meeting) ? "Correction mode is active. Update attendance, then re-close the meeting." : "Attendance is finalized and locked for this meeting."
               : "Mark each member, then save all and finalize before generating fines."}
         </p>
-        {!needsStart && !finalized ? (
+        {!needsStart && !attendanceLocked ? (
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               size="sm"
@@ -215,6 +216,8 @@ export function AttendanceStep({
               <>
                 <Select
                   value={row.status}
+                  aria-label={`Attendance status for ${row.name}`}
+                  disabled={blocked || needsStart || row.apologyLocked || (row.isMarked && !editingIds[row.memberId])}
                   onChange={(e) =>
                     setAttendanceDraft((s) => ({
                       ...s,
@@ -250,7 +253,7 @@ export function AttendanceStep({
         showAutoNumber
         showCheckboxes
         isRowSelected={(row) => row.isMarked}
-        isRowSelectable={() => !finalized}
+        isRowSelectable={() => !blocked && !needsStart}
         search
         searchValue={search}
         onSearchChange={setSearch}
@@ -267,13 +270,13 @@ export function AttendanceStep({
           </Select>
         }
         actions={(row) => {
-          if (finalized) return null;
           const editing = editingIds[row.memberId] || !row.isMarked;
           return (
             <Button
               size="sm"
               variant="secondary"
-              disabled={blocked || needsStart}
+              disabled={blocked || needsStart || row.apologyLocked}
+              title={attendanceLocked ? 'Attendance is locked for this meeting' : needsStart ? 'Start the meeting to record attendance' : row.apologyLocked ? 'Accepted apologies are locked' : undefined}
               icon={editing ? <FaSave /> : <TbEdit />}
               isLoading={busy === `attendance-${row.memberId}`}
               loadingText="Saving..."
@@ -286,12 +289,13 @@ export function AttendanceStep({
                 }
               }}
             >
-              {editing ? "Save" : "Change"}
+              {attendanceLocked ? "Locked" : editing ? "Save" : "Change"}
             </Button>
           );
         }}
         emptyTitle="No members"
         emptyMessage="Active members will appear here once the roster loads."
+        clientPagination={false}
       />
 
       <SlideOver

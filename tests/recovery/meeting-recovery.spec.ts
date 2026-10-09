@@ -36,8 +36,8 @@ for (const recovery of [true, false]) {
       else if (path.includes('/notifications')) body = { data: [], unreadCount: 0 };
       await route.fulfill({ json: body });
     });
-    await page.goto('/officials/meetings');
-    await expect(page.getByRole('heading', { name: 'Meeting Control Room' })).toBeVisible();
+    await page.goto('/officials/meetings/meeting');
+    await expect(page.getByText('Meeting Control room', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Next: summary', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Any other business (AOB)' })).toBeVisible();
     await page.getByLabel('Any other business', { exact: true }).fill('Recovery collections discussed.');

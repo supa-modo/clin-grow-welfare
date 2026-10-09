@@ -370,3 +370,12 @@ select:focus {
     transform: scaleX(0);
   }
 }
+
+/* Empty agenda hints stay inside the rich text editor without intercepting typing. */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

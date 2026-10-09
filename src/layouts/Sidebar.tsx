@@ -114,14 +114,14 @@ export function Sidebar({ items, brandTitle, roleLabel }: SidebarProps) {
             "linear-gradient(160deg, #14532d 0%, #15803d 50%, #14532d 100%)",
         }}
         className={clsx(
-          "relative z-50 flex h-full shrink-0 flex-col overflow-hidden border-r border-primary-600 transition-all duration-300 ease-in-out",
+          "z-50 flex h-full shrink-0 flex-col overflow-hidden border-r border-primary-600 transition-all duration-300 ease-in-out",
           collapsed && !isMobile ? "w-[80px]" : "w-[270px]",
           isMobile &&
             clsx(
               "fixed inset-y-0 left-0 w-[270px] max-w-[min(270px,100vw)]",
               mobileDrawerOpen ? "translate-x-0" : "-translate-x-full",
             ),
-          !isMobile && "translate-x-0",
+          !isMobile && "relative translate-x-0",
         )}
       >
         <div

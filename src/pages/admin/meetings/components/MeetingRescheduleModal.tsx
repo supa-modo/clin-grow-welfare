@@ -3,6 +3,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { api } from '@/services/api';
 import { useUiStore } from '@/store/uiStore';
 import { getApiError } from '@/pages/admin/shared/adminFormatters';
@@ -33,7 +34,7 @@ export function MeetingRescheduleModal({ open, meeting, onClose, onSaved }: { op
       <Input label="New date and time (Nairobi)" aria-label="New date and time (Nairobi)" type="datetime-local" value={form.meetingDate} onChange={e => setForm({ ...form, meetingDate: e.target.value })} />
       <Input label="Venue" aria-label="Venue" value={form.venue} onChange={e => setForm({ ...form, venue: e.target.value })} />
       <Input label="Virtual meeting link" aria-label="Virtual meeting link" value={form.virtualLink} onChange={e => setForm({ ...form, virtualLink: e.target.value })} />
-      <Textarea label="Agenda" aria-label="Agenda" rows={4} value={form.agenda} onChange={e => setForm({ ...form, agenda: e.target.value })} />
+      <RichTextEditor label="Agenda" value={form.agenda} disabled={saving} onChange={agenda => setForm({ ...form, agenda })} />
       <Textarea label="Reason for postponement" aria-label="Reason for postponement" rows={2} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} />
     </div>
   </Modal>;

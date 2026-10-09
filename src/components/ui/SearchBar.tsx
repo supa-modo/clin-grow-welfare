@@ -88,7 +88,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-ink-800"
             aria-label={clearAriaLabel}
           >
             <FiX className="h-4 w-4" />

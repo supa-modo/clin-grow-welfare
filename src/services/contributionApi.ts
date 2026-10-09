@@ -62,7 +62,7 @@ export const contributionApi = {
   },
 
   // Member portal
-  async myContributions(params?: { page?: number; pageSize?: number }) {
+  async myContributions(params?: { page?: number; pageSize?: number; type?: string; from?: string; to?: string }) {
     const { data } = await api.get('/member-portal/contributions', { params });
     return data as { data: Contribution[]; meta: any };
   },

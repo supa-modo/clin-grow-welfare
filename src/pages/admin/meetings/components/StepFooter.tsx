@@ -59,7 +59,7 @@ export function StepFooter({
   }
 
   return (
-    <div className="flex flex-col gap-2 border-t border-ink-100 px-5 pb-5 pt-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <Button
         variant="secondary"
         disabled={!back || disabled}

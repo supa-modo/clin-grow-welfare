@@ -484,6 +484,7 @@ export function CollectionsStep({
         emptyTitle="No members"
         emptyMessage="Roster has no members for this meeting."
         showAutoNumber
+        clientPagination={false}
       />
 
       <Modal

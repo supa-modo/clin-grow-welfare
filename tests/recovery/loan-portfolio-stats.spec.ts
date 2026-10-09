@@ -16,7 +16,7 @@ test('portfolio stats remain complete across pages and reflect all matching sear
  await page.goto('/officials/loans');
  await expect(page.getByText('KES 628,612.12',{exact:true})).toBeVisible();
  await expect(page.getByText('Full disbursed portfolio balance',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Next',exact:true}).click();
+ await page.getByRole('button',{name:'Next page',exact:true}).click();
  await expect.poll(()=>requestedPage).toBe(2);
  await expect(page.getByText('LN-PAGE-2',{exact:true})).toBeVisible();
  await expect(page.getByText('KES 628,612.12',{exact:true})).toBeVisible();

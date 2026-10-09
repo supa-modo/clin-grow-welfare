@@ -1,3 +1,5 @@
+import { meetingVirtualUrl } from '@/lib/meetingAgenda';
+import { RichTextContent } from '@/components/ui/RichTextContent';
 import { useCallback, useEffect, useState } from "react";
 import { useMeetingRealtime } from "@/hooks/useMeetingRealtime";
 import { loanApi } from "@/services/loanApi";
@@ -20,6 +22,7 @@ type DetailResponse = {
     meetingType: string;
     meetingDate: string;
     venue?: string;
+    virtualLink?: string | null;
     agenda?: string;
     status: string;
     attendance?: Array<{ attendanceStatus: string }>;
@@ -212,6 +215,7 @@ export function MemberMeetingDetailPage() {
   if (!data) return <EmptyState title="Meeting not found" />;
 
   const { meeting, fines, pool } = data;
+  const virtualUrl = meetingVirtualUrl(meeting.virtualLink);
   const attendance = meeting.attendance?.[0]?.attendanceStatus ?? "Not marked";
   const apology = meeting.apologies?.[0];
   const collections = meeting.collectionItems ?? [];
@@ -230,6 +234,7 @@ export function MemberMeetingDetailPage() {
         <div className="min-w-0 space-y-2 text-sm text-ink-600">
           <p className="flex items-start gap-2"><FiCalendar className="mt-1 shrink-0 text-brand-600" /><span>{new Date(meeting.meetingDate).toLocaleString("en-KE", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })}</span></p>
           <p className="flex items-start gap-2 break-words"><FiMapPin className="mt-1 shrink-0 text-brand-600" /><span>{meeting.venue || "Venue to be confirmed"}</span></p>
+          {virtualUrl ? <a href={virtualUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 font-semibold text-brand-700 hover:underline"><FiExternalLink /> Join online meeting</a> : null}
         </div>
       </div>
 
@@ -239,7 +244,7 @@ export function MemberMeetingDetailPage() {
 
       >
         {meeting.agenda ? (
-          <p className="text-sm leading-relaxed text-ink-600">{meeting.agenda}</p>
+          <RichTextContent value={meeting.agenda} />
         ) : (
           <p className="text-sm text-ink-500">No agenda published for this meeting.</p>
         )}

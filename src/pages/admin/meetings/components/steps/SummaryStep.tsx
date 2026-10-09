@@ -119,6 +119,7 @@ export function SummaryStep({ meeting, collectionTotals, pool, unclaimedCarryove
         searchPlaceholder="Search type or member"
         emptyTitle="No posted items"
         emptyMessage="Posted collections for this tab will appear here."
+        clientPagination={false}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import { RichTextContent } from '@/components/ui/RichTextContent';
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import type { MeetingRecord, MeetingRoster } from "../types";
@@ -41,11 +42,18 @@ export function MeetingDetailsModal({
     <Modal
       open={open}
       title={`Meeting details — ${meeting.meetingNumber}`}
-      subtitle={`${new Date(meeting.meetingDate).toLocaleString("en-KE")} · ${meeting.venue ?? "Venue pending"}`}
+      subtitle={`${new Date(meeting.meetingDate).toLocaleString("en-KE", { timeZone: 'Africa/Nairobi' })} · ${meeting.venue ?? "Venue pending"}`}
       onClose={onClose}
       size="xl"
     >
       <div className="space-y-5">
+        <dl className="grid gap-x-6 gap-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm sm:grid-cols-2">
+          <div><dt className="text-xs text-slate-500">Scheduled by</dt><dd className="mt-1 font-medium text-slate-900">{meeting.scheduledBy || 'Not recorded'}</dd></div>
+          <div><dt className="text-xs text-slate-500">Location</dt><dd className="mt-1 font-medium text-slate-900">{meeting.venue || 'Venue pending'}</dd></div>
+          <div><dt className="text-xs text-slate-500">Date & time (Nairobi)</dt><dd className="mt-1 font-medium text-slate-900">{new Date(meeting.meetingDate).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</dd></div>
+          {meeting.virtualLink ? <div><dt className="text-xs text-slate-500">Online meeting</dt><dd className="mt-1 break-all text-slate-700">{meeting.virtualLink}</dd></div> : null}
+          {meeting.changeReason ? <div className="sm:col-span-2"><dt className="text-xs text-slate-500">Last schedule change / cancellation</dt><dd className="mt-1 text-slate-700">{meeting.changeReason}</dd></div> : null}
+        </dl>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-ink-200 bg-ink-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Status</p>
@@ -67,9 +75,7 @@ export function MeetingDetailsModal({
 
         <section className="rounded-xl border border-ink-200 p-4">
           <h3 className="text-sm font-bold text-ink-900">Agenda</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-700">
-            {meeting.agenda?.trim() || "No agenda was recorded."}
-          </p>
+          <RichTextContent className="mt-2" value={meeting.agenda?.trim() || 'No agenda was recorded.'} />
         </section>
 
         <div className="grid gap-4 lg:grid-cols-2">

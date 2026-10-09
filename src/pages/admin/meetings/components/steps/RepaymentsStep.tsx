@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable, type Column } from "@/components/ui/DataTable";
+import { SearchBar } from "@/components/ui/SearchBar";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { LoanDetailModal } from "@/components/loans/LoanDetailModal";
 import { money } from "@/pages/admin/shared/adminFormatters";
@@ -469,11 +470,12 @@ export function RepaymentsStep({
             )} before moving to later loans.
           </p>
         </div>
-        <input
-          className="w-full max-w-xs rounded-lg border border-ink-200 px-3 py-2 text-sm sm:w-72"
-          placeholder="Search loan or member"
+        <SearchBar
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          placeholder="Search loan or member"
+          aria-label="Search loan or member"
+          wrapperClassName="w-full max-w-none sm:w-72"
         />
       </div>
 
@@ -485,6 +487,7 @@ export function RepaymentsStep({
           getRowClassName={rowClassName}
           emptyTitle="No loans due now"
           emptyMessage="No active loan is overdue or due within two days of this meeting."
+          clientPagination={false}
         />
       </div>
 
@@ -514,6 +517,7 @@ export function RepaymentsStep({
               getRowKey={(r) => `advance-${r.loanId}`}
               emptyTitle="No other active loans"
               emptyMessage="All active loans are in the due queue."
+              clientPagination={false}
             />
           </div>
         ) : null}

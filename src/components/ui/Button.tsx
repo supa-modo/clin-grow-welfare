@@ -34,15 +34,15 @@ export function Button({
       className={clsx(
         "inline-flex items-center justify-center gap-2 hover:cursor-pointer font-semibold transition focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
         size === "xxs" &&
-          "min-h-5 lg:min-h-6 px-4 text-[0.6rem] md:text-xs lg:text-[0.75rem]",
+          "min-h-5 lg:min-h-6 px-3 text-[0.6rem] md:text-xs lg:text-[0.75rem]",
         size === "xs" &&
-          "min-h-6 lg:min-h-7 px-5 text-[0.65rem] md:text-xs lg:text-[0.75rem]",
+          "min-h-6 lg:min-h-7 px-4 text-[0.65rem] md:text-xs lg:text-[0.75rem]",
         size === "sm" &&
-          "min-h-8 lg:min-h-9 px-6 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
+          "min-h-7 lg:min-h-8 px-4 text-[0.7rem] md:text-xs lg:text-[0.8rem]",
         size === "md" &&
-          "min-h-9 lg:min-h-10 px-6 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
+          "min-h-8 lg:min-h-9 px-5 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
         size === "lg" &&
-          "minh-10 lg:min-h-11 px-6 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
+          "minh-9 lg:min-h-10 px-5 text-[0.7rem] md:text-xs lg:text-[0.85rem]",
         rounded === "full" && "rounded-full",
         rounded === "lg" && "rounded-lg",
         rounded === "md" && "rounded-md",

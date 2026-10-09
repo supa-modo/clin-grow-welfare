@@ -1,3 +1,4 @@
+import { agendaText } from '@/lib/meetingAgenda';
 /* eslint-disable react-refresh/only-export-components */
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -699,7 +700,7 @@ export function UpcomingMeetingsCard({ meetings }: { meetings: DashboardMeeting[
                   </div>
                   <Badge tone={loanWindowOpen ? "success" : "neutral"}>{loanWindowOpen ? "Loan window" : normalizeStatus(meeting.status)}</Badge>
                 </div>
-                {meeting.agenda ? <p className="mt-2 line-clamp-2 text-sm text-ink-600">{meeting.agenda}</p> : null}
+                {meeting.agenda ? <p className="mt-2 line-clamp-2 text-sm text-ink-600">{agendaText(meeting.agenda)}</p> : null}
                 <p className="mt-2 text-xs font-semibold text-ink-500">
                   RSVP/status: {attendance || (meeting.apologies?.length ? "Apology submitted" : "Pending")}
                 </p>

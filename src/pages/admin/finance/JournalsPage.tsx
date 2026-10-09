@@ -168,7 +168,7 @@ export function JournalsPage({ embedded = false }: { embedded?: boolean }) {
         totalPages={meta?.totalPages ?? 1}
         onPageChange={setPage}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={value => { setPageSize(value); setPage(1); }}
         emptyTitle="No journal entries"
         emptyMessage="Posted and reversed journal entries will appear here."
       />

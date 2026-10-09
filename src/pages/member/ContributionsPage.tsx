@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiAlertCircle } from "react-icons/fi";
 import { Landmark, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import DateInput from "@/components/ui/DateInput";
 import {
   CashTransactionHistory,
   type CashTransactionRow,
@@ -28,6 +29,34 @@ const TYPE_LABELS: Record<string, string> = {
   OTHER: "Other",
 };
 
+const CONTRIBUTION_TYPES = Object.keys(TYPE_LABELS);
+
+function isoDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function monthBounds(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  if (!year || !monthNumber) return null;
+  const start = new Date(year, monthNumber - 1, 1);
+  const end = new Date(year, monthNumber, 0);
+  return { from: isoDate(start), to: isoDate(end) };
+}
+
+function monthFromRange(from: string, to: string) {
+  if (!from || !to) return "";
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+  if (start.getDate() !== 1) return "";
+  const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+  if (isoDate(lastDay) !== isoDate(end)) return "";
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`;
+}
+
 type ListMeta = {
   page: number;
   totalPages: number;
@@ -41,17 +70,20 @@ export function MemberContributionsPage() {
   const [arrears, setArrears] = useState<MemberArrears | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [type, setType] = useState("");
+  const [month, setMonth] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [meta, setMeta] = useState<ListMeta | null>(null);
   const [financialYear, setFinancialYear] = useState<{
     name: string;
     startDate: string;
     endDate: string;
   } | null>(null);
+  const filtersActive = Boolean(type || from || to);
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([
-      contributionApi.myContributions({ page }),
       contributionApi.myArrears(),
       api.get<{
         financialYear?: {
@@ -60,15 +92,34 @@ export function MemberContributionsPage() {
           endDate: string;
         } | null;
       }>("/member-portal/dashboard"),
-    ])
-      .then(([{ data, meta: m }, { arrears: a }, dash]) => {
+    ]).then(([{ arrears: a }, dash]) => {
+      setArrears(a);
+      setFinancialYear(dash.data.financialYear ?? null);
+    });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    contributionApi
+      .myContributions({
+        page,
+        type: type || undefined,
+        from: from || undefined,
+        to: to || undefined,
+      })
+      .then(({ data, meta: m }) => {
+        if (!active) return;
         setContributions(data);
         setMeta(m);
-        setArrears(a);
-        setFinancialYear(dash.data.financialYear ?? null);
       })
-      .finally(() => setLoading(false));
-  }, [page]);
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [page, type, from, to]);
 
   const totalArrears = arrears ? arrears.welfareKitty.arrears : 0;
 
@@ -93,12 +144,42 @@ export function MemberContributionsPage() {
   const reloadContributions = () => {
     setLoading(true);
     void contributionApi
-      .myContributions({ page })
+      .myContributions({
+        page,
+        type: type || undefined,
+        from: from || undefined,
+        to: to || undefined,
+      })
       .then(({ data, meta: m }) => {
         setContributions(data);
         setMeta(m);
       })
       .finally(() => setLoading(false));
+  };
+
+  const applyType = (value: string) => {
+    setType(value);
+    setPage(1);
+  };
+
+  const applyMonth = (value: string) => {
+    setMonth(value);
+    const bounds = value ? monthBounds(value) : null;
+    setFrom(bounds?.from ?? "");
+    setTo(bounds?.to ?? "");
+    setPage(1);
+  };
+
+  const applyFrom = (value: string) => {
+    setFrom(value);
+    setMonth(monthFromRange(value, to));
+    setPage(1);
+  };
+
+  const applyTo = (value: string) => {
+    setTo(value);
+    setMonth(monthFromRange(from, value));
+    setPage(1);
   };
 
   const yearSubtitle = financialYear
@@ -187,11 +268,53 @@ export function MemberContributionsPage() {
             : "Posted contributions and receipts"
         }
       >
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-[0.75rem] font-medium text-ink-500 lg:text-[0.8rem]">
+            Contribution type
+            <select
+              value={type}
+              onChange={(event) => applyType(event.target.value)}
+              className="mt-1 w-full rounded-[0.6rem] border border-gray-300 bg-gray-100 px-3 py-2 text-xs text-ink-800 outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 lg:text-sm"
+            >
+              <option value="">All types</option>
+              {CONTRIBUTION_TYPES.map((value) => (
+                <option key={value} value={value}>
+                  {TYPE_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-[0.75rem] font-medium text-ink-500 lg:text-[0.8rem]">
+            Month
+            <input
+              type="month"
+              value={month}
+              onChange={(event) => applyMonth(event.target.value)}
+              className="mt-1 w-full rounded-[0.6rem] border border-gray-300 bg-gray-100 px-3 py-2 text-xs text-ink-800 outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 lg:text-sm"
+            />
+          </label>
+          <DateInput
+            label="From"
+            value={from}
+            max={to || undefined}
+            onChange={(event) => applyFrom(event.target.value)}
+          />
+          <DateInput
+            label="To"
+            value={to}
+            min={from || undefined}
+            onChange={(event) => applyTo(event.target.value)}
+          />
+        </div>
         <CashTransactionHistory
           title=""
           rows={historyRows}
           loading={loading}
-          emptyMessage="Your contribution history will appear here once the treasurer posts them."
+          emptyMessage={
+            filtersActive
+              ? "No contributions match these filters."
+              : "Your contribution history will appear here once the treasurer posts them."
+          }
           onRefresh={reloadContributions}
           onDownloadReceipt={(id) => contributionApi.downloadMyReceipt(id)}
           embedded

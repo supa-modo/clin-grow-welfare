@@ -31,6 +31,7 @@ import { MemberConstitutionPage } from "@/pages/member/MemberConstitutionPage";
 import { MemberDownloadsPage } from "@/pages/member/DownloadsPage";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { WelfarePage } from "@/pages/admin/welfare/WelfareClaimsPage";
+import { MeetingDetailsPage } from "@/pages/admin/meetings/MeetingDetailsPage";
 import { MeetingsPage } from "@/pages/admin/meetings/MeetingsPage";
 import { ApprovalsPage } from "@/pages/admin/approvals/ApprovalsPage";
 import { ReportsPage } from "@/pages/admin/reports/ReportsPage";
@@ -184,6 +185,14 @@ export const router = createBrowserRouter([
                     ),
                   },
                   {
+                    path: "meetings/:meetingId",
+                    element: (
+                      <PermissionGate permission="officialsPortal.meetings.view">
+                        <MeetingDetailsPage />
+                      </PermissionGate>
+                    ),
+                  },
+                  {
                     path: "meetings",
                     element: (
                       <PermissionGate permission="officialsPortal.meetings.view">
@@ -308,6 +317,14 @@ export const router = createBrowserRouter([
                     element: (
                       <PermissionGate permission="officialsPortal.welfareClaims.view">
                         <WelfarePage />
+                      </PermissionGate>
+                    ),
+                  },
+                  {
+                    path: "meetings/:meetingId",
+                    element: (
+                      <PermissionGate permission="officialsPortal.meetings.view">
+                        <MeetingDetailsPage />
                       </PermissionGate>
                     ),
                   },

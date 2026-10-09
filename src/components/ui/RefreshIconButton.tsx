@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
-import { FiRefreshCw } from "react-icons/fi";
 import clsx from "clsx";
+import { LuRefreshCw } from "react-icons/lu";
 
 export type RefreshIconButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -9,15 +9,21 @@ export type RefreshIconButtonProps = Omit<
   /** When true, the icon spins and the button is disabled. */
   loading?: boolean;
   title?: string;
+  size?: "sm" | "md" | "lg";
 };
 
 export function RefreshIconButton({
+  size = "md",
   loading = false,
   disabled,
   title = "Refresh",
   className,
   ...props
 }: RefreshIconButtonProps) {
+  const sizeClass =
+    size === "sm" ? "h-8 w-8" : size === "md" ? "h-9 w-9" : "h-10 w-10";
+  const iconSizeClass =
+    size === "sm" ? "h-3.5 w-3.5" : size === "md" ? "h-4 w-4" : "h-5 w-5";
   return (
     <button
       type="button"
@@ -25,13 +31,14 @@ export function RefreshIconButton({
       aria-label={title}
       disabled={disabled || loading}
       className={clsx(
-        "flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60",
+        "flex items-center justify-center rounded-xl border border-gray-400 text-slate-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60",
         className,
+        sizeClass,
       )}
       {...props}
     >
-      <FiRefreshCw
-        className={clsx("h-4 w-4", loading && "animate-spin")}
+      <LuRefreshCw
+        className={clsx(iconSizeClass, loading && "animate-spin")}
         aria-hidden
       />
     </button>

@@ -144,29 +144,19 @@ export function WelfareExpensesPanel() {
           {
             key: "actions",
             header: "Actions",
-            render: (e) =>
-              e.status === "SUBMITTED" && approve ? (
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => setAction({ kind: "approve", expense: e })}
-                >
-                  Approve
-                </Button>
-              ) : e.status === "APPROVED" && pay ? (
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => {
-                    setForm({ ...form, paymentReference: "" });
-                    setAction({ kind: "pay", expense: e });
-                  }}
-                >
-                  Record payment
-                </Button>
-              ) : null,
+            render: (e) => (
+              <div className="flex items-center justify-end gap-2">
+                {e.status === "SUBMITTED" && approve ? (
+                  <Button size="sm" disabled={busy} onClick={() => setAction({ kind: "approve", expense: e })}>Approve</Button>
+                ) : e.status === "APPROVED" && pay ? (
+                  <Button size="sm" disabled={busy} onClick={() => { setForm({ ...form, paymentReference: "" }); setAction({ kind: "pay", expense: e }); }}>Record payment</Button>
+                ) : null}
+                {approve && ["SUBMITTED", "APPROVED"].includes(e.status) ? (
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => { setForm({ ...form, description: "" }); setAction({ kind: "reject", expense: e }); }}>Reject / cancel</Button>
+                ) : null}
+              </div>
+            ),
           },
-          {key:'reject',header:'',render:e=>approve&&['SUBMITTED','APPROVED'].includes(e.status)?<Button size="sm" variant="secondary" disabled={busy} onClick={()=>{setForm({...form,description:''});setAction({kind:'reject',expense:e});}}>Reject / cancel</Button>:null},
         ]}
         emptyTitle="No welfare expenses"
         emptyMessage="AGM and other approved welfare costs will appear here."

@@ -1,3 +1,4 @@
+import { agendaText } from '@/lib/meetingAgenda';
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMeetingsLiveRefresh } from "@/hooks/useMeetingRealtime";
 import { Link } from "react-router-dom";
@@ -150,7 +151,7 @@ function meetingSearchText(meeting: MeetingRecord): string {
     meeting.meetingNumber,
     humanizeType(meeting.meetingType),
     meeting.venue,
-    meeting.agenda,
+    agendaText(meeting.agenda),
     formatMeetingDate(meeting.meetingDate),
     date.toLocaleDateString("en-KE", {
       day: "numeric",
@@ -243,7 +244,7 @@ function MeetingCard({
           {meeting.venue && <p className="mt-1 flex items-start gap-1.5 break-words text-xs leading-5 text-ink-500"><PiMapPinAreaDuotone className="mt-0.5 shrink-0 text-brand-600" size={15} />{meeting.venue}</p>}
         </div>
       </div>
-      {meeting.agenda && <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink-600">{meeting.agenda}</p>}
+      {meeting.agenda && <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink-600">{agendaText(meeting.agenda)}</p>}
       <div className="mt-5 grid grid-cols-2 gap-2">
         <MemberSummaryMetric label="Your attendance" value={humanizeStatus(attendance)} />
         <MemberSummaryMetric label="Apology" value={apology?.status ? humanizeStatus(apology.status) : "None"} />
@@ -330,7 +331,6 @@ export function MemberMeetingsPage() {
         value={searchQuery}
         onChange={setSearchQuery}
         placeholder="Search by date or meeting reference…"
-        inputClassName="min-h-12 border-0 bg-white focus:ring-2"
         aria-label="Search meetings by date or reference"
         wrapperClassName="max-w-none w-full"
       />

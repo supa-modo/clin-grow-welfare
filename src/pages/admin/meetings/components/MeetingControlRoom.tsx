@@ -1,20 +1,28 @@
-import { useState } from "react";
-import { MeetingRescheduleModal } from './MeetingRescheduleModal';
-import { hasPermission } from '@/components/ProtectedRoute';
-import { useAuthStore } from '@/store/auth';
+import { useState, type ReactNode } from "react";
+import { MeetingRescheduleModal } from "./MeetingRescheduleModal";
+import { hasPermission } from "@/components/ProtectedRoute";
+import { useAuthStore } from "@/store/auth";
 import {
+  FiAlertTriangle,
+  FiCalendar,
   FiCheckCircle,
   FiDollarSign,
   FiFileText,
   FiInfo,
+  FiMapPin,
   FiPlay,
   FiRefreshCw,
   FiSend,
   FiShield,
   FiUsers,
 } from "react-icons/fi";
+import { PiMapPinAreaDuotone } from "react-icons/pi";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import {
+  RowActionsMenu,
+  type RowActionItem,
+} from "@/components/ui/RowActionsMenu";
 import { Card } from "@/components/ui/Card";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { RefreshIconButton } from "@/components/ui/RefreshIconButton";
@@ -44,6 +52,42 @@ import { MeetingDetailsModal } from "./MeetingDetailsModal";
 
 type Ceremony = ReturnType<typeof useMeetingCeremony>;
 
+function readableLabel(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function meetingSchedule(value: string) {
+  const date = new Date(value);
+  const day = date.toLocaleDateString("en-KE", {
+    timeZone: "Africa/Nairobi",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const time = date.toLocaleTimeString("en-KE", {
+    timeZone: "Africa/Nairobi",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${day} · ${time}`;
+}
+
+function SittingNotice({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex gap-2.5 border-b border-amber-100 bg-amber-50/90 px-4 py-2.5 text-xs leading-5 text-amber-950">
+      <FiAlertTriangle
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600"
+        aria-hidden
+      />
+      <p>{children}</p>
+    </div>
+  );
+}
+
 const workflowTabs = [
   { value: "attendance" as const, label: "Attendance", icon: <FiUsers /> },
   { value: "fines" as const, label: "Fines", icon: <FiShield /> },
@@ -58,11 +102,7 @@ const workflowTabs = [
   { value: "close" as const, label: "Close", icon: <FiCheckCircle /> },
 ];
 
-export function MeetingControlRoom({
-  ceremony,
-}: {
-  ceremony: Ceremony;
-}) {
+export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
   const {
     busy,
     step,
@@ -146,20 +186,67 @@ export function MeetingControlRoom({
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const canReschedule = hasPermission(useAuthStore(s => s.user), 'officialsPortal.meetings.create');
+  const canReschedule = hasPermission(
+    useAuthStore((s) => s.user),
+    "officialsPortal.meetings.create",
+  );
 
   if (!selectedMeeting) return null;
 
   const m = selectedMeeting;
-  const collectionsPaused = Boolean(roster?.collectionsPaused || collectionsReadiness?.collectionsPaused);
-  const lendingClosed = Boolean(collectionsPaused || roster?.lendingClosed || pool?.lendingClosed);
-  const guardedTabs = workflowTabs.filter((tab) => tab.value !== 'loans' || !lendingClosed || m.loanWindows?.some((window) => window.status === 'OPEN')).map((tab) => ({
-    ...tab,
-    label: tab.value === "collections" && collectionsPaused && !m.collectionsFinalizedAt
-      ? "Collections (paused)"
-      : tab.label,
-    disabled: !canGoToStep(tab.value, m, roster, pool),
-  }));
+  if (m.status === "CANCELLED")
+    return (
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">
+              {m.meetingNumber}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              This meeting was cancelled. Its record has been retained.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<FiInfo />}
+            onClick={() => setDetailsOpen(true)}
+          >
+            Meeting details
+          </Button>
+        </div>
+        <MeetingDetailsModal
+          open={detailsOpen}
+          meeting={m}
+          roster={null}
+          report={null}
+          onClose={() => setDetailsOpen(false)}
+        />
+      </Card>
+    );
+  const collectionsPaused = Boolean(
+    roster?.collectionsPaused || collectionsReadiness?.collectionsPaused,
+  );
+  const lendingClosed = Boolean(
+    collectionsPaused || roster?.lendingClosed || pool?.lendingClosed,
+  );
+  const guardedTabs = workflowTabs
+    .filter(
+      (tab) =>
+        tab.value !== "loans" ||
+        !lendingClosed ||
+        m.loanWindows?.some((window) => window.status === "OPEN"),
+    )
+    .map((tab) => ({
+      ...tab,
+      label:
+        tab.value === "collections" &&
+        collectionsPaused &&
+        !m.collectionsFinalizedAt
+          ? "Collections (paused)"
+          : tab.label,
+      disabled: !canGoToStep(tab.value, m, roster, pool),
+    }));
   const setGuardedStep = (next: MeetingStep) => {
     if (canGoToStep(next, m, roster, pool)) void setCeremonyStepWithSync(next);
   };
@@ -171,100 +258,153 @@ export function MeetingControlRoom({
     "fines";
   const stageLocked =
     isEarlyCeremonyLocked(m) &&
-    ["attendance", "fines", "collections", "repayments", "summary"].includes(step);
+    ["attendance", "fines", "collections", "repayments", "summary"].includes(
+      step,
+    );
+  const noticeLocked =
+    busy === "notices" ||
+    ["CLOSED", "COMPLETED", "CANCELLED"].includes(m.status);
+  const canOfferReschedule =
+    canReschedule &&
+    ["SCHEDULED", "NOTICE_SENT", "OPEN"].includes(m.status) &&
+    !m.ceremonyStep &&
+    !m.attendanceFinalizedAt &&
+    !m.collectionsFinalizedAt &&
+    !m.loanStageReachedAt;
+  const meetingMenuItems: RowActionItem[] = [
+    ...(canOfferReschedule
+      ? [
+          {
+            key: "reschedule",
+            label: "Reschedule Meeting",
+            icon: <FiCalendar />,
+            disabled: Boolean(busy),
+            onClick: () => setRescheduleOpen(true),
+          },
+        ]
+      : []),
+    {
+      key: "details",
+      label: "Meeting Details",
+      icon: <FiInfo />,
+      onClick: () => setDetailsOpen(true),
+    },
+    {
+      key: "notice",
+      label: "Send Email Notice",
+      icon: <FiSend />,
+      disabled: noticeLocked,
+      disabledReason: noticeLocked
+        ? "Notices cannot be sent for this meeting."
+        : undefined,
+      onClick: () => void sendNotice(m.id),
+    },
+  ];
 
   return (
-    <Card className="flex min-h-0 flex-col overflow-hidden p-0">
-      <div className="shrink-0 p-5 pb-0">
-        {lendingClosed ? (
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <strong>Lending closed for AGM recovery.</strong> Collect fines and loan repayments, record AOB, and close the meeting. Receipts remain in the welfare's cash balance.
-          </div>
-        ) : null}
-        {isCorrectionMode(m) ? (
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-            Correction mode — changes post with meeting date{" "}
-            {new Date(m.meetingDate).toLocaleDateString("en-KE")}. Correct earlier
-            meetings before later ones. Re-close when done to regenerate the summary.
-          </div>
-        ) : null}
-        {stageLocked ? (
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-            Loan stage is locked. Attendance, fines, and collections can no
-            longer be edited for this meeting.
-          </div>
-        ) : null}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-extrabold text-ink-900">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="shrink-0">
+        <section className="overflow-hidden rounded-[0.8rem] border border-slate-200 bg-white shadow-sm">
+          {lendingClosed ? (
+            <SittingNotice>
+              <strong>Lending closed for AGM recovery.</strong> Collect fines
+              and loan repayments, record AOB, and close the meeting. Receipts
+              remain in the welfare&apos;s cash balance.
+            </SittingNotice>
+          ) : null}
+          {isCorrectionMode(m) ? (
+            <SittingNotice>
+              <strong>Correction mode.</strong> Changes post with meeting date{" "}
+              {new Date(m.meetingDate).toLocaleDateString("en-KE")}. Correct
+              earlier meetings before later ones, then re-close to regenerate
+              the summary.
+            </SittingNotice>
+          ) : null}
+          {stageLocked ? (
+            <SittingNotice>
+              <strong>Loan stage is locked.</strong> Attendance, fines, and
+              collections can no longer be edited for this meeting.
+            </SittingNotice>
+          ) : null}
+          <div className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex items-center gap-3">
+              <h2 className="font-google text-lg font-extrabold tracking-tight text-slate-950">
                 {m.meetingNumber}
-              </h3>
-              <Badge tone={tone(m.status)}>{m.status}</Badge>
-              <Badge>{m.meetingType}</Badge>
+              </h2>
+              <div className="w-px h-4 bg-gray-300" />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
+                <Badge size="xs" tone={tone(m.status)}>
+                  {readableLabel(m.status)}
+                </Badge>
+                <Badge size="xs">{readableLabel(m.meetingType)}</Badge>
+                <span
+                  className="hidden h-3 w-px bg-slate-200 sm:inline-block"
+                  aria-hidden
+                />
+                <span className="inline-flex items-center gap-1.5">
+                  <FiCalendar
+                    className="h-3.5 w-3.5 text-slate-400"
+                    aria-hidden
+                  />
+                  {meetingSchedule(m.meetingDate)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <PiMapPinAreaDuotone
+                    className="h-3.5 w-3.5 text-slate-400"
+                    aria-hidden
+                  />
+                  {m.venue ?? "Venue pending"}
+                </span>
+              </div>
             </div>
-            <p className="mt-1 text-sm text-ink-500">
-              {new Date(m.meetingDate).toLocaleString()} -{" "}
-              {m.venue ?? "Venue pending"}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <RefreshIconButton
-              loading={workspaceSyncing}
-              onClick={() => void refreshWorkspace()}
-            />
-            {canReschedule && ['SCHEDULED', 'NOTICE_SENT', 'OPEN'].includes(m.status) && !m.ceremonyStep && !m.attendanceFinalizedAt && !m.collectionsFinalizedAt && !m.loanStageReachedAt ? <Button size="sm" variant="secondary" disabled={Boolean(busy)} onClick={() => setRescheduleOpen(true)}>Reschedule</Button> : null}
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<FiInfo />}
-              onClick={() => setDetailsOpen(true)}
-            >
-              Meeting details
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<FiSend />}
-              disabled={busy === `notices` || m.status === "CLOSED"}
-              onClick={() => void sendNotice(m.id)}
-            >
-              Email notice
-            </Button>
-            {!meetingStarted && m.status !== "CLOSED" ? (
-              <Button
+            <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+              <RefreshIconButton
                 size="sm"
-                variant="secondary"
-                icon={<FiPlay />}
-                disabled={busy === "start"}
-                onClick={() => void action(m.id, "start")}
-              >
-                Start meeting
-              </Button>
-            ) : null}
-            {meetingStarted && m.status !== "CLOSED" ? (
-              <Button
-                size="sm"
-                variant="secondary2"
-                disabled={false}
-                onClick={() => setGuardedStep(continueStep)}
-              >
-                Continue to {continueStep.replace(/_/g, " ")}
-              </Button>
-            ) : null}
+                loading={workspaceSyncing}
+                onClick={() => void refreshWorkspace()}
+              />
+              <RowActionsMenu
+                items={meetingMenuItems}
+                ariaLabel={`Actions for ${m.meetingNumber}`}
+                size="md"
+              />
+              {!meetingStarted &&
+              !["CLOSED", "COMPLETED", "CANCELLED"].includes(m.status) ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={<FiPlay />}
+                  disabled={busy === "start"}
+                  onClick={() => void action(m.id, "start")}
+                >
+                  Start meeting
+                </Button>
+              ) : null}
+              {meetingStarted && m.status !== "CLOSED" ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={false}
+                  onClick={() => setGuardedStep(continueStep)}
+                >
+                  Continue to {continueStep.replace(/_/g, " ")}
+                </Button>
+              ) : null}
+            </div>
           </div>
-        </div>
-
-        <SegmentedTabs<MeetingStep>
-          tabs={guardedTabs}
-          value={step}
-          onChange={setGuardedStep}
-          className="mt-3"
-        />
+          <SegmentedTabs<MeetingStep>
+            tabs={guardedTabs}
+            value={step}
+            onChange={setGuardedStep}
+            compact
+            aria-label="Meeting workflow"
+            className=" font-bold"
+          />
+        </section>
       </div>
 
       <div
-        className="pt-4 min-h-0 flex-1 overflow-y-auto px-5 pb-2"
+        className="min-h-0 flex-1 overflow-y-auto px-1 pb-2 pt-3"
         data-meeting-step-scroll
         data-route-scroll-container
       >
@@ -300,8 +440,12 @@ export function MeetingControlRoom({
             onNotify={(fineId) => void notifyFine(fineId)}
             onDefer={(fineId) => void deferFine(fineId)}
             onCreateManualFine={(input) => void createManualFine(m.id, input)}
-            mattersArisingDraft={mattersArisingDraft[m.id] ?? m.mattersArising ?? ''}
-            onMattersArisingChange={(value) => setMattersArisingDraft((prev) => ({ ...prev, [m.id]: value }))}
+            mattersArisingDraft={
+              mattersArisingDraft[m.id] ?? m.mattersArising ?? ""
+            }
+            onMattersArisingChange={(value) =>
+              setMattersArisingDraft((prev) => ({ ...prev, [m.id]: value }))
+            }
             onSaveMattersArising={() => void saveMattersArising(m)}
           />
         ) : null}
@@ -328,9 +472,15 @@ export function MeetingControlRoom({
             onFinalize={() => finalizeCollections(m.id)}
             onReopen={(reason) => reopenCollections(m.id, reason)}
             onSkip={() => skipCollections(m.id)}
-            onBulkWaiveWeekly={(weeklyWaived) => bulkWaiveWeeklySavings(m.id, weeklyWaived)}
-            onReverseItem={(itemId, reason) => void reverseCollectionItem(m.id, itemId, reason)}
-            onAdjustItem={(itemId, amount, reason) => void adjustCollectionItem(m.id, itemId, amount, reason)}
+            onBulkWaiveWeekly={(weeklyWaived) =>
+              bulkWaiveWeeklySavings(m.id, weeklyWaived)
+            }
+            onReverseItem={(itemId, reason) =>
+              void reverseCollectionItem(m.id, itemId, reason)
+            }
+            onAdjustItem={(itemId, amount, reason) =>
+              void adjustCollectionItem(m.id, itemId, amount, reason)
+            }
           />
         ) : null}
         {step === "repayments" ? (
@@ -341,14 +491,25 @@ export function MeetingControlRoom({
             collectionDraft={collectionDraft}
             setCollectionDraft={setCollectionDraft}
             rolloverCandidates={rolloverCandidates}
-            rolloverLoading={rolloverCandidatesStatus.meetingId === m.id && rolloverCandidatesStatus.state === "loading"}
-            rolloverLoadError={rolloverCandidatesStatus.meetingId === m.id ? rolloverCandidatesStatus.error : null}
+            rolloverLoading={
+              rolloverCandidatesStatus.meetingId === m.id &&
+              rolloverCandidatesStatus.state === "loading"
+            }
+            rolloverLoadError={
+              rolloverCandidatesStatus.meetingId === m.id
+                ? rolloverCandidatesStatus.error
+                : null
+            }
             onRefreshRollovers={() => void loadRolloverCandidates(m.id)}
             onConfirmRollover={(loanId, periodNumber) =>
               void confirmLoanRollover(m.id, loanId, { periodNumber })
             }
             onWaiveRollover={(loanId, periodNumber, reason, component) =>
-              void waiveLoanRollover(m.id, loanId, { periodNumber, reason, component })
+              void waiveLoanRollover(m.id, loanId, {
+                periodNumber,
+                reason,
+                component,
+              })
             }
             onPost={(memberId, loanId, amount) =>
               void collect(m, memberId, {
@@ -357,8 +518,12 @@ export function MeetingControlRoom({
                 loanId,
               })
             }
-            onReverseItem={(itemId, reason) => void reverseCollectionItem(m.id, itemId, reason)}
-            onAdjustItem={(itemId, amount, reason) => void adjustCollectionItem(m.id, itemId, amount, reason)}
+            onReverseItem={(itemId, reason) =>
+              void reverseCollectionItem(m.id, itemId, reason)
+            }
+            onAdjustItem={(itemId, amount, reason) =>
+              void adjustCollectionItem(m.id, itemId, amount, reason)
+            }
           />
         ) : null}
         {step === "summary" ? (
@@ -373,8 +538,10 @@ export function MeetingControlRoom({
             <AobSection
               meeting={m}
               busy={busy}
-              value={aobDraft[m.id] ?? m.anyOtherBusiness ?? ''}
-              onChange={(value) => setAobDraft((prev) => ({ ...prev, [m.id]: value }))}
+              value={aobDraft[m.id] ?? m.anyOtherBusiness ?? ""}
+              onChange={(value) =>
+                setAobDraft((prev) => ({ ...prev, [m.id]: value }))
+              }
               onSave={() => void saveAob(m)}
             />
             <ResolutionsStep
@@ -399,7 +566,9 @@ export function MeetingControlRoom({
             reserveForm={reserveForm}
             setReserveForm={setReserveForm}
             onOpenWindow={() => void openLoanWindow(m.id)}
-            onCloseWindow={(id, options) => void closeLoanWindow(id, m, options)}
+            onCloseWindow={(id, options) =>
+              void closeLoanWindow(id, m, options)
+            }
             onReopenWindow={(id) => void reopenLoanWindow(id)}
             onUpdateReservation={(r) => void updateReservation(r)}
             onReleaseReservation={(r) => void releaseReservation(r)}
@@ -416,24 +585,26 @@ export function MeetingControlRoom({
             <AobSection
               meeting={m}
               busy={busy}
-              value={aobDraft[m.id] ?? m.anyOtherBusiness ?? ''}
-              onChange={(value) => setAobDraft((prev) => ({ ...prev, [m.id]: value }))}
+              value={aobDraft[m.id] ?? m.anyOtherBusiness ?? ""}
+              onChange={(value) =>
+                setAobDraft((prev) => ({ ...prev, [m.id]: value }))
+              }
               onSave={() => void saveAob(m)}
             />
-          <CloseStep
-            meeting={m}
-            busy={busy}
-            minutesDraft={minutesDraft}
-            setMinutesDraft={setMinutesDraft}
-            meetingReport={meetingReport}
-            onCloseMeeting={() => void closeMeeting(m.id)}
-            onSaveMinutes={() => void saveMinutes(m)}
-            onPublish={() => void publishMinutes(m.id)}
-            onUploadMinutes={(file) => void uploadMinutesDocument(m.id, file)}
-            onSendSummary={() => void sendSummaryToMembers(m.id)}
-            onAdminReopen={(input) => void adminReopenMeeting(m.id, input)}
-            canClose={canClose}
-          />
+            <CloseStep
+              meeting={m}
+              busy={busy}
+              minutesDraft={minutesDraft}
+              setMinutesDraft={setMinutesDraft}
+              meetingReport={meetingReport}
+              onCloseMeeting={() => void closeMeeting(m.id)}
+              onSaveMinutes={() => void saveMinutes(m)}
+              onPublish={() => void publishMinutes(m.id)}
+              onUploadMinutes={(file) => void uploadMinutesDocument(m.id, file)}
+              onSendSummary={() => void sendSummaryToMembers(m.id)}
+              onAdminReopen={(input) => void adminReopenMeeting(m.id, input)}
+              canClose={canClose}
+            />
           </div>
         ) : null}
       </div>
@@ -446,11 +617,17 @@ export function MeetingControlRoom({
         roster={roster}
         pool={pool}
         disabled={false}
-        collectionsReady={collectionsReadiness?.ready || collectionsOverride || collectionsPaused}
+        collectionsReady={
+          collectionsReadiness?.ready ||
+          collectionsOverride ||
+          collectionsPaused
+        }
         repaymentsReady={
-          rolloverCandidatesStatus.meetingId === m.id
-          && rolloverCandidatesStatus.state === "loaded"
-          && !rolloverCandidates.some((candidate) => candidate.status === "PENDING")
+          rolloverCandidatesStatus.meetingId === m.id &&
+          rolloverCandidatesStatus.state === "loaded" &&
+          !rolloverCandidates.some(
+            (candidate) => candidate.status === "PENDING",
+          )
         }
       />
 
@@ -470,7 +647,12 @@ export function MeetingControlRoom({
         report={meetingReport}
         onClose={() => setDetailsOpen(false)}
       />
-      <MeetingRescheduleModal open={rescheduleOpen} meeting={m} onClose={() => setRescheduleOpen(false)} onSaved={refreshWorkspace} />
-    </Card>
+      <MeetingRescheduleModal
+        open={rescheduleOpen}
+        meeting={m}
+        onClose={() => setRescheduleOpen(false)}
+        onSaved={refreshWorkspace}
+      />
+    </div>
   );
 }

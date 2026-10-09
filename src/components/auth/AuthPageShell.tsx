@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import AuthLeftPanel from "@/components/ui/AuthLeftPanel";
 
-export const AUTH_CARD_CLASS = "lg:bg-white lg:rounded-4xl lg:shadow-lg";
+export const AUTH_CARD_CLASS = "backdrop-blur-xs";
 
 type AuthPageShellProps = {
   heading: ReactNode;
@@ -75,7 +75,7 @@ export function AuthPageShell({
             aria-hidden
           /> */}
           <div
-            className="pointer-events-none absolute inset-0 bg-white/80"
+            className="pointer-events-none absolute inset-0 bg-white/90"
             aria-hidden
           />
 

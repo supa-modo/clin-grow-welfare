@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
-import { FiFileText, FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
+import { FiFileText, FiChevronDown, FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
 import { HiArrowsUpDown } from "react-icons/hi2";
 import MultiFilterDropdown, {
   type MultiFilterSection,
@@ -33,6 +33,7 @@ type DataTableProps<T> = {
   onPageChange?: (page: number) => void;
   pageSize?: number;
   pageSizeOptions?: number[];
+  /** For server pagination, update the page size and reset the page to 1 together. */
   onPageSizeChange?: (pageSize: number) => void;
   isAllSelected?: boolean;
   onToggleAll?: (checked: boolean) => void;
@@ -69,6 +70,8 @@ type DataTableProps<T> = {
   containerClassName?: string;
   tableContainerClassName?: string;
   fillContainer?: boolean;
+  /** When false, every row is shown and the page controls are hidden. Server pagination via `onPageChange` is unchanged. */
+  clientPagination?: boolean;
   emptyTitle?: string;
   emptyMessage?: string;
   /** Optional toolbar actions (buttons, links, etc.) shown beside search/filter. */
@@ -119,6 +122,10 @@ function resolveColumnId<T>(column: Column<T>, index: number) {
     (typeof column.accessor === "string" ? column.accessor : undefined) ??
     `${column.header}-${index}`
   );
+}
+
+function isActionColumn<T>(column: Column<T>, lastColumn: boolean) {
+  return lastColumn && (!column.header.trim() || [column.id, column.key, column.header].some(value => value && /^(actions?|options)$/i.test(value.trim())));
 }
 
 function compareValues(
@@ -184,11 +191,11 @@ export function DataTableToolbar({
     return null;
 
   return (
-    <div className={clsx("px-2 py-2.5 lg:px-2", className)}>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div className={clsx("border-b border-slate-200 px-3 py-2.5", className)}>
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         {hasBulkActions ? (
-          <div className="flex w-full flex-wrap items-center gap-2">
-            <p className="text-xs font-bold text-slate-600 lg:text-sm">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold text-slate-600">
               {selectedCount ?? 0} selected
             </p>
             {bulkActions ? (
@@ -212,9 +219,7 @@ export function DataTableToolbar({
                 aria-label={searchAriaLabel}
                 wrapperClassName={clsx(
                   "w-full max-w-none",
-                  hasBulkActions
-                    ? "md:max-w-3xl lg:max-w-5xl"
-                    : "md:max-w-3xl lg:max-w-5xl",
+                  "md:max-w-md",
                 )}
               />
             ) : null}
@@ -229,7 +234,7 @@ export function DataTableToolbar({
               />
             ) : null}
             {showActionsButtons ? (
-              <div className="flex flex-wrap gap-2">{actionsButtons}</div>
+              <div className="flex shrink-0 flex-wrap gap-2 md:ml-auto">{actionsButtons}</div>
             ) : null}
           </div>
         ) : null}
@@ -285,6 +290,7 @@ export function DataTable<T>({
   containerClassName,
   tableContainerClassName,
   fillContainer = false,
+  clientPagination = true,
   emptyTitle,
   emptyMessage,
 }: DataTableProps<T>) {
@@ -296,22 +302,23 @@ export function DataTable<T>({
   const [localPage, setLocalPage] = useState(1);
   const [localPageSize, setLocalPageSize] = useState(50);
   const serverPagination = Boolean(onPageChange);
+  const paginateLocally = clientPagination && !serverPagination;
   const effectivePageSize = pageSize ?? localPageSize;
-  const effectiveTotalPages = serverPagination ? Math.max(1, totalPages) : Math.max(1, Math.ceil(rows.length / effectivePageSize));
-  const effectivePage = serverPagination ? currentPage : Math.min(localPage, effectiveTotalPages);
+  const effectiveTotalPages = serverPagination ? Math.max(1, totalPages) : paginateLocally ? Math.max(1, Math.ceil(rows.length / effectivePageSize)) : 1;
+  const effectivePage = serverPagination ? currentPage : paginateLocally ? Math.min(localPage, effectiveTotalPages) : 1;
   const changePage = (next: number) => {
     const bounded = Math.min(effectiveTotalPages, Math.max(1, next));
     if (serverPagination) onPageChange?.(bounded); else setLocalPage(bounded);
   };
   useEffect(() => { setLocalPage(1); }, [searchValue, filterValue, rows.length]);
-  const effectiveStartIndex = serverPagination ? startIndex : rows.length ? (effectivePage - 1) * effectivePageSize + 1 : 0;
+  const effectiveStartIndex = serverPagination ? startIndex : rows.length ? (paginateLocally ? (effectivePage - 1) * effectivePageSize + 1 : 1) : 0;
   const options = [...new Set([...pageSizeOptions, effectivePageSize])].sort((a, b) => a - b);
 
   const resolvedShowCheckboxes =
     showCheckboxes ?? Boolean(onToggleRow || onToggleAll);
   const resolvedTotalItems = totalItems ?? rows.length;
   const resolvedEndIndex =
-    serverPagination ? (endIndex ?? (rows.length ? startIndex + rows.length - 1 : 0)) : Math.min(effectivePage * effectivePageSize, rows.length);
+    serverPagination ? (endIndex ?? (rows.length ? startIndex + rows.length - 1 : 0)) : paginateLocally ? Math.min(effectivePage * effectivePageSize, rows.length) : rows.length;
   const colSpan =
     columns.length +
     (resolvedShowCheckboxes ? 1 : 0) +
@@ -361,7 +368,9 @@ export function DataTable<T>({
     setSortDirection(null);
   }
 
-  const visibleRows = serverPagination ? sortedRows : sortedRows.slice((effectivePage - 1) * effectivePageSize, effectivePage * effectivePageSize);
+  const visibleRows = paginateLocally ? sortedRows.slice((effectivePage - 1) * effectivePageSize, effectivePage * effectivePageSize) : sortedRows;
+  const paginationButtonClassName =
+    "inline-flex h-8 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-secondary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent";
   const commitPageInput = (input: HTMLInputElement) => {
     const next = Number(input.value);
     if (Number.isInteger(next) && next >= 1) changePage(next);
@@ -371,7 +380,7 @@ export function DataTable<T>({
   return (
     <div
       className={clsx(
-        "overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm",
+        "overflow-hidden rounded-[0.8rem] border border-slate-200 bg-white",
         fillContainer && "flex h-full min-h-0 flex-col",
         containerClassName,
       )}
@@ -402,13 +411,13 @@ export function DataTable<T>({
           tableContainerClassName,
         )}
       >
-        <table className="w-full min-w-full border-collapse text-sm text-gray-700">
-          <thead className="border-y border-primary-500 bg-primary-50 text-left font-semibold text-gray-700">
+        <table className="w-full min-w-full border-collapse text-left text-[0.82rem] text-slate-700">
+          <thead className="sticky top-0 z-[1] border-b border-slate-200 bg-slate-50 text-left text-[0.7rem] font-bold uppercase tracking-wide text-slate-600">
             <tr>
               {resolvedShowCheckboxes ? (
                 <th
                   scope="col"
-                  className="hidden rounded-tl-xl py-2.5 pl-3 text-left text-gray-700 sm:table-cell lg:pl-6 lg:py-3"
+                  className="hidden w-10 px-3 py-2.5 text-left sm:table-cell"
                 >
                   <Checkbox
                     checked={isAllSelected}
@@ -422,7 +431,7 @@ export function DataTable<T>({
                 <th
                   scope="col"
                   className={clsx(
-                    "hidden py-2.5 pl-1.5 text-left text-gray-700 sm:table-cell lg:pl-2 lg:py-3",
+                    "w-10 px-3 py-2.5 text-left",
                     !resolvedShowCheckboxes ? "rounded-tl-xl" : "",
                   )}
                 >
@@ -446,7 +455,8 @@ export function DataTable<T>({
                     scope="col"
                     aria-sort={column.sortable ? ariaSort : undefined}
                     className={clsx(
-                      "px-3 py-2.5 text-left text-sm lg:px-4 lg:py-3",
+                      "px-3 py-2.5 text-left",
+                      isActionColumn(column, index === columns.length - 1 && !actions) && "sticky right-0 z-[2] whitespace-nowrap border-l border-slate-200 bg-slate-50",
                       column.headerClassName,
                     )}
                   >
@@ -466,7 +476,7 @@ export function DataTable<T>({
                         />
                       </button>
                     ) : (
-                      <span className="block text-left">{column.header}</span>
+                      <span className="block text-left">{column.header || (isActionColumn(column, index === columns.length - 1 && !actions) ? "Actions" : "")}</span>
                     )}
                   </th>
                 );
@@ -475,7 +485,7 @@ export function DataTable<T>({
               {actions ? (
                 <th
                   scope="col"
-                  className="rounded-tr-xl px-3 py-2.5 text-right lg:px-4 lg:py-3"
+                  className="sticky right-0 z-[2] w-12 whitespace-nowrap border-l border-slate-200 bg-slate-50 px-3 py-2.5 text-right"
                 >
                   {actionsLabel}
                 </th>
@@ -488,12 +498,12 @@ export function DataTable<T>({
               Array.from({ length: Math.max(1, loadingSkeletonRows) }).map((_, rowIndex) => (
                 <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
                   {resolvedShowCheckboxes ? (
-                    <td className="hidden pl-3 py-4 md:table-cell lg:pl-4">
+                    <td className="hidden px-3 py-4 sm:table-cell">
                       <div className="h-4 w-4 rounded bg-slate-200" />
                     </td>
                   ) : null}
                   {showAutoNumber ? (
-                    <td className="pl-3 py-4 lg:pl-4">
+                    <td className="px-3 py-4">
                       <div className="h-4 w-4 rounded bg-slate-200" />
                     </td>
                   ) : null}
@@ -501,13 +511,13 @@ export function DataTable<T>({
                   {columns.map((column, columnIndex) => (
                     <td
                       key={`${resolveColumnId(column, columnIndex)}-skeleton-${rowIndex}`}
-                      className="pl-3 py-4 md:pl-4"
+                      className={clsx("px-3 py-4", column.cellClassName, isActionColumn(column, columnIndex === columns.length - 1 && !actions) && "sticky right-0 bg-white")}
                     >
                       <div className="h-4 rounded bg-slate-200" />
                     </td>
                   ))}
                   {actions ? (
-                    <td className="pl-3 py-4 md:pl-4">
+                    <td className="sticky right-0 bg-white px-3 py-4">
                       <div className="ml-auto h-4 w-14 rounded bg-slate-200" />
                     </td>
                   ) : null}
@@ -515,10 +525,10 @@ export function DataTable<T>({
               ))
             ) : sortedRows.length === 0 ? (
               <tr>
-                <td colSpan={colSpan} className="pl-3 py-24 md:pl-4 text-center">
+                <td colSpan={colSpan} className="px-3 py-12 text-center">
                   <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3">
-                    <div className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-slate-400">
-                      <FiFileText className="h-8 w-8" aria-hidden />
+                    <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
+                      <FiFileText className="h-6 w-6" aria-hidden />
                     </div>
                     <div>
                       <h3 className="text-base font-extrabold text-slate-700">
@@ -549,17 +559,19 @@ export function DataTable<T>({
                 return (
                   <tr
                     key={`row-${rowId}`}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onClick={onRowClick ? event => { if (!(event.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) onRowClick(row); } : undefined}
+                    onKeyDown={onRowClick ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row); } } : undefined}
                     className={clsx(
-                      "border-b border-gray-200 bg-white transition-colors duration-150 hover:bg-gray-50/90",
-                      selected && "bg-primary-50/70 hover:bg-primary-50/70",
+                      "group border-b border-slate-100 outline-none transition-colors last:border-b-0 hover:bg-[#EFF6FF] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500",
+                      selected && "bg-blue-100 hover:bg-blue-100",
                       onRowClick && "cursor-pointer",
                       getRowClassName?.(row),
                     )}
                   >
                     {resolvedShowCheckboxes ? (
                       <td
-                        className="hidden py-3 pl-3 sm:table-cell lg:pl-6 lg:py-4"
+                        className="hidden px-3 py-2 sm:table-cell"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Checkbox
@@ -574,7 +586,7 @@ export function DataTable<T>({
                     ) : null}
 
                     {showAutoNumber ? (
-                      <td className="py-3 pl-3 text-sm font-medium text-gray-600 lg:pl-4 lg:py-4">
+                      <td className="px-3 py-2 text-xs font-medium tabular-nums text-slate-500">
                         {effectiveStartIndex > 0 ? effectiveStartIndex + visibleIndex : visibleIndex + 1}.
                       </td>
                     ) : null}
@@ -585,7 +597,9 @@ export function DataTable<T>({
                         <td
                           key={`cell-${columnId}-${rowId}`}
                           className={clsx(
-                            "px-3 py-3 text-left align-middle lg:px-4 lg:py-3.5",
+                            "px-3 py-2 text-left align-middle",
+                            isActionColumn(column, columnIndex === columns.length - 1 && !actions) && "sticky right-0 whitespace-nowrap border-l border-slate-100 group-hover:bg-[#EFF6FF]",
+                            isActionColumn(column, columnIndex === columns.length - 1 && !actions) && (selected ? "bg-blue-100 group-hover:bg-blue-100" : "bg-white"),
                             column.cellClassName,
                           )}
                         >
@@ -600,7 +614,7 @@ export function DataTable<T>({
 
                     {actions ? (
                       <td
-                        className="px-3 py-3 text-right text-slate-700 lg:px-4"
+                        className={clsx("sticky right-0 whitespace-nowrap border-l border-slate-100 px-3 py-2 text-right text-slate-700 group-hover:bg-[#EFF6FF]", selected ? "bg-blue-100 group-hover:bg-blue-100" : "bg-white")}
                         onClick={(event) => event.stopPropagation()}
                       >
                         {actions(row)}
@@ -614,32 +628,67 @@ export function DataTable<T>({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-slate-200 bg-white px-5 py-2 text-sm text-[#16365d]">
-        <span className="text-xs text-slate-500" role="status">
-          {resolvedTotalItems > 0 ? `Showing ${effectiveStartIndex} to ${resolvedEndIndex} of ${resolvedTotalItems}` : 'Showing 0 to 0 of 0'}
+      <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+        <span className="text-[0.75rem] font-semibold tracking-tight text-secondary-600 lg:text-[0.8rem]" role="status">
+          {resolvedTotalItems > 0 ? `Showing ${effectiveStartIndex} to ${resolvedEndIndex} of ${resolvedTotalItems}` : "Showing 0 to 0 of 0"}
         </span>
-        <nav aria-label="Table pagination" className="flex flex-wrap items-center gap-4 py-0.5">
-          <label className="flex items-center gap-2.5 whitespace-nowrap">
-            <span>Rows per page</span>
-            <select aria-label="Rows per page" value={effectivePageSize} disabled={tableLoading || (serverPagination && !onPageSizeChange)}
-              onChange={event => { const size = Number(event.target.value); if (onPageSizeChange) onPageSizeChange(size); else setLocalPageSize(size); changePage(1); }}
-              className="h-8 w-[72px] rounded-lg border border-[#bcc5d1] bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50">
-              {options.map(option => <option key={option} value={option}>{option}</option>)}
-            </select>
+        {serverPagination || paginateLocally ? (
+        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-[0.7rem] font-normal text-gray-600 lg:text-[0.8rem]">
+          <label className="flex items-center gap-2 whitespace-nowrap">
+            <span className="text-[0.7rem] font-semibold lg:text-[0.8rem]">Rows per page</span>
+            <span className="relative">
+              <select
+                aria-label="Rows per page"
+                value={effectivePageSize}
+                disabled={tableLoading || (serverPagination && !onPageSizeChange)}
+                onChange={(event) => {
+                  const size = Number(event.target.value);
+                  if (onPageSizeChange) {
+                    onPageSizeChange(size);
+                    if (!serverPagination) setLocalPage(1);
+                  } else {
+                    setLocalPageSize(size);
+                    changePage(1);
+                  }
+                }}
+                className="h-6 min-w-[4.5rem] appearance-none rounded-lg border border-slate-300 bg-white pl-2.5 pr-8 text-[0.7rem] font-semibold outline-none transition focus:border-primary-600 disabled:opacity-50 lg:text-[0.8rem]"
+              >
+                {options.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <FiChevronDown
+                aria-hidden
+                className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+              />
+            </span>
           </label>
-          <span aria-hidden className="h-5 w-px bg-slate-200" />
-          <div className="flex items-center gap-2">
-            <button type="button" aria-label="First page" onClick={() => changePage(1)} disabled={tableLoading || effectivePage <= 1 || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronsLeft className="h-4 w-4" /></button>
-            <button type="button" aria-label="Previous" onClick={() => changePage(effectivePage - 1)} disabled={tableLoading || effectivePage <= 1 || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronLeft className="h-4 w-4" /></button>
-            <input key={effectivePage} aria-label="Page number" inputMode="numeric" defaultValue={effectivePage} disabled={tableLoading || !resolvedTotalItems}
-              onBlur={event => commitPageInput(event.currentTarget)}
-              onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { event.currentTarget.value = String(effectivePage); event.currentTarget.blur(); } }}
-              className="h-8 w-16 rounded-lg border border-[#bcc5d1] bg-white px-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50" />
-            <span className="whitespace-nowrap">of <span className="ml-1">{effectiveTotalPages}</span></span>
-            <button type="button" aria-label="Next" onClick={() => changePage(effectivePage + 1)} disabled={tableLoading || effectivePage >= effectiveTotalPages || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronRight className="h-4 w-4" /></button>
-            <button type="button" aria-label="Last page" onClick={() => changePage(effectiveTotalPages)} disabled={tableLoading || effectivePage >= effectiveTotalPages || !resolvedTotalItems} className="grid h-8 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"><FiChevronsRight className="h-4 w-4" /></button>
-          </div>
-        </nav>
+          <nav aria-label="Table pagination" className="flex items-center gap-1 border-l border-slate-200 pl-4">
+            <button type="button" aria-label="First page" title="First page" onClick={() => changePage(1)} disabled={tableLoading || effectivePage <= 1 || !resolvedTotalItems} className={paginationButtonClassName}><FiChevronsLeft aria-hidden className="h-4 w-4" /></button>
+            <button type="button" aria-label="Previous page" title="Previous page" onClick={() => changePage(effectivePage - 1)} disabled={tableLoading || effectivePage <= 1 || !resolvedTotalItems} className={paginationButtonClassName}><FiChevronLeft aria-hidden className="h-4 w-4" /></button>
+            <input
+              key={effectivePage}
+              type="text"
+              inputMode="numeric"
+              aria-label="Page number"
+              defaultValue={effectivePage}
+              disabled={tableLoading || effectiveTotalPages <= 1 || !resolvedTotalItems}
+              onBlur={(event) => commitPageInput(event.currentTarget)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") {
+                  event.currentTarget.value = String(effectivePage);
+                  event.currentTarget.blur();
+                }
+              }}
+              className="mx-1 h-6 w-12 rounded-lg border border-slate-300 bg-white px-2 text-center text-[0.7rem] font-semibold tabular-nums outline-none transition focus:border-primary-600 disabled:opacity-100 lg:text-[0.8rem]"
+            />
+            <span className="mr-1 whitespace-nowrap font-semibold tabular-nums">of {effectiveTotalPages}</span>
+            <button type="button" aria-label="Next page" title="Next page" onClick={() => changePage(effectivePage + 1)} disabled={tableLoading || effectivePage >= effectiveTotalPages || !resolvedTotalItems} className={paginationButtonClassName}><FiChevronRight aria-hidden className="h-4 w-4" /></button>
+            <button type="button" aria-label="Last page" title="Last page" onClick={() => changePage(effectiveTotalPages)} disabled={tableLoading || effectivePage >= effectiveTotalPages || !resolvedTotalItems} className={paginationButtonClassName}><FiChevronsRight aria-hidden className="h-4 w-4" /></button>
+          </nav>
+        </div>
+        ) : null}
       </div>
     </div>
   );
