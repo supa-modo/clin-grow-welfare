@@ -96,7 +96,6 @@ export function useMeetingCeremony(meetingId?: string) {
   const [minutesDraft, setMinutesDraft] = useState<Record<string, string>>({});
   const [mattersArisingDraft, setMattersArisingDraft] = useState<Record<string, string>>({});
   const [aobDraft, setAobDraft] = useState<Record<string, string>>({});
-  const [showAttendanceFinalize, setShowAttendanceFinalize] = useState(false);
   const [savedAttendanceIds, setSavedAttendanceIds] = useState<Record<string, boolean>>({});
   const [collectionsReadiness, setCollectionsReadiness] = useState<{
     ready: boolean;
@@ -177,7 +176,8 @@ export function useMeetingCeremony(meetingId?: string) {
       ? selectedMeeting.ceremonyStep as MeetingStep
       : null;
     const storedStep = readStoredStep(selectedMeeting.id);
-    setStep(clampCeremonyStep(storedStep, serverStep));
+    const restored = clampCeremonyStep(storedStep, serverStep);
+    setStep(restored === 'fines' && !selectedMeeting.finesGeneratedAt && !['CLOSED', 'COMPLETED', 'CANCELLED'].includes(selectedMeeting.status) ? 'attendance' : restored);
   }, [selectedMeeting?.ceremonyStep, selectedMeeting?.id]);
 
   useEffect(() => {
@@ -189,7 +189,8 @@ export function useMeetingCeremony(meetingId?: string) {
 
   const syncCeremonyStepToServer = useCallback(async (meetingId: string, next: MeetingStep) => {
     if (selectedMeeting?.status === 'CLOSED' && !selectedMeeting?.correctionModeAt) return;
-    await api.patch(`/meetings/${meetingId}/ceremony-step`, { step: next });
+    const res = await api.patch(`/meetings/${meetingId}/ceremony-step`, { step: next });
+    return res.data.meeting as MeetingRecord | undefined;
   }, [selectedMeeting?.status, selectedMeeting?.correctionModeAt]);
 
   const setCeremonyStepWithSync = useCallback(async (next: MeetingStep) => {
@@ -223,10 +224,20 @@ export function useMeetingCeremony(meetingId?: string) {
       return;
     }
     try {
-      await syncCeremonyStepToServer(selectedMeeting.id, next);
+      setBusy(next === 'fines' ? 'fines-prepare' : 'step-change');
+      const updated = await syncCeremonyStepToServer(selectedMeeting.id, next);
+      if (next === 'fines') {
+        const rosterRes = await api.get(`/meetings/${selectedMeeting.id}/roster`);
+        setRoster(rosterRes.data as MeetingRoster);
+      }
+      // Keep restoration in sync before updating the server-backed meeting record.
+      window.localStorage.setItem(CEREMONY_STORAGE_KEY, JSON.stringify({ meetingId: selectedMeeting.id, step: next }));
       setStep(next);
+      if (updated) mergeMeetingIntoList(updated);
     } catch (error) {
       toastError('Cannot advance meeting step', getApiError(error));
+    } finally {
+      setBusy('');
     }
   }, [
     selectedMeeting,
@@ -833,49 +844,31 @@ export function useMeetingCeremony(meetingId?: string) {
     }
   };
 
-  const saveAllAttendance = async (meetingId: string) => {
+  const saveAllAttendance = (meetingId: string) => {
     if (!roster?.members.length) return;
-    const correctionOverride = Boolean(selectedMeeting?.correctionModeAt);
-    setBusy('attendance-bulk');
-    try {
-      const rows = roster.members.map((row) => ({
-        memberId: row.member.id,
-        attendanceStatus: resolveAttendanceStatus(row, attendanceDraft[row.member.id]),
-      }));
-      const res = await api.post(`/meetings/${meetingId}/attendance/bulk`, {
-        rows,
-        ...(correctionOverride ? { override: true } : {}),
-      });
-      const attendanceRows = (res.data.attendance ?? []) as Array<{ memberId: string; attendanceStatus: string }>;
-      patchAttendanceRows(attendanceRows);
-      setSavedAttendanceIds((s) => {
-        const next = { ...s };
-        for (const row of attendanceRows) next[row.memberId] = true;
-        return next;
-      });
-      setShowAttendanceFinalize(true);
-    } catch (err) {
-      toastError('Bulk attendance failed', getApiError(err));
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const finalizeAttendance = (meetingId: string) => {
+    const rows = roster.members.map((row) => ({
+      memberId: row.member.id,
+      attendanceStatus: resolveAttendanceStatus(row, attendanceDraft[row.member.id]),
+    }));
     confirmAction({
       key: 'attendance-finalize',
-      title: 'Finalize attendance?',
-      message: 'Attendance will be locked. Fines and collections steps will unlock after finalization.',
-      confirmText: 'Finalize',
+      title: 'Save and finalize attendance?',
+      message: `Save attendance for all ${rows.length} members and lock it? Attendance fines will be generated automatically when you continue to Fines.`,
+      confirmText: 'Save all and finalize',
       run: async () => {
         setBusy('attendance-finalize');
         try {
+          const saved = await api.post(`/meetings/${meetingId}/attendance/bulk`, {
+            rows, ...(selectedMeeting?.correctionModeAt ? { override: true } : {}),
+          });
+          patchAttendanceRows(saved.data.attendance ?? []);
+          setSavedAttendanceIds(Object.fromEntries(rows.map((row) => [row.memberId, true])));
           const res = await api.post(`/meetings/${meetingId}/attendance/finalize`);
-          setShowAttendanceFinalize(false);
           mergeMeetingFromResponse(res.data.meeting as MeetingRecord);
-          toastSuccess('Attendance finalized', 'Attendance is locked. Continue to fines when ready.');
+          setStep('attendance');
+          toastSuccess('Attendance finalized', 'Continue to Fines to review attendance and carried-forward fines.');
         } catch (err) {
-          toastError('Finalize failed', getApiError(err));
+          toastError('Could not finalize attendance', getApiError(err));
         } finally {
           setBusy('');
         }
@@ -1033,14 +1026,14 @@ export function useMeetingCeremony(meetingId?: string) {
     confirmAction({
       key: `fine-defer-${fineId}`,
       type: 'delete',
-      title: 'Mark fine not paid?',
-      message: 'This fine will remain deferred as the same record until it is paid or waived.',
+      title: 'Defer fine to the next meeting?',
+      message: 'Keep this fine outstanding and move its collection to the next meeting. No additional fine will be created.',
       confirmText: 'Defer fine',
       run: async () => {
         setBusy(`fine-defer-${fineId}`);
         try {
-          const res = await api.post(`/meetings/fines/${fineId}/defer`);
-          if (res.data.fine) patchFineInRoster(res.data.fine, 'update');
+          const res = await api.post(`/meetings/${selectedMeeting!.id}/fines/${fineId}/defer`);
+          if (res.data.fine) await loadRoster(selectedMeeting!.id);
           toastSuccess('Fine deferred', 'The same fine will remain deferred until it is resolved.');
         } catch (err) {
           toastError('Defer failed', getApiError(err));
@@ -1049,6 +1042,19 @@ export function useMeetingCeremony(meetingId?: string) {
         }
       },
     });
+  };
+
+  const waiveFine = async (fineId: string, reason: string) => {
+    if (!selectedMeeting) return;
+    setBusy(`fine-waive-${fineId}`);
+    try {
+      await api.post(`/meetings/${selectedMeeting.id}/fines/${fineId}/waive`, { reason });
+      await loadRoster(selectedMeeting.id);
+      toastSuccess('Fine waived', 'The waiver reason has been recorded in the audit history.');
+    } catch (err) {
+      toastError('Could not waive fine', getApiError(err));
+      throw err;
+    } finally { setBusy(''); }
   };
 
   const reviewApology = async (apologyId: string, decision: 'ACCEPTED' | 'REJECTED') => {
@@ -1067,8 +1073,8 @@ export function useMeetingCeremony(meetingId?: string) {
   const notifyFine = async (fineId: string) => {
     setBusy(`fine-notify-${fineId}`);
     try {
-      await api.post(`/meetings/fines/${fineId}/notify`);
-      toastSuccess('Fine reminder sent', 'The member has been notified by email and in-app notification.');
+      const res = await api.post(`/meetings/${selectedMeeting!.id}/fines/${fineId}/notify`);
+      toastSuccess('Reminder queued', `The email lists all ${res.data.count} pending fines and their total.`);
     } catch (err) {
       toastError('Fine notification failed', getApiError(err));
     } finally {
@@ -1622,11 +1628,9 @@ export function useMeetingCeremony(meetingId?: string) {
     adminReopenMeeting,
     markAttendance,
     saveAllAttendance,
-    finalizeAttendance,
-    showAttendanceFinalize,
-    setShowAttendanceFinalize,
     savedAttendanceIds,
     deferFine,
+    waiveFine,
     collectionsReadiness,
     collectionsOverride,
     setCollectionsOverride,

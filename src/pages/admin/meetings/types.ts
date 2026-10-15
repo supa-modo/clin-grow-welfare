@@ -95,7 +95,7 @@ export type RosterMember = {
       paidMonths?: string[];
       paymentsByMonth?: Record<string, number>;
     };
-    fines: { pendingTotal: number; rows: Array<{ id: string; fineType: string; amount: number; status: string; carriedForward?: boolean }> };
+    fines: { pendingTotal: number; rows: Array<{ id: string; fineType: string; amount: number; status: string; deferredThisMeeting?: boolean; carriedForward?: boolean }> };
     loans: {
       active: Array<{
         id: string;

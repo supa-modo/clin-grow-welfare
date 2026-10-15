@@ -131,15 +131,12 @@ export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
     setReserveForm,
     action,
     sendNotice,
-    generateFines,
     createManualFine,
     markAttendance,
     saveAllAttendance,
-    finalizeAttendance,
-    showAttendanceFinalize,
-    setShowAttendanceFinalize,
     savedAttendanceIds,
     deferFine,
+    waiveFine,
     collectionsReadiness,
     collectionsOverride,
     setCollectionsOverride,
@@ -245,10 +242,10 @@ export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
         !m.collectionsFinalizedAt
           ? "Collections (paused)"
           : tab.label,
-      disabled: !canGoToStep(tab.value, m, roster, pool),
+      disabled: Boolean(busy) || !canGoToStep(tab.value, m, roster, pool),
     }));
   const setGuardedStep = (next: MeetingStep) => {
-    if (canGoToStep(next, m, roster, pool)) void setCeremonyStepWithSync(next);
+    if (!busy && canGoToStep(next, m, roster, pool)) void setCeremonyStepWithSync(next);
   };
   const canClose = canCloseMeeting(m, roster, pool);
   const meetingStarted = isMeetingStarted(m);
@@ -416,11 +413,8 @@ export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
             attendanceDraft={attendanceDraft}
             setAttendanceDraft={setAttendanceDraft}
             savedAttendanceIds={savedAttendanceIds}
-            showFinalize={showAttendanceFinalize}
             onSaveRow={(memberId) => void markAttendance(m.id, memberId)}
             onSaveAll={() => void saveAllAttendance(m.id)}
-            onCloseFinalize={() => setShowAttendanceFinalize(false)}
-            onFinalize={() => void finalizeAttendance(m.id)}
             onReviewApology={(id, decision) => void reviewApology(id, decision)}
           />
         ) : null}
@@ -429,7 +423,6 @@ export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
             meeting={m}
             roster={roster}
             busy={busy}
-            onGenerate={() => void generateFines(m.id)}
             onCollectFine={(memberId, fine) =>
               void collect(m, memberId, {
                 type: "FINE_PAYMENT",
@@ -439,6 +432,7 @@ export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
             }
             onNotify={(fineId) => void notifyFine(fineId)}
             onDefer={(fineId) => void deferFine(fineId)}
+            onWaive={waiveFine}
             onCreateManualFine={(input) => void createManualFine(m.id, input)}
             mattersArisingDraft={
               mattersArisingDraft[m.id] ?? m.mattersArising ?? ""
@@ -616,7 +610,7 @@ export function MeetingControlRoom({ ceremony }: { ceremony: Ceremony }) {
         meeting={m}
         roster={roster}
         pool={pool}
-        disabled={false}
+        disabled={Boolean(busy)}
         collectionsReady={
           collectionsReadiness?.ready ||
           collectionsOverride ||

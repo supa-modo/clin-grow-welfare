@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import DataTable from "@/components/ui/DataTable";
-import SlideOver from "@/components/ui/SlideOver";
 import Select from "@/components/ui/Select";
 import { money, tone } from "@/pages/admin/shared/adminFormatters";
 import type { MeetingRecord, MeetingRoster } from "../../types";
@@ -31,11 +30,8 @@ type Props = {
     React.SetStateAction<Record<string, string>>
   >;
   savedAttendanceIds: Record<string, boolean>;
-  showFinalize: boolean;
   onSaveRow: (memberId: string) => void;
   onSaveAll: () => void;
-  onCloseFinalize: () => void;
-  onFinalize: () => void;
   onReviewApology: (id: string, decision: "ACCEPTED" | "REJECTED") => void;
 };
 
@@ -56,11 +52,8 @@ export function AttendanceStep({
   attendanceDraft,
   setAttendanceDraft,
   savedAttendanceIds,
-  showFinalize,
   onSaveRow,
   onSaveAll,
-  onCloseFinalize,
-  onFinalize,
   onReviewApology,
 }: Props) {
   const [search, setSearch] = useState("");
@@ -113,15 +106,6 @@ export function AttendanceStep({
       });
   }, [markFilter, rows, search]);
 
-  const finalizePreview = useMemo(
-    () =>
-      rows.map((row) => ({
-        ...row,
-        label: `${row.membershipNumber} - ${row.name}`,
-      })),
-    [rows],
-  );
-
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-ink-100 bg-ink-50 p-4">
@@ -133,7 +117,7 @@ export function AttendanceStep({
             ? "Start the meeting before recording attendance."
             : finalized
               ? isCorrectionMode(meeting) ? "Correction mode is active. Update attendance, then re-close the meeting." : "Attendance is finalized and locked for this meeting."
-              : "Mark each member, then save all and finalize before generating fines."}
+              : "Mark each member, then save all and finalize before continuing to Fines. Attendance fines are generated automatically."}
         </p>
         {!needsStart && !attendanceLocked ? (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -141,11 +125,11 @@ export function AttendanceStep({
               size="sm"
               variant="secondary2"
               disabled={blocked}
-              isLoading={busy === "attendance-bulk"}
+              isLoading={busy === "attendance-finalize"}
               loadingText="Saving..."
               onClick={onSaveAll}
             >
-              Save all & review finalize
+              Save all and finalize
             </Button>
           </div>
         ) : null}
@@ -298,55 +282,7 @@ export function AttendanceStep({
         clientPagination={false}
       />
 
-      <SlideOver
-        open={showFinalize}
-        onClose={onCloseFinalize}
-        title="Finalize attendance"
-        subtitle="Confirm all members are marked before locking attendance."
-        widthClass="max-w-3xl"
-        footer={
-          <div className="flex justify-end gap-2 border-t border-ink-100 px-5 py-3">
-            <Button variant="secondary" onClick={onCloseFinalize}>
-              Back
-            </Button>
-            <Button
-              isLoading={busy === "attendance-finalize"}
-              loadingText="Finalizing..."
-              onClick={onFinalize}
-            >
-              Finalize attendance
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-2">
-          {/* autonumber the list of members */}
-          {finalizePreview.map((row, index) => (
-            <div
-              key={row.id}
-              className="flex items-center justify-between border-b border-gray-300 px-3 py-2 text-sm"
-            >
-              <span className="font-semibold text-gray-500">
-                {index + 1}. {row.label}
-              </span>
-              <span className="text-gray-700">
-                {row.status.replace(/_/g, " ")} · {money(row.finePreview)}
-              </span>
-            </div>
-          ))}
-          {finalizePreview.map((row) => (
-            <div
-              key={row.id}
-              className="flex items-center justify-between border-b border-gray-300 px-3 py-2 text-sm"
-            >
-              <span className="font-semibold">{row.label}</span>
-              <span className="text-gray-600">
-                {row.status.replace(/_/g, " ")} · {money(row.finePreview)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </SlideOver>
+
     </div>
   );
 }
