@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { api } from "@/services/api";
 import { ledgerApi } from "@/services/ledgerApi";
@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/Card";
 import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
 import type { FinancialYear } from "@/types/ledger";
+import { DistributionComparison } from "./DistributionComparison";
 const money = (v: unknown) =>
   `KES ${Number(v ?? 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 type MemberRow = {
@@ -38,6 +39,7 @@ type Overview = {
   availableCash: number;
 };
 export function AgmDistributionPage() {
+  const loadSequence = useRef(0);
   const prefix = useLocation().pathname.startsWith("/officials")
     ? "/officials"
     : "/dashboard";
@@ -71,11 +73,14 @@ export function AgmDistributionPage() {
   }, []);
   const load = async () => {
     if (!year) return;
+    const sequence = ++loadSequence.current;
     try {
       const r = await api.get(`/audit-year-end/year-end/${year}`);
+      if (sequence !== loadSequence.current) return;
       setData(r.data.data);
       setError("");
     } catch (e: any) {
+      if (sequence !== loadSequence.current) return;
       setError(
         e.response?.data?.error ?? "Unable to load distribution register",
       );
@@ -84,6 +89,7 @@ export function AgmDistributionPage() {
   useEffect(() => {
     setData(null);
     void load();
+    return () => { loadSequence.current++; };
   }, [year]);
   const submit = async () => {
     if (!data || !action) return;
@@ -240,6 +246,7 @@ export function AgmDistributionPage() {
                 )}
             </div>
           </div>
+          <DistributionComparison financialYearId={year} refreshKey={data} />
           <DataTable
             rows={data.members}
             getRowKey={(m) => m.memberId}
@@ -376,7 +383,7 @@ export function AgmDistributionPage() {
               {action === "initiate"
                 ? "Freeze collections and prepare the exact member payout register after all loans have been settled."
                 : action === "approve"
-                  ? "Confirm that the AGM approved the displayed distribution amounts."
+                  ? "Confirm that the AGM approved the current closing-capital distribution register. Comparison preview amounts are excluded."
                   : action === "post"
                     ? "Close distributable income to surplus and open the register for recording actual payments."
                     : "Confirm all member payments are complete and the only remaining balance is the welfare kitty. Financial history will remain available."}
