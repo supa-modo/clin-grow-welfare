@@ -137,3 +137,42 @@ test('comparison failure can be retried without blocking the default distributio
  expect(attempts).toBe(2);
 });
 
+test('elapsed and recorded-period forecast show matching comparison pools without activating a policy',async({page})=>{
+ const mutations:string[]=[];
+ const elapsed={...comparison,asOf:'2026-10-27',scenario:'EARNED_TO_DATE',comparableSurplus:9000,deferredSurplus:3000,allocatedSurplus:9000,
+  warnings:['Opening capital is held until joining; it earns no earlier entitlement.'],
+  members:comparisonMembers.map((member,index)=>({...member,currentComparableSurplus:4500,proposedSurplus:index===0?8000:1000,difference:index===0?3500:-3500,proposedTotal:index===0?18000:11000})),
+  forecast:{...comparison,asOf:'2026-10-27',scenario:'FULL_RECORDED_PERIOD',allocationThrough:'2026-11-18',comparableSurplus:12000,deferredSurplus:0,warnings:[],members:comparisonMembers.map(member=>({...member,currentComparableSurplus:6000}))}};
+ await setup(page,(path,method)=>{
+  if(method!=='GET')mutations.push(path);
+  if(path==='/ledger/financial-years')return {years:[year]};
+  if(path==='/audit-year-end/year-end/fy')return {data:comparisonRegister};
+  if(path==='/audit-year-end/year-end/fy/comparison')return {data:elapsed};
+ });
+ await page.goto('/officials/ledger/agm-distribution');
+ await page.getByRole('button',{name:'Compare joining-date method'}).click();
+ const panel=page.getByRole('region',{name:'Distribution comparison'});
+ await expect(panel.getByText('Comparison reconciled',{exact:true})).toBeVisible();
+ await expect(panel.getByText('KES 8,000.00',{exact:true})).toBeVisible();
+ await expect(panel.getByText('Unavailable',{exact:true})).toHaveCount(0);
+ await expect(panel).toContainText('Common comparison pool: KES 9,000.00');
+ await expect(panel).toContainText('Portion after the comparison cutoff: KES 3,000.00');
+ await panel.getByText('Calculation notes (1)',{exact:true}).click();
+ await expect(panel.getByText(elapsed.warnings[0],{exact:true})).toBeVisible();
+ await panel.getByLabel('Comparison basis',{exact:true}).selectOption('forecast');
+ await expect(panel).toContainText('Common comparison pool: KES 12,000.00');
+ await expect(panel).toContainText('Forecast through 2026-11-18');
+ await expect(panel.getByText('KES 10,500.00',{exact:true})).toBeVisible();
+ const download=page.waitForEvent('download');
+ await panel.getByRole('button',{name:'Export comparison CSV'}).click();
+ const file=await download;
+ expect(file.suggestedFilename()).toBe('distribution-comparison-2026-10-27-forecast.csv');
+ const stream=await file.createReadStream();const chunks:Buffer[]=[];for await(const chunk of stream!)chunks.push(chunk);
+ const csv=Buffer.concat(chunks).toString('utf8');
+ expect(csv).toContain('FULL_RECORDED_PERIOD');expect(csv).toContain('12000');
+ await panel.getByLabel('Comparison basis',{exact:true}).selectOption('elapsed');
+ await expect(panel.getByText('KES 8,000.00',{exact:true})).toBeVisible();
+ expect(mutations).toEqual([]);
+ await expect(page.getByRole('button',{name:'Record AGM approval',exact:true})).toBeEnabled();
+});
+
