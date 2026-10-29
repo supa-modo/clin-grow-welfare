@@ -11,6 +11,7 @@ import { useAuthStore } from "@/store/auth";
 import { useUiStore } from "@/store/uiStore";
 import type { FinancialYear } from "@/types/ledger";
 import { DistributionComparison } from "./DistributionComparison";
+import { isSystemAdmin } from "@/lib/workspaces";
 const money = (v: unknown) =>
   `KES ${Number(v ?? 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 type MemberRow = {
@@ -44,6 +45,7 @@ export function AgmDistributionPage() {
     ? "/officials"
     : "/dashboard";
   const permissions = useAuthStore((s) => s.user?.permissions ?? []);
+  const canCompare = useAuthStore((s) => isSystemAdmin(s.user));
   const manage = permissions.includes("officialsPortal.yearEnd.manage"),
     approve = permissions.includes("officialsPortal.yearEnd.approve");
   const success = useUiStore((s) => s.toastSuccess),
@@ -246,7 +248,7 @@ export function AgmDistributionPage() {
                 )}
             </div>
           </div>
-          <DistributionComparison financialYearId={year} refreshKey={data} />
+          {canCompare && <DistributionComparison financialYearId={year} refreshKey={data} />}
           <DataTable
             rows={data.members}
             getRowKey={(m) => m.memberId}

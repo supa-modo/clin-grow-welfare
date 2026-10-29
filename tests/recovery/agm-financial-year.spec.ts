@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 test.setTimeout(90_000);
 const year = {id:'fy',name:'FY-2026',status:'CLOSING',startDate:'2026-01-01',endDate:'2026-12-20',agmDate:'2026-12-20',_count:{journalEntries:1,contributions:1}};
-async function setup(page:Page, handler:(path:string,method:string,body:any)=>unknown){
- const user={id:'admin',name:'Audit Administrator',roles:['SystemAdmin','Secretary'],permissions:['financialYears.view','financialYears.create','financialYears.update','officialsPortal.reports.view','officialsPortal.yearEnd.manage','officialsPortal.yearEnd.approve','officialsPortal.welfareClaims.view','officialsPortal.welfareClaims.approve','officialsPortal.welfareClaims.pay']};
+async function setup(page:Page, handler:(path:string,method:string,body:any)=>unknown, roles=['SystemAdmin','Secretary']){
+ const user={id:'admin',name:'Audit Administrator',roles,permissions:['financialYears.view','financialYears.create','financialYears.update','officialsPortal.reports.view','officialsPortal.yearEnd.manage','officialsPortal.yearEnd.approve','officialsPortal.welfareClaims.view','officialsPortal.welfareClaims.approve','officialsPortal.welfareClaims.pay']};
  await page.addInitScript(user=>{localStorage.setItem('clingrow_token','isolated');localStorage.setItem('clingrow_user',JSON.stringify(user));},user);
  await page.route('**/api/**',async route=>{
   const req=route.request(),path=new URL(req.url()).pathname.replace(/^\/api/,'');
@@ -174,5 +174,22 @@ test('elapsed and recorded-period forecast show matching comparison pools withou
  await expect(panel.getByText('KES 8,000.00',{exact:true})).toBeVisible();
  expect(mutations).toEqual([]);
  await expect(page.getByRole('button',{name:'Record AGM approval',exact:true})).toBeEnabled();
+});
+
+test('other officials can use the normal register but cannot see or request the comparison',async({page})=>{
+ let comparisonReads=0;
+ await setup(page,path=>{
+  if(path==='/ledger/financial-years')return {years:[year]};
+  if(path==='/audit-year-end/year-end/fy')return {data:comparisonRegister};
+  if(path==='/audit-year-end/year-end/fy/comparison'){comparisonReads++;return {data:comparison};}
+ },['Treasurer']);
+ await page.goto('/officials/ledger/agm-distribution');
+ await expect(page.getByRole('button',{name:'Record AGM approval',exact:true})).toBeVisible();
+ await expect(page.getByText('Early Member',{exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Distribution comparison'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Compare joining-date method'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();
+ await expect(page.getByText('Early Member',{exact:true})).toBeVisible();
+ expect(comparisonReads).toBe(0);
 });
 
