@@ -123,6 +123,7 @@ export const adminNavItems: NavItemDef[] = [
     icon: TbReportMoney,
     permission: "officialsPortal.reports.view",
   },
+  { path: '/dashboard/constitution-recommendations', label: 'Constitution review', icon: TbFileText },
 ];
 
 export const officialsNavItems: NavItemDef[] = [
@@ -197,6 +198,7 @@ export const officialsNavItems: NavItemDef[] = [
     icon: TbReportMoney,
     permission: "officialsPortal.reports.view",
   },
+  { path: '/officials/constitution-recommendations', label: 'Constitution review', icon: TbFileText },
   {
     path: "/officials/settings",
     label: "Settings",

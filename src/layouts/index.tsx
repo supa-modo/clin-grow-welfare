@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import { Toasts } from "@/components/ui/Feedback";
 import { MemberTopBar } from "@/components/layouts/MemberTopBar";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
@@ -38,9 +38,7 @@ export function MemberLayout() {
           <p className="font-semibold text-primary-600">
             &copy; {new Date().getFullYear()} Clin-Grow Welfare Group
           </p>
-          <p className="text-secondary-500">
-            Member Portal | Staff welfare savings & loans
-          </p>
+          <Link to="/constitution-suggestions" className="font-semibold text-primary-700 underline underline-offset-4">Suggest a constitution amendment</Link>
         </div>
       </footer>
       <Toasts />

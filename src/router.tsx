@@ -45,6 +45,8 @@ import { ContributionsPage } from "@/pages/admin/finance/ContributionsPage";
 import { LoansPage } from "@/pages/admin/finance/LoansPage";
 import { VouchersPage } from "@/pages/admin/finance/VouchersPage";
 import { ScrollToTop } from "@/components/routing/ScrollToTop";
+import { ConstitutionSuggestionsPage } from '@/pages/ConstitutionSuggestionsPage';
+import { ConstitutionRecommendationsPage } from '@/pages/admin/ConstitutionRecommendationsPage';
 
 function RouteShell() {
   return (
@@ -63,6 +65,7 @@ export const router = createBrowserRouter([
       { path: "/", element: <HomeRedirect /> },
       { path: "/forbidden", element: <ForbiddenPage /> },
       { path: "/login", element: <LoginPage /> },
+      { path: "/constitution-suggestions", element: <ConstitutionSuggestionsPage /> },
       { path: "/register", element: <MemberRegistrationPage /> },
       { path: "/forgot-password", element: <ForgotPasswordPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
@@ -76,6 +79,7 @@ export const router = createBrowserRouter([
               {
                 element: <AdminLayout />,
                 children: [
+                  { path: 'constitution-recommendations', element: <ConstitutionRecommendationsPage /> },
                   {
                     index: true,
                     element: <PortalDashboardPage portal="admin" />,
@@ -236,6 +240,7 @@ export const router = createBrowserRouter([
               {
                 element: <OfficialsLayout />,
                 children: [
+                  { path: 'constitution-recommendations', element: <ConstitutionRecommendationsPage /> },
                   {
                     index: true,
                     element: <PortalDashboardPage portal="officials" />,

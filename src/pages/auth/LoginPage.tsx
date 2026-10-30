@@ -274,6 +274,9 @@ export function LoginPage() {
           </Link>
         </p>
       </form>
+      <p className="mt-4 text-center text-sm">
+        <Link to="/constitution-suggestions" className="font-semibold text-brand-700 underline underline-offset-4">Suggest a constitution amendment</Link>
+      </p>
     </AuthPageShell>
   );
 }
