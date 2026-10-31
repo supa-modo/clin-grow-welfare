@@ -187,10 +187,19 @@ test('corrupted saved data does not crash or silently claim a restored draft', a
 
 test('several suggestions fit a phone screen', async ({ page }) => {
   await setup(page);
-  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/constitution-suggestions');
   await page.getByRole('button', { name: 'Add another suggestion' }).click();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const width of [320, 360, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const fields = page.getByTestId('suggestion-row').first().locator('textarea');
+    for (const field of await fields.all()) {
+      const bounds = await field.boundingBox();
+      expect(bounds?.width).toBeGreaterThanOrEqual(width - 34);
+      expect(await field.evaluate(element => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: '../outputs/constitution-batch-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Submit 2 suggestions' }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('button', { name: 'Submit 2 suggestions' })).toBeInViewport();
