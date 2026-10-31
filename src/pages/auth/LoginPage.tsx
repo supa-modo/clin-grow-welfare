@@ -20,6 +20,7 @@ import {
   AuthLogoHeader,
 } from "@/components/auth/AuthPageShell";
 import { defaultAuthHighlights } from "@/components/auth/authHighlights";
+import { constitutionReturnTo } from '@/lib/constitutionReview';
 import {
   canAccessWorkspace,
   defaultRouteForUser,
@@ -92,6 +93,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get("session") === "expired";
   const initialIdentifier = prefilledLoginIdentifier(searchParams);
+  const returnTo = constitutionReturnTo(searchParams.get('returnTo'));
 
   const {
     formState: { errors, isSubmitting },
@@ -107,7 +109,7 @@ export function LoginPage() {
   });
 
   if (status === "ready" && token) {
-    return <Navigate to={defaultRouteForUser(user)} replace />;
+    return <Navigate to={returnTo ?? defaultRouteForUser(user)} replace />;
   }
 
   const submit = handleSubmit(async (values) => {
@@ -132,9 +134,9 @@ export function LoginPage() {
 
       const workspaceAllowed = canAccessWorkspace(signedInUser, workspace);
       const fallbackDestination = defaultRouteForUser(signedInUser);
-      const destination = workspaceAllowed
+      const destination = returnTo ?? (workspaceAllowed
         ? routeForWorkspace(signedInUser, workspace)
-        : fallbackDestination;
+        : fallbackDestination);
 
       localStorage.setItem(
         "clingrow.intendedWorkspace",
@@ -168,6 +170,7 @@ export function LoginPage() {
       </div>
 
       {apiError ? <AuthErrorBanner message={apiError} /> : null}
+      {returnTo && <p className="mt-3 rounded-xl border border-primary-100 bg-primary-50 p-3 text-center text-sm text-primary-800">Sign in to continue to your constitution suggestions.</p>}
       {sessionExpired && !apiError ? (
         <AuthErrorBanner message="Your session has expired. Please sign in again." />
       ) : null}
