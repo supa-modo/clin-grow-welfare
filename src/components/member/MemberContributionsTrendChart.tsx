@@ -79,23 +79,23 @@ export function MemberContributionsTrendChart({ flat = false }: { flat?: boolean
         </p>
       ) : (
         <>
-          <p className="mb-3 text-xs font-semibold text-ink-500">
+          <p className="mb-3 text-sm font-semibold text-slate-600">
             Total posted:{" "}
-            <span className="text-ink-900">{money(total)}</span>
+            <span className="text-emerald-900">{money(total)}</span>
           </p>
           <div className="h-56 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={points}>
                 <defs>
                   <linearGradient id="memberSavingsFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#16a34a" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#16a34a" stopOpacity={0.04} />
+                    <stop offset="0%" stopColor="#087f5b" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#087f5b" stopOpacity={0.04} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#64748b", fontSize: 11, fontWeight: 600 }}
+                  tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                   axisLine={false}
                   tickLine={false}
                   interval="preserveStartEnd"
@@ -106,7 +106,7 @@ export function MemberContributionsTrendChart({ flat = false }: { flat?: boolean
                       ? `${Math.round(Number(value) / 1000)}k`
                       : String(value)
                   }
-                  tick={{ fill: "#64748b", fontSize: 11, fontWeight: 600 }}
+                  tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                   axisLine={false}
                   tickLine={false}
                   width={42}
@@ -119,10 +119,10 @@ export function MemberContributionsTrendChart({ flat = false }: { flat?: boolean
                   isAnimationActive={false}
                   type="monotone"
                   dataKey="amount"
-                  stroke="#16a34a"
-                  strokeWidth={2.5}
+                  stroke="#087f5b"
+                  strokeWidth={3}
                   fill="url(#memberSavingsFill)"
-                  dot={{ r: 3, fill: "#16a34a", strokeWidth: 0 }}
+                  dot={{ r: 3, fill: "#087f5b", strokeWidth: 0 }}
                   activeDot={{ r: 5, fill: "#15803d" }}
                 />
               </AreaChart>

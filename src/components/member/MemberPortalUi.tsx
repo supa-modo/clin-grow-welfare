@@ -169,9 +169,9 @@ export function MemberSectionCard({
     >
       <div className="flex flex-col gap-2 border-b border-ink-100 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-5">
         <div>
-          <h2 className="text-sm font-extrabold text-ink-950">{title}</h2>
+          <h2 className={flat ? "text-base font-bold text-slate-950" : "text-sm font-extrabold text-ink-950"}>{title}</h2>
           {subtitle ? (
-            <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>
+            <p className={flat ? "mt-1 text-sm text-slate-600" : "mt-0.5 text-xs text-ink-500"}>{subtitle}</p>
           ) : null}
         </div>
         {action}
@@ -200,8 +200,8 @@ export function PeriodToggle({
           className={clsx(
             "rounded-full px-3 py-1 text-xs font-bold transition",
             value === months
-              ? "bg-white text-primary-700 shadow-sm"
-              : "text-ink-500 hover:text-ink-700",
+              ? "bg-emerald-800 text-white shadow-sm"
+              : "text-slate-700 hover:text-emerald-900",
           )}
         >
           {months}m
