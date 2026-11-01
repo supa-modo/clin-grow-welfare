@@ -22,6 +22,7 @@ export interface WelfareSetting {
   monthlyAbsentFineWithoutApology: number;
   meetingEmailRemindersEnabled: boolean;
   emailNotificationsEnabled: boolean;
+  memberDistributionVisible?: boolean;
   voucherManagementApproverRoles?: Array<'TREASURER' | 'CHAIRPERSON' | 'SECRETARY' | 'NOMINATED_SIGNATORY'>;
   voucherRequiredSignatoryRoles?: Array<'TREASURER' | 'CHAIRPERSON' | 'SECRETARY' | 'NOMINATED_SIGNATORY'>;
 }

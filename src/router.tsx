@@ -47,6 +47,7 @@ import { VouchersPage } from "@/pages/admin/finance/VouchersPage";
 import { ScrollToTop } from "@/components/routing/ScrollToTop";
 import { ConstitutionSuggestionsPage } from '@/pages/ConstitutionSuggestionsPage';
 import { ConstitutionRecommendationsPage } from '@/pages/admin/ConstitutionRecommendationsPage';
+import { MemberDistributionPage } from '@/pages/member/DistributionPage';
 
 function RouteShell() {
   return (
@@ -370,6 +371,7 @@ export const router = createBrowserRouter([
                 element: <MemberLayout />,
                 children: [
                   { path: "constitution", element: <MemberConstitutionPage /> },
+                  { path: "distribution", element: <MemberDistributionPage /> },
                   { index: true, element: <MemberDashboardPage /> },
                   { path: "profile", element: <MemberProfilePage /> },
                   {

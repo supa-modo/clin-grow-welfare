@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { contributionApi } from "@/services/contributionApi";
-import { money } from "@/components/member/MemberCards";
+import { memberMoney as money } from '@/services/memberDistribution';
 import { Spinner } from "@/components/ui/Feedback";
 import {
   MemberSectionCard,
@@ -25,7 +25,7 @@ const chartTooltipStyle = {
   color: "#374151",
 };
 
-export function MemberContributionsTrendChart() {
+export function MemberContributionsTrendChart({ flat = false }: { flat?: boolean }) {
   const [months, setMonths] = useState<TrendMonths>(6);
   const [points, setPoints] = useState<Array<{ date: string; label: string; amount: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +60,7 @@ export function MemberContributionsTrendChart() {
 
   return (
     <MemberSectionCard
+      flat={flat}
       title="Weekly savings trend"
       subtitle={`Posted contributions over the last ${months} months`}
       action={<PeriodToggle value={months} onChange={setMonths} />}
@@ -115,6 +116,7 @@ export function MemberContributionsTrendChart() {
                   contentStyle={chartTooltipStyle}
                 />
                 <Area
+                  isAnimationActive={false}
                   type="monotone"
                   dataKey="amount"
                   stroke="#16a34a"

@@ -70,6 +70,8 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
         className
       )}
       title={title}
+      aria-label={title || 'Toggle setting'}
+      aria-pressed={checked}
       type="button"
     >
       <span

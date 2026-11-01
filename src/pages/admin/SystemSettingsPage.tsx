@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiDownload, FiRefreshCw, FiSave } from "react-icons/fi";
 import { TbHeartbeat } from "react-icons/tb";
 import { AdminPageLayout, AdminPageMain } from "@/layouts/AdminPageLayout";
@@ -135,6 +136,22 @@ export function SystemSettingsPage() {
   const [auditingLoans, setAuditingLoans] = useState(false);
   const [loanAudit, setLoanAudit] = useState<LoanIntegrityResult | null>(null);
   const canEdit = Boolean(user?.roles.some((role) => ["SystemAdmin", "Chairperson", "Secretary", "AssistantSecretary"].includes(role)));
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const queryClient = useQueryClient();
+  const visibility = useQuery({ queryKey: ['member-distribution-visibility', user?.id], queryFn: async () =>
+    (await api.get<{ financialYearId: string | null; financialYearName: string | null; visible: boolean }>('/ledger/member-distribution-visibility')).data,
+    staleTime: 0, gcTime: 0, retry: 1 });
+  const setVisibility = async (visible: boolean) => {
+    if (!canEdit || visibilitySaving) return;
+    setVisibilitySaving(true);
+    try {
+      const response = await api.put('/ledger/member-distribution-visibility', { visible });
+      queryClient.setQueryData(['member-distribution-visibility', user?.id], response.data);
+      void queryClient.invalidateQueries({ queryKey: ['member-distribution'] });
+      toastSuccess(visible ? 'Members can now view their own distribution estimates.' : 'Member distribution estimates are now hidden.');
+    } catch (error) { toastError(apiError(error)); }
+    finally { setVisibilitySaving(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,6 +210,7 @@ export function SystemSettingsPage() {
       const payload = { ...form } as SettingsForm & { id?: string; financialYearId?: string };
       delete payload.id;
       delete payload.financialYearId;
+      delete payload.memberDistributionVisible;
       await ledgerApi.updateSystemSettings({
         ...payload,
         startDate: payload.startDate || undefined,
@@ -243,6 +261,12 @@ export function SystemSettingsPage() {
         action={<Button variant="secondary" icon={<FiRefreshCw />} onClick={() => void load()} disabled={loading}>Refresh</Button>}
       />
       <AdminPageMain>
+        <section className="mb-5 rounded-xl border border-primary-100 bg-white p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-5"><div><h2 className="text-sm font-bold text-primary-950">Member distribution visibility</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Show each member their own income-share estimate, the default formula, group totals and their capital history. Other members’ individual balances are never shown. Off hides the dashboard amount and blocks the details and history.</p><p className="mt-2 text-xs font-semibold text-primary-700">{visibility.data?.financialYearName ?? 'No eligible financial year'} · {visibilitySaving ? 'Updating…' : visibility.isPending ? 'Loading visibility…' : visibility.isError ? 'Visibility unavailable' : visibility.data?.visible ? 'Visible to members' : 'Hidden from members'}</p><p className="mt-1 text-xs leading-5 text-slate-500">This control saves immediately and remains available during year closing. It does not approve or post a payout.</p></div>
+            <ToggleSwitch checked={visibility.data?.visible ?? false} disabled={!canEdit || visibilitySaving || visibility.isPending || visibility.isError || !visibility.data?.financialYearId} onChange={checked => void setVisibility(checked)} title="Show member distribution estimates" variant="primary" />
+          </div>
+          {visibility.isError && <p role="alert" className="mt-3 text-xs text-red-700">Visibility could not be loaded. <button className="underline" onClick={() => void visibility.refetch()}>Try again</button></p>}
+        </section>
         <div className="mb-4 rounded-lg border border-ink-100 bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -357,7 +381,7 @@ export function SystemSettingsPage() {
                       <div key={String(field)} className="flex items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50 px-3 py-2">
                         <span className="text-xs font-semibold text-ink-700">{label}</span>
                         <ToggleSwitch
-                          checked={Boolean(form[field] ?? true)}
+                          checked={Boolean(form[field] ?? (field === "memberDistributionVisible" ? false : true))}
                           disabled={loading || !financialYear || !canEdit}
                           onChange={(checked) => setField(field, String(checked), type)}
                           variant={field === "emailNotificationsEnabled" ? "primary" : "success"}

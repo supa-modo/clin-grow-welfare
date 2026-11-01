@@ -151,17 +151,19 @@ export function MemberSectionCard({
   action,
   children,
   className,
+  flat = false,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  flat?: boolean;
 }) {
   return (
     <section
       className={clsx(
-        "overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm",
+        flat ? "min-w-0 bg-white" : "overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm",
         className,
       )}
     >
