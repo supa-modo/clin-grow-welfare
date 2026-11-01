@@ -105,6 +105,16 @@ test('dashboard failures do not invent zero balances', async ({ page }) => {
   await expect(page.getByText('KES 0.00', { exact: true })).toHaveCount(0);
 });
 
+test('an approved allocation is presented as a saved allocation rather than a new forecast', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/member-portal/distribution', route => route.fulfill({ json: { ...distribution, status: 'APPROVED', group: { ...distribution.group, breakdown: null } } }));
+  await page.goto('/member/distribution');
+  await expect(page.getByText('Approved income share', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Approved allocation basis' })).toBeVisible();
+  await expect(page.getByText(/These amounts are taken from the saved AGM-approved allocation/)).toBeVisible();
+  await expect(page.getByText('Year-end estimate', { exact: true })).toHaveCount(0);
+});
+
 test('dashboard and distribution details use mobile space without page overflow', async ({ page }) => {
   await setup(page);
   for (const width of [320, 390, 768, 1440]) {
