@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Landmark, PiggyBank, Shield } from "lucide-react";
+import { LuArrowRight, LuLandmark, LuPiggyBank, LuShield } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { MemberContributionsTrendChart } from "@/components/member/MemberContributionsTrendChart";
@@ -97,7 +97,7 @@ export function DashboardBalanceGrid({
     >
       <div className="space-y-2">
         <MemberFundRow
-          icon={<PiggyBank className="h-5 w-5" />}
+          icon={<LuPiggyBank className="h-5 w-5" />}
           title="Weekly savings"
           subtitle={
             savings.status === "PAID_CURRENT_WEEK"
@@ -108,14 +108,14 @@ export function DashboardBalanceGrid({
           accent="primary"
         />
         <MemberFundRow
-          icon={<Landmark className="h-5 w-5" />}
+          icon={<LuLandmark className="h-5 w-5" />}
           title="Share capital"
           subtitle="Used for loan eligibility"
           amount={money(share.actual)}
           accent="secondary"
         />
         <MemberFundRow
-          icon={<Shield className="h-5 w-5" />}
+          icon={<LuShield className="h-5 w-5" />}
           title="Welfare kitty"
           subtitle={
             welfare.arrears > 0
@@ -216,7 +216,7 @@ export function DashboardMeetingsPreview({
           className="inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:underline"
         >
           View all
-          <ArrowRight className="h-3.5 w-3.5" />
+          <LuArrowRight className="h-3.5 w-3.5" />
         </Link>
       }
     >

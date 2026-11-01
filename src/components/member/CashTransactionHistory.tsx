@@ -1,5 +1,5 @@
-import { FiDownload, FiRefreshCw } from "react-icons/fi";
-import { Button } from "@/components/ui/Button";
+import { FiDownload } from "react-icons/fi";
+import { RefreshIconButton } from "@/components/ui/RefreshIconButton";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Feedback";
 
@@ -85,15 +85,12 @@ export function CashTransactionHistory({
       >
         <p className="text-sm font-semibold text-red-700">{error}</p>
         {onRefresh ? (
-          <Button
-            size="xs"
-            icon={<FiRefreshCw className="h-3.5 w-3.5" />}
-            variant="secondary"
+          <RefreshIconButton
+            size="sm"
+            title="Retry"
             className="mt-3"
             onClick={onRefresh}
-          >
-            Retry
-          </Button>
+          />
         ) : null}
       </div>
     );
@@ -107,14 +104,7 @@ export function CashTransactionHistory({
             <h3 className="text-lg font-bold text-ink-900">{title}</h3>
           ) : null}
           {onRefresh ? (
-            <button
-              type="button"
-              onClick={onRefresh}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 underline underline-offset-4 hover:text-brand-800 lg:text-sm"
-            >
-              <FiRefreshCw className="h-4 w-4" />
-              Refresh
-            </button>
+            <RefreshIconButton size="sm" title="Refresh" onClick={onRefresh} />
           ) : null}
         </div>
       ) : null}

@@ -1,6 +1,6 @@
 import React, { forwardRef } from "react";
 import { clsx } from "clsx";
-import { FiCalendar } from "react-icons/fi";
+
 interface DateInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "type"
@@ -25,10 +25,13 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
     },
     ref,
   ) => {
+    const generatedId = React.useId();
+    const controlId = props.id ?? generatedId;
     return (
       <div className={clsx("w-full", wrapperClassName)}>
         {label && (
           <label
+            htmlFor={controlId}
             className={clsx(
               "block text-[0.75rem] lg:text-[0.8rem] font-medium text-ink-500 mb-1 pl-2",
               labelClassName,
@@ -44,20 +47,18 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
             type="date"
             placeholder="dd/mm/yyyy"
             className={clsx(
-              "w-full pl-2 lg:pl-4 py-2 lg:py-2.5 rounded-[0.6rem] border transition-all duration-200 text-xs lg:text-sm",
+              "w-full pl-2 lg:pl-4 py-2 lg:py-2 rounded-[0.6rem] border transition-all duration-200 text-xs lg:text-sm",
               "focus:outline-none focus:ring-1",
               "disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500",
-              "pr-12",
+              "pr-6",
               error
                 ? "border-red-500 focus:ring-red-500/30 bg-red-50 text-red-900 placeholder:text-red-300"
-                : "border-gray-300 focus:border-primary-600 focus:ring-primary-600 bg-gray-100",
+                : "border-gray-300 focus:border-primary-600 focus:ring-primary-600 bg-gray-50",
               className,
             )}
             {...props}
+            id={controlId}
           />
-          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">
-            <FiCalendar className="w-5 h-5" />
-          </div>
         </div>
         {error && (
           <p className="mt-1.5 text-sm text-red-600 font-medium">{error}</p>

@@ -21,7 +21,7 @@ export function RefreshIconButton({
   ...props
 }: RefreshIconButtonProps) {
   const sizeClass =
-    size === "sm" ? "h-8 w-8" : size === "md" ? "h-9 w-9" : "h-10 w-10";
+    size === "sm" ? "h-8 w-8 rounded-[0.7rem]" : size === "md" ? "h-9 w-9 rounded-[0.72rem]" : "h-10 w-10 rounded-xl";
   const iconSizeClass =
     size === "sm" ? "h-3.5 w-3.5" : size === "md" ? "h-4 w-4" : "h-5 w-5";
   return (
@@ -31,7 +31,7 @@ export function RefreshIconButton({
       aria-label={title}
       disabled={disabled || loading}
       className={clsx(
-        "flex items-center justify-center rounded-xl border border-gray-400 text-slate-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60",
+        "flex items-center justify-center  border border-gray-400 text-slate-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60",
         className,
         sizeClass,
       )}

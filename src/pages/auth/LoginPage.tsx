@@ -20,7 +20,7 @@ import {
   AuthLogoHeader,
 } from "@/components/auth/AuthPageShell";
 import { defaultAuthHighlights } from "@/components/auth/authHighlights";
-import { constitutionReturnTo } from '@/lib/constitutionReview';
+import { constitutionReturnTo } from "@/lib/constitutionReview";
 import {
   canAccessWorkspace,
   defaultRouteForUser,
@@ -93,7 +93,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get("session") === "expired";
   const initialIdentifier = prefilledLoginIdentifier(searchParams);
-  const returnTo = constitutionReturnTo(searchParams.get('returnTo'));
+  const returnTo = constitutionReturnTo(searchParams.get("returnTo"));
 
   const {
     formState: { errors, isSubmitting },
@@ -134,9 +134,11 @@ export function LoginPage() {
 
       const workspaceAllowed = canAccessWorkspace(signedInUser, workspace);
       const fallbackDestination = defaultRouteForUser(signedInUser);
-      const destination = returnTo ?? (workspaceAllowed
-        ? routeForWorkspace(signedInUser, workspace)
-        : fallbackDestination);
+      const destination =
+        returnTo ??
+        (workspaceAllowed
+          ? routeForWorkspace(signedInUser, workspace)
+          : fallbackDestination);
 
       localStorage.setItem(
         "clingrow.intendedWorkspace",
@@ -166,11 +168,14 @@ export function LoginPage() {
         <h2 className="text-base md:text-[1.1rem] font-extrabold font-google text-brand-700 mb-1">
           Member Self Service Portal.
         </h2>
-
       </div>
 
       {apiError ? <AuthErrorBanner message={apiError} /> : null}
-      {returnTo && <p className="mt-3 rounded-xl border border-primary-100 bg-primary-50 p-3 text-center text-sm text-primary-800">Sign in to continue to your constitution suggestions.</p>}
+      {returnTo && (
+        <p className="mt-3 rounded-xl border border-primary-100 bg-primary-50 p-3 text-center text-[0.8rem] lg:text-[0.85rem] text-primary-800">
+          Sign in to continue to your constitution suggestions.
+        </p>
+      )}
       {sessionExpired && !apiError ? (
         <AuthErrorBanner message="Your session has expired. Please sign in again." />
       ) : null}
@@ -277,8 +282,13 @@ export function LoginPage() {
           </Link>
         </p>
       </form>
-      <p className="mt-4 text-center text-sm">
-        <Link to="/constitution-suggestions" className="font-semibold text-brand-700 underline underline-offset-4">Suggest a constitution amendment</Link>
+      <p className="mt-4 text-center text-[0.8rem] lg:text-[0.85rem]">
+        <Link
+          to="/constitution-suggestions"
+          className="font-semibold text-brand-700 underline underline-offset-4"
+        >
+          Suggest a constitution amendment
+        </Link>
       </p>
     </AuthPageShell>
   );

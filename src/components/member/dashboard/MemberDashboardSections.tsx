@@ -4,26 +4,26 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import {
-  AlertCircle,
-  ArrowRight,
-  Banknote,
-  Bell,
-  BookOpen,
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  CreditCard,
-  Download,
-  FileText,
-  HandCoins,
-  HelpCircle,
-  Landmark,
-  PiggyBank,
-  ReceiptText,
-  ShieldCheck,
-  UserRoundCog,
-  WalletCards,
-} from "lucide-react";
+  LuCircleAlert,
+  LuArrowRight,
+  LuBanknote,
+  LuBell,
+  LuBookOpen,
+  LuCalendarDays,
+  LuCircleCheckBig,
+  LuClock3,
+  LuCreditCard,
+  LuDownload,
+  LuFileText,
+  LuHandCoins,
+  LuCircleHelp,
+  LuLandmark,
+  LuPiggyBank,
+  LuReceiptText,
+  LuShieldCheck,
+  LuUserRoundCog,
+  LuWalletCards,
+} from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { Contribution } from "@/types/contribution";
@@ -203,7 +203,7 @@ export function DashboardShell({
     return (
       <div className="grid min-h-[58vh] place-items-center rounded-lg border border-red-100 bg-red-50 px-4 text-center">
         <div>
-          <AlertCircle className="mx-auto h-10 w-10 text-red-600" />
+          <LuCircleAlert className="mx-auto h-10 w-10 text-red-600" />
           <h2 className="mt-4 text-base font-extrabold text-red-950">Dashboard unavailable</h2>
           <p className="mt-2 max-w-sm text-sm text-red-700">{error}</p>
         </div>
@@ -296,7 +296,7 @@ export function MobileFinancialCard({
           <p className="mt-2 text-2xl font-black">{money(weeklySavings)}</p>
           <p className="text-xs text-white/65">Weekly savings balance</p>
         </div>
-        <WalletCards className="h-8 w-8 text-brand-200" />
+        <LuWalletCards className="h-8 w-8 text-brand-200" />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
         <MiniBankStat label="Share capital" value={money(shareCapital)} />
@@ -385,7 +385,7 @@ export function AlertStrip({ alerts }: { alerts: DashboardAlert[] }) {
       )}
     >
       <div className="flex gap-3">
-        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+        <LuCircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
         <div>
           <p className="text-sm font-extrabold">{urgent.title}</p>
           <p className="text-sm opacity-80">{urgent.message}</p>
@@ -419,7 +419,7 @@ export function ContributionProgressCard({
     <DashboardPanel
       title="Weekly contributions"
       description="Posted savings and current meeting follow-up status"
-      icon={<PiggyBank className="h-4 w-4" />}
+      icon={<LuPiggyBank className="h-4 w-4" />}
       action={<Badge tone={state === "Current week paid" ? "success" : state === "Current week unpaid" ? "warning" : "neutral"}>{state}</Badge>}
     >
       <div className="grid gap-4 lg:grid-cols-[1fr_15rem]">
@@ -458,7 +458,7 @@ function RecentContributionList({ contributions }: { contributions: Contribution
     return (
       <div className="grid min-h-40 place-items-center rounded-lg border border-dashed border-ink-200 bg-ink-50 p-4 text-center">
         <div>
-          <ReceiptText className="mx-auto h-7 w-7 text-ink-400" />
+          <LuReceiptText className="mx-auto h-7 w-7 text-ink-400" />
           <p className="mt-2 text-sm font-bold text-ink-700">No weekly records yet</p>
           <p className="mt-1 text-xs text-ink-500">Posted weekly savings will appear here.</p>
         </div>
@@ -493,7 +493,7 @@ export function ShareCapitalCard({ arrears }: { arrears: MemberArrearsSummary })
     <DashboardPanel
       title="Share capital"
       description="Permanent capital that strengthens your borrowing base"
-      icon={<Landmark className="h-4 w-4" />}
+      icon={<LuLandmark className="h-4 w-4" />}
     >
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
         <div className="flex items-start justify-between gap-3">
@@ -501,7 +501,7 @@ export function ShareCapitalCard({ arrears }: { arrears: MemberArrearsSummary })
             <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Current balance</p>
             <p className="mt-1 text-2xl font-black text-ink-950">{money(actual)}</p>
           </div>
-          <ShieldCheck className="h-8 w-8 text-blue-700" />
+          <LuShieldCheck className="h-8 w-8 text-blue-700" />
         </div>
         <div className="mt-4">
           <div className="mb-2 flex justify-between text-xs font-bold text-blue-900">
@@ -536,10 +536,10 @@ export function ActiveLoanCard({
       <DashboardPanel
         title="Active loan"
         description="No active loan is currently attached to your member account"
-        icon={<HandCoins className="h-4 w-4" />}
+        icon={<LuHandCoins className="h-4 w-4" />}
       >
         <div className="rounded-lg border border-dashed border-ink-200 bg-ink-50 p-6 text-center">
-          <HelpCircle className="mx-auto h-9 w-9 text-ink-400" />
+          <LuCircleHelp className="mx-auto h-9 w-9 text-ink-400" />
           <p className="mt-3 text-base font-extrabold text-ink-900">No active loan</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-500">
             You can apply when you are eligible and officials open a meeting loan window.
@@ -551,7 +551,7 @@ export function ActiveLoanCard({
             </div>
           ) : null}
           <Link to="/member/loans" className="mt-5 inline-flex">
-            <Button icon={<ArrowRight className="h-4 w-4" />}>
+            <Button icon={<LuArrowRight className="h-4 w-4" />}>
               Apply for Loan
             </Button>
           </Link>
@@ -573,7 +573,7 @@ export function ActiveLoanCard({
     <DashboardPanel
       title="Active loan overview"
       description={`${loan.loanNumber} repayment position`}
-      icon={<HandCoins className="h-4 w-4" />}
+      icon={<LuHandCoins className="h-4 w-4" />}
       action={<LoanStatusBadge status={loan.status} />}
     >
       <div className="space-y-5">
@@ -616,7 +616,7 @@ function RepaymentTimeline({ repayments }: { repayments: LoanRepayment[] }) {
         {repayments.map((repayment) => (
           <div key={repayment.id} className="flex items-start gap-3">
             <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green-50 text-green-700">
-              <CheckCircle2 className="h-4 w-4" />
+              <LuCircleCheckBig className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1 border-b border-ink-100 pb-3 last:border-b-0">
               <div className="flex flex-wrap justify-between gap-2">
@@ -636,18 +636,18 @@ function RepaymentTimeline({ repayments }: { repayments: LoanRepayment[] }) {
 
 export function QuickActionsPanel() {
   const actions = [
-    { title: "Make Contribution", description: "Record or review payment options", to: "/member/contributions", icon: <CreditCard /> },
-    { title: "Contribution History", description: "Receipts and posted records", to: "/member/contributions", icon: <ReceiptText /> },
-    { title: "Apply for Loan", description: "Eligibility and application", to: "/member/loans", icon: <HandCoins /> },
-    { title: "Loan History", description: "Applications and statements", to: "/member/loans", icon: <FileText /> },
-    { title: "Download Statement", description: "Savings and loan reports", to: "/member/statements", icon: <Download /> },
-    { title: "Update Profile", description: "Contacts and dependants", to: "/member/profile", icon: <UserRoundCog /> },
-    { title: "Welfare Rules", description: "Constitution and policies", to: "/member/constitution", icon: <BookOpen /> },
-    { title: "Contact Treasurer", description: "Send a support request", to: "/member/notifications", icon: <Bell /> },
+    { title: "Make Contribution", description: "Record or review payment options", to: "/member/contributions", icon: <LuCreditCard /> },
+    { title: "Contribution History", description: "Receipts and posted records", to: "/member/contributions", icon: <LuReceiptText /> },
+    { title: "Apply for Loan", description: "Eligibility and application", to: "/member/loans", icon: <LuHandCoins /> },
+    { title: "Loan History", description: "Applications and statements", to: "/member/loans", icon: <LuFileText /> },
+    { title: "Download Statement", description: "Savings and loan reports", to: "/member/statements", icon: <LuDownload /> },
+    { title: "Update Profile", description: "Contacts and dependants", to: "/member/profile", icon: <LuUserRoundCog /> },
+    { title: "Welfare Rules", description: "Constitution and policies", to: "/member/constitution", icon: <LuBookOpen /> },
+    { title: "Contact Treasurer", description: "Send a support request", to: "/member/notifications", icon: <LuBell /> },
   ];
 
   return (
-    <DashboardPanel title="Quick actions" description="Common member tasks" icon={<WalletCards className="h-4 w-4" />}>
+    <DashboardPanel title="Quick actions" description="Common member tasks" icon={<LuWalletCards className="h-4 w-4" />}>
       <div className="grid grid-cols-2 gap-3">
         {actions.map((action) => (
           <Link
@@ -659,7 +659,7 @@ export function QuickActionsPanel() {
               <span className="grid h-9 w-9 place-items-center rounded-lg border border-ink-100 bg-ink-50 text-brand-700 group-hover:border-brand-100 group-hover:bg-white">
                 {action.icon}
               </span>
-              <ArrowRight className="h-4 w-4 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
+              <LuArrowRight className="h-4 w-4 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
             </div>
             <p className="mt-3 text-sm font-extrabold leading-tight text-ink-900">{action.title}</p>
             <p className="mt-1 text-xs leading-4 text-ink-500">{action.description}</p>
@@ -681,11 +681,11 @@ export function UpcomingMeetingsCard({ meetings }: { meetings: DashboardMeeting[
     <DashboardPanel
       title="Upcoming meetings"
       description="Welfare meetings and loan windows"
-      icon={<CalendarDays className="h-4 w-4" />}
+      icon={<LuCalendarDays className="h-4 w-4" />}
       action={<Link className="text-xs font-extrabold text-brand-700 hover:underline" to="/member/meetings">View all</Link>}
     >
       {upcoming.length === 0 ? (
-        <EmptyMini icon={<CalendarDays className="h-7 w-7" />} title="No upcoming meetings" message="New meeting notices will appear here once scheduled." />
+        <EmptyMini icon={<LuCalendarDays className="h-7 w-7" />} title="No upcoming meetings" message="New meeting notices will appear here once scheduled." />
       ) : (
         <div className="space-y-3">
           {upcoming.map((meeting) => {
@@ -715,9 +715,9 @@ export function UpcomingMeetingsCard({ meetings }: { meetings: DashboardMeeting[
 
 export function MemberAlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
   return (
-    <DashboardPanel title="Alerts" description="Notices needing attention" icon={<Bell className="h-4 w-4" />}>
+    <DashboardPanel title="Alerts" description="Notices needing attention" icon={<LuBell className="h-4 w-4" />}>
       {alerts.length === 0 ? (
-        <EmptyMini icon={<CheckCircle2 className="h-7 w-7" />} title="No alerts" message="You are clear for now." />
+        <EmptyMini icon={<LuCircleCheckBig className="h-7 w-7" />} title="No alerts" message="You are clear for now." />
       ) : (
         <div className="space-y-3">
           {alerts.slice(0, 5).map((alert) => (
@@ -749,9 +749,9 @@ export function MemberAlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
 
 export function RecentActivityFeed({ activities }: { activities: DashboardActivity[] }) {
   return (
-    <DashboardPanel title="Recent activity" description="Latest account movements" icon={<Clock3 className="h-4 w-4" />}>
+    <DashboardPanel title="Recent activity" description="Latest account movements" icon={<LuClock3 className="h-4 w-4" />}>
       {activities.length === 0 ? (
-        <EmptyMini icon={<ReceiptText className="h-7 w-7" />} title="No recent activity" message="Your latest contributions, loan updates, and receipts will show here." />
+        <EmptyMini icon={<LuReceiptText className="h-7 w-7" />} title="No recent activity" message="Your latest contributions, loan updates, and receipts will show here." />
       ) : (
         <div className="space-y-4">
           {activities.slice(0, 8).map((activity) => (
@@ -800,7 +800,7 @@ export function buildActivities({
     description: `${money(item.amount)} posted via ${item.paymentMethod}${item.receiptNo ? ` · Receipt ${item.receiptNo}` : ""}`,
     date: item.periodDate,
     tone: "success" as const,
-    icon: <ReceiptText className="h-4 w-4" />,
+    icon: <LuReceiptText className="h-4 w-4" />,
   }));
 
   const loanActivities = loans.slice(0, 4).map((loan) => ({
@@ -809,7 +809,7 @@ export function buildActivities({
     description: `${loan.loanNumber} · Requested ${money(loan.requestedAmount)}`,
     date: loan.createdAt ?? loan.applicationDate,
     tone: loan.status === "REJECTED" ? "danger" as const : loan.status === "CLOSED" ? "success" as const : "info" as const,
-    icon: <HandCoins className="h-4 w-4" />,
+    icon: <LuHandCoins className="h-4 w-4" />,
   }));
 
   const meetingActivities = meetings.slice(0, 3).map((meeting) => ({
@@ -818,7 +818,7 @@ export function buildActivities({
     description: meeting.title || meeting.meetingNumber || "Welfare meeting notice",
     date: meeting.meetingDate,
     tone: "neutral" as const,
-    icon: <CalendarDays className="h-4 w-4" />,
+    icon: <LuCalendarDays className="h-4 w-4" />,
   }));
 
   const notificationActivities = notifications.slice(0, 3).map((item) => ({
@@ -827,7 +827,7 @@ export function buildActivities({
     description: item.body,
     date: item.createdAt,
     tone: "info" as const,
-    icon: <Bell className="h-4 w-4" />,
+    icon: <LuBell className="h-4 w-4" />,
   }));
 
   return [...contributionActivities, ...loanActivities, ...meetingActivities, ...notificationActivities]
@@ -1002,11 +1002,11 @@ function LoanStatusBadge({ status }: { status: string }) {
 }
 
 function AlertIcon({ tone }: { tone: DashboardTone }) {
-  if (tone === "success") return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-700" />;
-  if (tone === "warning") return <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />;
-  if (tone === "danger") return <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />;
-  if (tone === "info") return <Bell className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" />;
-  return <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />;
+  if (tone === "success") return <LuCircleCheckBig className="mt-0.5 h-4 w-4 shrink-0 text-green-700" />;
+  if (tone === "warning") return <LuCircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />;
+  if (tone === "danger") return <LuCircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />;
+  if (tone === "info") return <LuBell className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" />;
+  return <LuClock3 className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />;
 }
 
 function EmptyMini({
@@ -1028,12 +1028,12 @@ function EmptyMini({
 }
 
 export const summaryIcons = {
-  weekly: <PiggyBank className="h-5 w-5" />,
-  expected: <CalendarDays className="h-5 w-5" />,
-  completion: <CheckCircle2 className="h-5 w-5" />,
-  share: <Landmark className="h-5 w-5" />,
-  welfare: <WalletCards className="h-5 w-5" />,
-  loan: <HandCoins className="h-5 w-5" />,
-  repayment: <Banknote className="h-5 w-5" />,
-  outstanding: <AlertCircle className="h-5 w-5" />,
+  weekly: <LuPiggyBank className="h-5 w-5" />,
+  expected: <LuCalendarDays className="h-5 w-5" />,
+  completion: <LuCircleCheckBig className="h-5 w-5" />,
+  share: <LuLandmark className="h-5 w-5" />,
+  welfare: <LuWalletCards className="h-5 w-5" />,
+  loan: <LuHandCoins className="h-5 w-5" />,
+  repayment: <LuBanknote className="h-5 w-5" />,
+  outstanding: <LuCircleAlert className="h-5 w-5" />,
 };

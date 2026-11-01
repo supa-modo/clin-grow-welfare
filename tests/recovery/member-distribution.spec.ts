@@ -29,6 +29,7 @@ async function setup(page: Page, admin = false) {
       body = { page: current, pageSize: 20, total: 25, rows: [{ reference: `JE-${current}`, date: '2026-10-22T12:00:00Z', meeting: 'MTG20260034', shareCapital: current === 1 ? 500 : -100, savings: 450.75 }] };
     }
     if (path.endsWith('/member-portal/loans')) body = { loans: [{ id: 'loan-1', loanNumber: 'LN202600021', disbursedAt: '2026-10-01', status: 'ACTIVE', totalOutstanding: 3500.25 }] };
+    if (path.endsWith('/member-portal/loans/loan-1')) body = { statement: { disbursed: 5000, totalInterest: 500, totalPenalties: 0, totalRepaid: 1999.75, outstanding: 3500.25 } };
     if (path.endsWith('/member-portal/meetings')) body = { meetings: [{ id: 'meeting-next', meetingNumber: 'MTG20260035', status: 'SCHEDULED', meetingDate: new Date(Date.now() + 3 * 86400000).toISOString(), venue: 'Clin-Grow Hall' }] };
     if (path.endsWith('/member-portal/contributions')) body = { data: [{ id: 'contribution-1', contributionType: 'WEEKLY_SAVINGS', amount: 450.75, status: 'POSTED', periodDate: '2026-10-22', meeting: { meetingNumber: 'MTG20260034' } }], meta: { total: 1 } };
     if (path.endsWith('/member-portal/contributions/weekly-savings-trend')) body = { months: 6, points: [{ date: '2026-09-01', label: 'Sep', amount: 1200 }, { date: '2026-10-01', label: 'Oct', amount: 1450.75 }] };
@@ -52,10 +53,11 @@ test('dashboard shows real balances, a private estimate and no pending-actions w
   await expect(page.getByRole('region', { name: 'Your capital' }).getByText('KES 25,000.75', { exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Distribution preview' }).getByText('KES 250.00', { exact: true })).toBeVisible();
   await expect(page.getByText('KES 3,500.25', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Loan repayment progress' })).toContainText('Repaid KES 1,999.75');
   await expect(page.getByText('Clin-Grow Hall', { exact: true })).toBeVisible();
   await expect(page.getByText(/pending actions|review required|past meeting.s. unpaid/i)).toHaveCount(0);
   await page.screenshot({ path: '../outputs/member-dashboard-desktop.png', fullPage: true });
-  await page.getByRole('link', { name: 'View more', exact: true }).click();
+  await page.getByRole('link', { name: 'View more details', exact: true }).click();
   await expect(page).toHaveURL(/\/member\/distribution$/);
   await expect(page.getByRole('heading', { name: 'Your distribution, explained' })).toBeVisible();
 });
@@ -65,25 +67,24 @@ test('off hides the dashboard amount and blocks the direct detail route and hist
   await page.goto('/member');
   await expect(page.getByRole('heading', { name: /Amina/ })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Distribution preview' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'View more', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'View more details', exact: true })).toHaveCount(0);
   await page.goto('/member/distribution');
   await expect(page).toHaveURL(/\/member$/);
   expect(state.historyPages).toHaveLength(0);
 });
 
-test('details explain the default formula and lazily load only own capital movements', async ({ page }) => {
+test('details explain the default formula and paginate only own capital movements', async ({ page }) => {
   const state = await setup(page); await page.goto('/member/distribution');
   await expect(page.getByRole('heading', { name: 'Your distribution, explained' })).toBeVisible();
   await expect(page.getByText('Default capital-based formula', { exact: true })).toBeVisible();
-  await expect(page.getByText('Member CG007', { exact: false })).toBeVisible();
+  await expect(page.getByText('Amina Member · CG007', { exact: true })).toBeVisible();
   await expect(page.getByText('Recorded loan interest, net of reversals', { exact: true })).toBeVisible();
   await expect(page.getByText('Recorded fine income', { exact: true })).toBeVisible();
   await expect(page.getByText(/The columns match because/)).toBeVisible();
-  expect(state.historyPages).toHaveLength(0);
-  await page.getByRole('button', { name: /Your contribution history/ }).click();
+  await expect(page.getByRole('region', { name: 'Your contribution history' })).toBeVisible();
   await expect(page.getByText('MTG20260034', { exact: true })).toBeVisible();
   await expect(page.getByText('KES 450.75', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Next page', exact: true }).click();
   await expect(page.getByText('JE-2', { exact: true })).toBeVisible();
   expect(state.historyPages).toContain(2);
   await page.screenshot({ path: '../outputs/member-distribution-desktop.png', fullPage: true });
@@ -127,7 +128,7 @@ test('dashboard and distribution details use mobile space without page overflow'
   await page.goto('/member/distribution');
   await expect(page.getByRole('heading', { name: 'Your distribution, explained' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: /Your contribution history/ }).click();
+  await expect(page.getByRole('region', { name: 'Your contribution history' })).toBeVisible();
   await expect(page.getByText('MTG20260034', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '../outputs/member-distribution-mobile.png', fullPage: true });
@@ -156,4 +157,29 @@ test('the visibility control remains usable when ordinary financial settings are
   await expect(toggle).toBeEnabled();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+});
+
+
+test('contribution filters support mouse and keyboard selection and send the selected values', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/member-portal/arrears', route => route.fulfill({ json: { arrears: null } }));
+  const queries: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/member-portal/contributions')) queries.push(url.search);
+  });
+  await page.goto('/member/contributions');
+  const filter = page.getByRole('button', { name: 'Contribution type', exact: true });
+  await filter.click();
+  await page.getByRole('option', { name: 'Weekly Savings', exact: true }).click();
+  await expect(filter).toContainText('Weekly Savings');
+  await expect.poll(() => queries.some(query => new URLSearchParams(query).get('type') === 'WEEKLY_SAVINGS')).toBe(true);
+  await filter.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
+  await expect(filter).toContainText('All types');
+  await expect.poll(() => new URLSearchParams(queries.at(-1)).get('type')).toBe(null);
+  await page.getByLabel('From', { exact: true }).fill('2026-10-01');
+  await expect.poll(() => queries.some(query => new URLSearchParams(query).get('from') === '2026-10-01')).toBe(true);
 });

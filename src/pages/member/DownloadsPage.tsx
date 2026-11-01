@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiBookOpen, FiDownload, FiFileText, FiRefreshCw, FiGrid, FiList } from 'react-icons/fi';
+import { FiBookOpen, FiDownload, FiFileText, FiGrid, FiList } from 'react-icons/fi';
 import { TbFileDescription } from 'react-icons/tb';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
+import { RefreshIconButton } from '@/components/ui/RefreshIconButton';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { EmptyState, Spinner } from '@/components/ui/Feedback';
 import { MemberContentHeader } from '@/components/member/MemberContentUi';
@@ -100,7 +102,7 @@ export function MemberDownloadsPage() {
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-7 pb-8">
       <MemberContentHeader eyebrow="Member resources" title="Downloads" description="Your library of governance documents, meeting summaries and published minutes."
-        action={<Button variant="ghost" className="min-h-11 focus-visible:ring-2 focus-visible:ring-brand-500" icon={<FiRefreshCw />} disabled={loading} onClick={() => void load()}>Refresh</Button>} />
+        action={<RefreshIconButton title="Refresh" loading={loading} onClick={() => void load()} />} />
       <section aria-label="Document library" className="min-w-0 rounded-2xl bg-white p-4 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <SearchBar
@@ -111,12 +113,19 @@ export function MemberDownloadsPage() {
             wrapperClassName="min-w-0 w-full max-w-none lg:max-w-md"
           />
           <div className="flex min-w-0 items-center gap-3">
-            <label className="min-w-0 flex-1"><span className="sr-only">Document category</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value as DownloadCategory | 'ALL')} className="min-h-11 w-full rounded-xl bg-ink-50 px-3 text-sm text-ink-700 outline-none focus:ring-2 focus:ring-brand-500">
-                <option value="ALL">All documents</option>
-                {(Object.keys(categoryLabels) as DownloadCategory[]).map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}
-              </select>
-            </label>
+            <Select
+              aria-label="Document category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value as DownloadCategory | 'ALL')}
+              wrapperClassName="min-w-0 flex-1"
+              options={[
+                { value: 'ALL', label: 'All documents' },
+                ...(Object.keys(categoryLabels) as DownloadCategory[]).map((value) => ({
+                  value,
+                  label: categoryLabels[value],
+                })),
+              ]}
+            />
             <div className="flex shrink-0 gap-1 rounded-xl bg-ink-50 p-1" role="group" aria-label="Document view">
               {(['list', 'grid'] as const).map((option) => <button key={option} type="button" aria-label={`${option === 'list' ? 'List' : 'Grid'} view`} aria-pressed={view === option} onClick={() => setView(option)} className={`grid h-10 w-10 place-items-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-brand-600 ${view === option ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-400 hover:text-ink-700'}`}>{option === 'list' ? <FiList size={20} /> : <FiGrid size={19} />}</button>)}
             </div>
@@ -127,7 +136,7 @@ export function MemberDownloadsPage() {
           <span>Official member documents</span>
         </div>
         {loading ? <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-ink-500" role="status"><Spinner /> Loading documents…</div>
-          : error ? <div role="alert" className="rounded-xl bg-red-50 p-5 text-sm text-red-700">{error}<Button variant="ghost" className="ml-2 min-h-11" onClick={() => void load()}>Try again</Button></div>
+          : error ? <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl bg-red-50 p-5 text-sm text-red-700">{error}<RefreshIconButton size="sm" title="Try again" onClick={() => void load()} /></div>
           : visibleDocuments.length === 0 ? <EmptyState title={documents.length ? 'No documents found' : 'Your library is empty'} message={documents.length ? 'Try another search or document category.' : 'Published member documents will appear here.'} />
           : <>
             {view === 'list' && <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_10rem_7rem_8rem] gap-4 border-b border-ink-100 pb-3 text-xs font-semibold text-ink-400 xl:grid"><span>Document</span><span>Category</span><span>Published</span><span className="text-right">Download</span></div>}
