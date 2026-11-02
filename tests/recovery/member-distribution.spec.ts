@@ -59,7 +59,7 @@ test('dashboard shows real balances, a private estimate and no pending-actions w
   await page.screenshot({ path: '../outputs/member-dashboard-desktop.png', fullPage: true });
   await page.getByRole('link', { name: 'View more details', exact: true }).click();
   await expect(page).toHaveURL(/\/member\/distribution$/);
-  await expect(page.getByRole('heading', { name: 'Your distribution, explained' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Your income share' })).toBeVisible();
 });
 
 test('off hides the dashboard amount and blocks the direct detail route and history', async ({ page }) => {
@@ -75,17 +75,17 @@ test('off hides the dashboard amount and blocks the direct detail route and hist
 
 test('details explain the default formula and paginate only own capital movements', async ({ page }) => {
   const state = await setup(page); await page.goto('/member/distribution');
-  await expect(page.getByRole('heading', { name: 'Your distribution, explained' })).toBeVisible();
-  await expect(page.getByText('Default capital-based formula', { exact: true })).toBeVisible();
-  await expect(page.getByText('Amina Member · CG007', { exact: true })).toBeVisible();
-  await expect(page.getByText('Recorded loan interest, net of reversals', { exact: true })).toBeVisible();
-  await expect(page.getByText('Recorded fine income', { exact: true })).toBeVisible();
-  await expect(page.getByText(/The columns match because/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Your income share' })).toBeVisible();
+  await expect(page.getByText('Your income share = (your capital ÷ total group capital) × net shareable pool', { exact: true })).toBeVisible();
+  await expect(page.getByText('Recorded loan interest, net of reversals', { exact: false })).toBeVisible();
+  await expect(page.getByText('Recorded fine income', { exact: false })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Recorded and projected distribution values' }).getByRole('row', { name: 'Your income share KES 250.00 KES 250.00', exact: true })).toBeVisible();
+  await expect(page.getByText('Net pool = recorded income − expenses − distribution adjustments.', { exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Your contribution history' })).toBeVisible();
   await expect(page.getByText('MTG20260034', { exact: true })).toBeVisible();
   await expect(page.getByText('KES 450.75', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next page', exact: true }).click();
-  await expect(page.getByText('JE-2', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Your contribution history' }).getByText('KES -100.00', { exact: true })).toBeVisible();
   expect(state.historyPages).toContain(2);
   await page.screenshot({ path: '../outputs/member-distribution-desktop.png', fullPage: true });
 });
@@ -112,7 +112,8 @@ test('an approved allocation is presented as a saved allocation rather than a ne
   await page.goto('/member/distribution');
   await expect(page.getByText('Approved income share', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Approved allocation basis' })).toBeVisible();
-  await expect(page.getByText(/These amounts are taken from the saved AGM-approved allocation/)).toBeVisible();
+  await expect(page.getByText('Your saved AGM-approved income allocation.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Approved shareable pool', { exact: true })).toBeVisible();
   await expect(page.getByText('Year-end estimate', { exact: true })).toHaveCount(0);
 });
 
@@ -126,7 +127,7 @@ test('dashboard and distribution details use mobile space without page overflow'
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: '../outputs/member-dashboard-mobile.png', fullPage: true });
   await page.goto('/member/distribution');
-  await expect(page.getByRole('heading', { name: 'Your distribution, explained' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Your income share' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByRole('region', { name: 'Your contribution history' })).toBeVisible();
   await expect(page.getByText('MTG20260034', { exact: true })).toBeVisible();
