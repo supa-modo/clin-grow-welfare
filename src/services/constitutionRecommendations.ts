@@ -26,6 +26,18 @@ export function recommendationError(error: unknown) {
 }
 
 export const constitutionRecommendationsApi = {
+  exportAll: async () => {
+    const response = await api.get<Blob>('/constitution-recommendations/export', { responseType: 'blob', timeout: 60000 });
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `constitution-recommendations-${day}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+  },
   submit: (data: { submissionId: string; recommendations: RecommendationInput[] }) => api.post<{ count: number }>('/constitution-recommendations', data, { skipAuthRedirect: true, timeout: 30000 }),
   list: async (page: number) => (await api.get<RecommendationPage>('/constitution-recommendations', { params: { page } })).data,
 };

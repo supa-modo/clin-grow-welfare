@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { TbCopy, TbRefresh } from 'react-icons/tb';
+import { TbCopy, TbRefresh, TbFileSpreadsheet } from 'react-icons/tb';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { constitutionRecommendationsApi, recommendationFields } from '@/services/constitutionRecommendations';
@@ -9,10 +9,24 @@ import { constitutionRecommendationsApi, recommendationFields } from '@/services
 export function ConstitutionRecommendationsPage() {
   const [page, setPage] = useState(1);
   const [copyStatus, setCopyStatus] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const { data, isPending, isFetching, isError, refetch } = useQuery({
     queryKey: ['constitution-recommendations', page],
     queryFn: () => constitutionRecommendationsApi.list(page),
   });
+  async function exportAll() {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportError('');
+    try {
+      await constitutionRecommendationsApi.exportAll();
+    } catch {
+      setExportError('The Excel export could not be downloaded. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  }
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/constitution-suggestions`);
@@ -25,6 +39,7 @@ export function ConstitutionRecommendationsPage() {
 
   return <div>
     <PageHeader title="Constitution recommendations" description="Suggestions submitted by members" actions={<>
+      <Button onClick={() => void exportAll()} isLoading={isExporting} loadingText="Exporting…" disabled={isPending || isError || !data?.total} icon={<TbFileSpreadsheet />}>Export Excel</Button>
       <Button variant="secondary" onClick={() => void copyLink()} icon={<TbCopy />}>Copy member link</Button>
       <Button variant="secondary" disabled={isFetching} onClick={() => void refetch()} icon={<TbRefresh />}>Refresh</Button>
     </>} />
@@ -32,8 +47,9 @@ export function ConstitutionRecommendationsPage() {
       <p>Members sign in to submit their suggestions together. Their details are recorded with each recommendation. <Link className="font-semibold underline underline-offset-4" to="/constitution-suggestions" target="_blank" rel="noopener noreferrer">Open the suggestion form</Link></p>
       {copyStatus && <p role="status" className="mt-2 break-words">{copyStatus}</p>}
     </div>
+    {exportError && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{exportError}</p>}
     {isPending ? <p role="status" className="py-12 text-center text-sm text-slate-500">Loading recommendations…</p> : isError ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Unable to load recommendations. Please use Refresh to try again.</div> : data && <>
-      <p className="mb-3 text-sm text-slate-500">{data.total} recommendation{data.total === 1 ? '' : 's'} · Most recent first</p>
+      <p className="mb-3 text-sm text-slate-500">{data.total} recommendation{data.total === 1 ? '' : 's'} · Most recent first<span className="mt-1 block text-xs">Excel export includes all submissions and columns for review decisions, consolidated wording and notes.</span></p>
       {data.items.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center"><h2 className="font-semibold text-slate-800">No recommendations yet</h2><p className="mt-2 text-sm text-slate-500">Share the member link to invite suggestions.</p></div> : <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="hidden grid-cols-4 gap-5 border-b border-slate-200 bg-slate-50 p-5 lg:grid">{recommendationFields.map(({ key, label }) => <div key={key} className="text-xs font-bold text-slate-600">{label}</div>)}</div>
         {data.items.map((item) => <article key={item.id} className="border-b border-slate-200 p-5 last:border-0">
